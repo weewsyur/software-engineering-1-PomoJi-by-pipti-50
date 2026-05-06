@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   StatusBar,
   Modal,
   TextInput,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -18,79 +17,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { File } from "expo-file-system";
 import { Colors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
 import { signOutUser } from "@/store/userStore";
 import { useRouter } from "expo-router";
-import { auth, db, storage } from "@/services/firebase";
-import { collection, query, where, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
-import { getDownloadURL, ref, uploadString } from "firebase/storage";
-import { updateProfile } from "firebase/auth";
+import { ProfileAvatar } from "@/app/components/ProfileAvatar";
+import { useProfile, useProfileStats, useConnections, useProfileUpdate } from "@/hooks/useProfile";
+import { UserListItem } from "@/services/profile";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface UserProfile {
-  name: string; // maps to username from sign-up
-  email: string;
-  photoUri: string | null;
-}
-type UserListItem = { id: string; username: string };
 type ConnectionModalType = "Following" | "Followers";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function getInitials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .slice(0, 2)
-    .join("");
-}
-
-// ─── Avatar ───────────────────────────────────────────────────────────────────
-function ProfileAvatar({
-  profile,
-  size = 80,
-  onPress,
-}: {
-  profile: UserProfile;
-  size?: number;
-  onPress?: () => void;
-}) {
-  const initials = getInitials(profile.name);
-
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={onPress ? 0.8 : 1}
-      style={{ position: "relative" }}
-    >
-      {profile.photoUri ? (
-        <Image
-          source={{ uri: profile.photoUri }}
-          style={{ width: size, height: size, borderRadius: size / 2 }}
-          resizeMode="cover"
-        />
-      ) : (
-        <View
-          style={StyleSheet.flatten([
-            styles.avatarFallback,
-            { width: size, height: size, borderRadius: size / 2 },
-          ])}
-        >
-          <Text style={StyleSheet.flatten([styles.avatarInitials, { fontSize: size * 0.32 }])}>
-            {initials}
-          </Text>
-        </View>
-      )}
-      {onPress && (
-        <View style={styles.cameraBadge}>
-          <Ionicons name="camera" size={11} color={Colors.surface} />
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -118,123 +53,32 @@ const SETTINGS = [
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const router = useRouter();
-
-  const [profile, setProfile] = useState<UserProfile>({
-    name: "Your Name",
-    email: "your@email.com",
-    photoUri: null,
-  });
-  const [loadingProfile, setLoadingProfile] = useState(true);
+  const { profile, loadingProfile, setProfile } = useProfile();
+  const { stats: userStats, loadingStats } = useProfileStats();
+  const { connectionsList, loadingConnections, loadConnections } = useConnections();
+  const { updateProfile } = useProfileUpdate();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [draftName, setDraftName] = useState(profile.name);
   const [draftPhotoUri, setDraftPhotoUri] = useState<string | null>(
     profile.photoUri,
   );
-
-  // ── Stats state ─────────────────────────────────────────────────────────────
-  const [stats, setStats] = useState([
-    { label: "Total Hours", value: "0h" },
-    { label: "Sessions", value: "0" },
-    { label: "Streak", value: "0d" },
-    { label: "Following", value: "0" },
-    { label: "Followers", value: "0" },
-  ]);
-  const [loadingStats, setLoadingStats] = useState(true);
   const [connectionsModalVisible, setConnectionsModalVisible] = useState(false);
   const [connectionsModalType, setConnectionsModalType] = useState<ConnectionModalType>("Following");
-  const [connectionsList, setConnectionsList] = useState<UserListItem[]>([]);
-  const [loadingConnections, setLoadingConnections] = useState(false);
 
-  // ── Fetch profile from Firestore ────────────────────────────────────────────
+  const stats = [
+    { label: "Total Hours", value: `${userStats.totalHours}h` },
+    { label: "Sessions", value: userStats.sessions.toString() },
+    { label: "Streak", value: `${userStats.streakDays}d` },
+    { label: "Following", value: userStats.following.toString() },
+    { label: "Followers", value: userStats.followers.toString() },
+  ];
+
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const userId = auth.currentUser?.uid;
-        if (!userId) {
-          console.warn("ProfileScreen: auth.currentUser is null; skipping profile fetch.");
-          return;
-        }
-        const userRef = doc(db, "users", userId);
-        const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) return;
-        const userData = userSnap.data();
-        const nextProfile: UserProfile = {
-          name: (userData.username as string) || "Your Name",
-          email: (userData.email as string) || auth.currentUser?.email || "your@email.com",
-          photoUri: (userData.photoUrl as string) || null,
-        };
-        setProfile(nextProfile);
-        setDraftName(nextProfile.name);
-        setDraftPhotoUri(nextProfile.photoUri);
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-      } finally {
-        setLoadingProfile(false);
-      }
-    };
+    setDraftName(profile.name);
+    setDraftPhotoUri(profile.photoUri);
+  }, [profile]);
 
-    fetchProfile();
-  }, []);
-
-  // ── Fetch stats from Firestore ───────────────────────────────────────────────
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const userId = auth.currentUser?.uid;
-        if (!userId) {
-          console.warn("ProfileScreen: auth.currentUser is null; skipping stats fetch.");
-          setLoadingStats(false);
-          return;
-        }
-
-        // Query sessions for this user
-        const sessionsQuery = query(
-          collection(db, "users", userId, "sessions"),
-          where("mode", "==", "focus")
-        );
-        const sessionsSnapshot = await getDocs(sessionsQuery);
-
-        // Compute total hours and session count
-        let totalSeconds = 0;
-        sessionsSnapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data.duration) {
-            totalSeconds += data.duration;
-          }
-        });
-
-        const totalHours = Math.floor(totalSeconds / 3600);
-        const sessionCount = sessionsSnapshot.size;
-
-        // Fetch user document for streak data
-        const userDoc = await getDoc(doc(db, "users", userId));
-        let streakDays = 0;
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          streakDays = userData.streakDays || 0;
-        }
-        const [followingSnapshot, followersSnapshot] = await Promise.all([
-          getDocs(collection(db, "following", userId, "list")),
-          getDocs(collection(db, "followers", userId, "list")),
-        ]);
-
-        setStats([
-          { label: "Total Hours", value: `${totalHours}h` },
-          { label: "Sessions", value: sessionCount.toString() },
-          { label: "Streak", value: `${streakDays}d` },
-          { label: "Following", value: followingSnapshot.size.toString() },
-          { label: "Followers", value: followersSnapshot.size.toString() },
-        ]);
-      } catch (error) {
-        console.error("Error fetching stats:", error);
-      } finally {
-        setLoadingStats(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
 
   // ── Sign out handler ────────────────────────────────────────────────────────
   const handleSignOut = async () => {
@@ -292,88 +136,15 @@ export default function ProfileScreen() {
     }
 
     try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        throw new Error("User not authenticated");
-      }
-
-      const userId = currentUser.uid;
-      const userRef = doc(db, "users", userId);
-      let nextPhotoUri = profile.photoUri;
-      const updates: { username: string; photoUrl?: string | null } = {
-        username: draftName.trim(),
-      };
-
-      if (draftPhotoUri !== profile.photoUri) {
-        if (draftPhotoUri) {
-          const avatarRef = ref(storage, `profileImages/${userId}`);
-          const photoFile = new File(draftPhotoUri);
-          const fileInfo = photoFile.info();
-          if (photoFile.exists && fileInfo.size && fileInfo.size > 5 * 1024 * 1024) {
-            Alert.alert("Photo too large", "Please upload an image under 5MB.");
-            return;
-          }
-
-          const ext = draftPhotoUri.split(".").pop()?.toLowerCase() ?? "jpg";
-          const mimeMap: Record<string, string> = {
-            jpg: "image/jpeg",
-            jpeg: "image/jpeg",
-            png: "image/png",
-            webp: "image/webp",
-          };
-          const contentType = mimeMap[ext] ?? "image/jpeg";
-          if (!Object.values(mimeMap).includes(contentType)) {
-            Alert.alert("Invalid photo type", "Please upload a JPG, PNG, or WEBP.");
-            return;
-          }
-
-          try {
-            const base64 = await photoFile.base64();
-            await uploadString(avatarRef, base64, "base64", { contentType });
-            nextPhotoUri = await getDownloadURL(avatarRef);
-            updates.photoUrl = nextPhotoUri;
-          } catch (storageError) {
-            const firebaseStorageError = storageError as {
-              code?: string;
-              message?: string;
-              serverResponse?: string;
-            };
-            console.error("Storage upload failed:", firebaseStorageError);
-            console.error("Storage error code:", firebaseStorageError.code ?? "unknown");
-            console.error("Storage error message:", firebaseStorageError.message ?? "Unknown Storage error");
-            console.error("Storage server response:", firebaseStorageError.serverResponse ?? "No server response");
-            if (firebaseStorageError.code === "storage/unknown") {
-              console.error(
-                "Check Firebase Storage rules for authenticated writes to profileImages/{uid}, and verify bucket CORS policy for your app origin."
-              );
-            }
-            throw storageError;
-          }
-        } else {
-          nextPhotoUri = null;
-          updates.photoUrl = null;
-        }
-      }
-
-      await updateDoc(userRef, updates);
-      await updateProfile(currentUser, {
-        displayName: draftName.trim(),
-        photoURL: nextPhotoUri ?? null,
-      });
-
+      const updatedProfile = await updateProfile(draftName, draftPhotoUri, profile.photoUri);
       setProfile((prev) => ({
         ...prev,
-        name: draftName.trim(),
-        photoUri: nextPhotoUri,
+        ...updatedProfile,
       }));
       setModalVisible(false);
     } catch (error) {
-      const firebaseError = error as { code?: string; message?: string };
-      console.log("FULL ERROR:", error);
-      console.log("ERROR CODE:", firebaseError.code ?? "unknown");
-      console.log("ERROR MESSAGE:", firebaseError.message ?? "Unknown error");
-      console.error("Error updating profile:", error);
-      Alert.alert("Error", "Failed to update profile. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Failed to update profile. Please try again.";
+      Alert.alert("Error", errorMessage);
     }
   };
 
@@ -428,30 +199,14 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const openConnectionsModal = async (type: ConnectionModalType) => {
-    const userId = auth.currentUser?.uid;
-    if (!userId) {
-      console.warn("ProfileScreen: auth.currentUser is null; skipping connections fetch.");
-      return;
-    }
-    setConnectionsModalType(type);
-    setConnectionsModalVisible(true);
-    setLoadingConnections(true);
-    try {
-      const sourceCollection =
-        type === "Following"
-          ? collection(db, "following", userId, "list")
-          : collection(db, "followers", userId, "list");
-      const snapshot = await getDocs(sourceCollection);
-      const users = snapshot.docs.map((itemDoc) => ({
-        id: itemDoc.id,
-        username: (itemDoc.data().username as string) || "User",
-      }));
-      setConnectionsList(users);
-    } finally {
-      setLoadingConnections(false);
-    }
-  };
+  const openConnectionsModal = useCallback(
+    (type: ConnectionModalType) => {
+      setConnectionsModalType(type);
+      setConnectionsModalVisible(true);
+      loadConnections(type);
+    },
+    [loadConnections]
+  );
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -744,7 +499,7 @@ export default function ProfileScreen() {
                     }}
                   >
                     <View style={styles.avatarCircle}>
-                      <Text style={styles.avatarText}>{getInitials(item.username)}</Text>
+                      <Text style={styles.avatarText}>{item.username.slice(0, 2).toUpperCase()}</Text>
                     </View>
                     <Text style={styles.reminderRowTitle}>{item.username}</Text>
                   </TouchableOpacity>
@@ -804,28 +559,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 24,
     gap: 4,
-  },
-  avatarFallback: {
-    backgroundColor: Colors.avatarBg,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarInitials: {
-    fontWeight: "700",
-    color: Colors.avatarText,
-  },
-  cameraBadge: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: Colors.surface,
   },
   profileName: {
     fontSize: 20,

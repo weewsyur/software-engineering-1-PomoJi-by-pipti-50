@@ -9,8 +9,6 @@ import { createUserDocument } from "@/services/firestore";
 
 const getAuthErrorCode = (error: unknown) => {
   const code = (error as { code?: string } | null)?.code ?? "";
-  console.log("Firebase auth error code:", code);
-  console.log("Full error:", error);
   return code;
 };
 

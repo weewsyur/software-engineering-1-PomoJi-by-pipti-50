@@ -4,24 +4,25 @@ import { SharedStyles } from "@/constants/styles";
 import { useActivities } from "@/hooks/useActivities";
 import { Task, TaskCategory, useSessions, useTasks } from "@/hooks/usePomodoro";
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Animated,
   Easing,
   FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { TaskModal } from "@/app/components/timer/TaskModal";
+import { CategoryPill } from "@/app/components/timer/CategoryPill";
+import { TaskRow, getTaskTitle } from "@/app/components/timer/TaskRow";
+import { BreakBanner } from "@/app/components/timer/BreakBanner";
+import { TaskPicker } from "@/app/components/timer/TaskPicker";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,22 +38,6 @@ const MODES: { key: TimerMode; label: string; duration: number }[] = [
 
 const SESSIONS_BEFORE_LONG_BREAK = 4;
 
-const CATEGORY_COLORS: Record<TaskCategory, string> = {
-  work: "#C94C3C",
-  study: "#4C7AC9",
-  personal: "#7AC94C",
-  health: "#C9A44C",
-  other: "#9A7AC9",
-};
-
-const CATEGORIES: TaskCategory[] = [
-  "work",
-  "study",
-  "personal",
-  "health",
-  "other",
-];
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const formatTime = (s: number) => {
@@ -61,386 +46,18 @@ const formatTime = (s: number) => {
   return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
 };
 
-const uid = () => Math.random().toString(36).slice(2, 10);
 const isTaskCategory = (value: unknown): value is TaskCategory =>
   value === "work" ||
   value === "study" ||
   value === "personal" ||
   value === "health" ||
   value === "other";
-const getTaskTitle = (task: Task) => {
-  if (typeof task?.title === "string") return task.title;
-  const nestedTitle =
-    task?.title && typeof task.title === "object"
-      ? (task.title as unknown as { title?: unknown }).title
-      : null;
-  return typeof nestedTitle === "string" ? nestedTitle : "Untitled Task";
-};
+
 const getTaskCategory = (task: Task): TaskCategory =>
   isTaskCategory(task?.category) ? task.category : "other";
+
 const getTaskDueDate = (task: Task) =>
   typeof task?.dueDate === "string" ? task.dueDate : "";
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-const CategoryPill = ({ cat }: { cat: TaskCategory }) => (
-  <View
-    style={StyleSheet.flatten([
-      pillStyles.pill,
-      { backgroundColor: CATEGORY_COLORS[cat] + "22" },
-    ])}
-  >
-    <View
-      style={StyleSheet.flatten([
-        pillStyles.dot,
-        { backgroundColor: CATEGORY_COLORS[cat] },
-      ])}
-    />
-    <Text
-      style={StyleSheet.flatten([
-        pillStyles.label,
-        { color: CATEGORY_COLORS[cat] },
-      ])}
-    >
-      {cat.charAt(0).toUpperCase() + cat.slice(1)}
-    </Text>
-  </View>
-);
-
-const pillStyles = StyleSheet.create({
-  pill: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    gap: 4,
-    alignSelf: "flex-start",
-  },
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  label: { fontSize: 10, fontWeight: "600" },
-});
-
-// ─── Task Modal ───────────────────────────────────────────────────────────────
-
-interface TaskModalProps {
-  visible: boolean;
-  initial?: Task | null;
-  onSave: (task: Task) => void;
-  onClose: () => void;
-}
-
-const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps) => {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [dueDate, setDueDate] = useState("");
-  const [category, setCategory] = useState<TaskCategory>("work");
-
-  useEffect(() => {
-    if (initial) {
-      setTitle(initial.title);
-      setDescription(initial.description);
-      setDueDate(initial.dueDate);
-      setCategory(initial.category);
-    } else {
-      setTitle("");
-      setDescription("");
-      setDueDate("");
-      setCategory("work");
-    }
-  }, [initial, visible]);
-
-  const handleSave = () => {
-    if (!title.trim()) {
-      Alert.alert("Title required", "Please enter a task title.");
-      return;
-    }
-    const task: Task = {
-      id: initial?.id ?? uid(),
-      title: title.trim(),
-      description: description.trim(),
-      dueDate,
-      category,
-      completed: initial?.completed ?? false,
-      totalTime: initial?.totalTime ?? 0,
-      createdAt: initial?.createdAt ?? new Date().toISOString(),
-    };
-    onSave(task);
-  };
-
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={modalStyles.overlay}
-      >
-        <View style={modalStyles.sheet}>
-          <View style={modalStyles.sheetHeader}>
-            <Text style={modalStyles.sheetTitle}>
-              {initial ? "Edit Task" : "New Task"}
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={22} color={Colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <Text style={modalStyles.fieldLabel}>Title *</Text>
-            <TextInput
-              style={modalStyles.input}
-              placeholder="Task title"
-              placeholderTextColor="#C4A8A8"
-              value={title}
-              onChangeText={setTitle}
-            />
-            <Text style={modalStyles.fieldLabel}>Description</Text>
-            <TextInput
-              style={StyleSheet.flatten([
-                modalStyles.input,
-                modalStyles.textArea,
-              ])}
-              placeholder="Optional details…"
-              placeholderTextColor="#C4A8A8"
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={3}
-            />
-            <Text style={modalStyles.fieldLabel}>Due Date</Text>
-            <TextInput
-              style={modalStyles.input}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#C4A8A8"
-              value={dueDate}
-              onChangeText={setDueDate}
-            />
-            <Text style={modalStyles.fieldLabel}>Category</Text>
-            <View style={modalStyles.catRow}>
-              {CATEGORIES.map((c) => (
-                <TouchableOpacity
-                  key={c}
-                  style={StyleSheet.flatten([
-                    modalStyles.catBtn,
-                    { borderColor: CATEGORY_COLORS[c] },
-                    category === c && { backgroundColor: CATEGORY_COLORS[c] },
-                  ])}
-                  onPress={() => setCategory(c)}
-                >
-                  <Text
-                    style={StyleSheet.flatten([
-                      modalStyles.catBtnText,
-                      { color: category === c ? "#fff" : CATEGORY_COLORS[c] },
-                    ])}
-                  >
-                    {c.charAt(0).toUpperCase() + c.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-
-          <View style={modalStyles.actions}>
-            <TouchableOpacity style={modalStyles.cancelBtn} onPress={onClose}>
-              <Text style={modalStyles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={modalStyles.saveBtn} onPress={handleSave}>
-              <Text style={modalStyles.saveText}>Save Task</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-};
-
-const modalStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    backgroundColor: "#F5F1E8",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    maxHeight: "85%",
-  },
-  sheetHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  sheetTitle: { fontSize: 17, fontWeight: "800", color: "#1A0808" },
-  fieldLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#9A7070",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 6,
-    marginTop: 12,
-  },
-  input: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#EAD8D8",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: "#1A0808",
-  },
-  textArea: { minHeight: 72, textAlignVertical: "top" },
-  catRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  catBtn: {
-    borderWidth: 1.5,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  catBtnText: { fontSize: 12, fontWeight: "600" },
-  actions: { flexDirection: "row", gap: 10, marginTop: 20 },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: "#EAD8D8",
-    alignItems: "center",
-  },
-  cancelText: { fontSize: 14, fontWeight: "700", color: "#9A7070" },
-  saveBtn: {
-    flex: 2,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: "#C94C3C",
-    alignItems: "center",
-  },
-  saveText: { fontSize: 14, fontWeight: "700", color: "#fff" },
-});
-
-// ─── Task Row ─────────────────────────────────────────────────────────────────
-
-interface TaskRowProps {
-  task: Task;
-  onToggle: (id: string) => void;
-  onEdit: (task: Task) => void;
-  onDelete: (id: string) => void;
-}
-
-const TaskRow = ({ task, onToggle, onEdit, onDelete }: TaskRowProps) => (
-  <View style={taskRowStyles.row}>
-    <TouchableOpacity
-      style={taskRowStyles.check}
-      onPress={() => onToggle(task.id)}
-    >
-      <Ionicons
-        name={task.completed ? "checkmark-circle" : "ellipse-outline"}
-        size={22}
-        color={task.completed ? "#C94C3C" : "#C4A8A8"}
-      />
-    </TouchableOpacity>
-    <View style={taskRowStyles.body}>
-      <Text
-        style={StyleSheet.flatten([
-          taskRowStyles.title,
-          task.completed ? taskRowStyles.done : undefined,
-        ])}
-      >
-        {getTaskTitle(task)}
-      </Text>
-      <View style={taskRowStyles.meta}>
-        <CategoryPill cat={getTaskCategory(task)} />
-        {!!getTaskDueDate(task) && (
-          <Text style={taskRowStyles.due}>📅 {getTaskDueDate(task)}</Text>
-        )}
-      </View>
-    </View>
-    <TouchableOpacity style={taskRowStyles.icon} onPress={() => onEdit(task)}>
-      <Ionicons name="pencil-outline" size={16} color="#9A7070" />
-    </TouchableOpacity>
-    <TouchableOpacity
-      style={taskRowStyles.icon}
-      onPress={() =>
-        Alert.alert("Delete Task", "Are you sure?", [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: () => onDelete(task.id),
-          },
-        ])
-      }
-    >
-      <Ionicons name="trash-outline" size={16} color="#C94C3C" />
-    </TouchableOpacity>
-  </View>
-);
-
-const taskRowStyles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EAD8D8",
-  },
-  check: { padding: 2 },
-  body: { flex: 1, gap: 4 },
-  title: { fontSize: 14, fontWeight: "600", color: "#1A0808" },
-  done: { textDecorationLine: "line-through", color: "#9A7070" },
-  meta: { flexDirection: "row", alignItems: "center", gap: 8 },
-  due: { fontSize: 10, color: "#9A7070" },
-  icon: { padding: 4 },
-});
-
-// ─── Break Banner ─────────────────────────────────────────────────────────────
-
-interface BreakBannerProps {
-  mode: TimerMode;
-  onSkip: () => void;
-}
-
-const BreakBanner = ({ mode, onSkip }: BreakBannerProps) => {
-  if (mode === "focus") return null;
-  return (
-    <View style={bannerStyles.banner}>
-      <Text style={bannerStyles.emoji}>{mode === "long" ? "🛋️" : "☕"}</Text>
-      <Text style={bannerStyles.text}>
-        {mode === "long"
-          ? "Long Break – great work on 4 sessions!"
-          : "Short Break – recharge!"}
-      </Text>
-      <TouchableOpacity onPress={onSkip}>
-        <Text style={bannerStyles.skip}>Skip</Text>
-      </TouchableOpacity>
-    </View>
-  );
-};
-
-const bannerStyles = StyleSheet.create({
-  banner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFF3CD",
-    borderRadius: 10,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
-  },
-  emoji: { fontSize: 16 },
-  text: { flex: 1, fontSize: 12, color: "#856404", fontWeight: "500" },
-  skip: { fontSize: 12, fontWeight: "700", color: "#C94C3C" },
-});
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
@@ -520,24 +137,24 @@ export default function TimerScreen() {
               // ── Record the completed session ──────────────────────────
               const durationMinutes = sessionStartTimeRef.current
                 ? Math.round(
-                    Math.max(
-                      60000,
-                      Date.now() -
-                        sessionStartTimeRef.current -
-                        pausedAccumulatedMsRef.current,
-                    ) / 60000,
-                  )
+                  Math.max(
+                    60000,
+                    Date.now() -
+                    sessionStartTimeRef.current -
+                    pausedAccumulatedMsRef.current,
+                  ) / 60000,
+                )
                 : 25;
               const durationSeconds = sessionStartTimeRef.current
                 ? Math.max(
-                    60,
-                    Math.round(
-                      (Date.now() -
-                        sessionStartTimeRef.current -
-                        pausedAccumulatedMsRef.current) /
-                        1000,
-                    ),
-                  )
+                  60,
+                  Math.round(
+                    (Date.now() -
+                      sessionStartTimeRef.current -
+                      pausedAccumulatedMsRef.current) /
+                    1000,
+                  ),
+                )
                 : 25 * 60;
 
               createSession({
@@ -627,7 +244,7 @@ export default function TimerScreen() {
 
   // ── FR-04: Timer Controls ───────────────────────────────────────────────
 
-  const handleStart = () => {
+  const handleStart = useCallback(() => {
     setCanRecordSession(false);
     if (mode === "focus") {
       sessionStartTimeRef.current = Date.now();
@@ -636,9 +253,9 @@ export default function TimerScreen() {
     }
     setHasStarted(true);
     setIsRunning(true);
-  };
+  }, [mode]);
 
-  const handlePause = () => {
+  const handlePause = useCallback(() => {
     if (
       mode === "focus" &&
       sessionStartTimeRef.current &&
@@ -647,17 +264,17 @@ export default function TimerScreen() {
       pauseStartedAtRef.current = Date.now();
     }
     setIsRunning(false);
-  };
+  }, [mode]);
 
-  const handleResume = () => {
+  const handleResume = useCallback(() => {
     if (mode === "focus" && pauseStartedAtRef.current) {
       pausedAccumulatedMsRef.current += Date.now() - pauseStartedAtRef.current;
       pauseStartedAtRef.current = null;
     }
     setIsRunning(true);
-  };
+  }, [mode]);
 
-  const handleStop = () => {
+  const handleStop = useCallback(() => {
     setIsRunning(false);
     if (mode === "focus" && sessionStartTimeRef.current) {
       const elapsedSeconds = Math.max(
@@ -666,7 +283,7 @@ export default function TimerScreen() {
           (Date.now() -
             sessionStartTimeRef.current -
             pausedAccumulatedMsRef.current) /
-            1000,
+          1000,
         ),
       );
       setPostActivityDraft({
@@ -680,9 +297,9 @@ export default function TimerScreen() {
     sessionStartTimeRef.current = null;
     pauseStartedAtRef.current = null;
     pausedAccumulatedMsRef.current = 0;
-  };
+  }, [mode, activeTask, sessions, currentMode.duration]);
 
-  const handleModeSwitch = (m: TimerMode) => {
+  const handleModeSwitch = useCallback((m: TimerMode) => {
     setMode(m);
     setIsRunning(false);
     setHasStarted(false);
@@ -691,9 +308,9 @@ export default function TimerScreen() {
     sessionStartTimeRef.current = null;
     pauseStartedAtRef.current = null;
     pausedAccumulatedMsRef.current = 0;
-  };
+  }, []);
 
-  const handleSkipBreak = () => {
+  const handleSkipBreak = useCallback(() => {
     setMode("focus");
     setTimeLeft(25 * 60);
     setIsRunning(false);
@@ -701,43 +318,55 @@ export default function TimerScreen() {
     setCanRecordSession(false);
     pauseStartedAtRef.current = null;
     pausedAccumulatedMsRef.current = 0;
-  };
+  }, []);
 
   // ── FR-03: Task Management (FIXED – uses hook methods, not setTasks) ───
 
-  const handleSaveTask = (task: Task) => {
-    const exists = tasks.find((t) => t.id === task.id);
-    if (exists) {
-      updateTask(task.id, task);
-    } else {
-      createTask(task);
+  const handleSaveTask = useCallback(async (task: Task) => {
+    try {
+      const exists = tasks.find((t) => t.id === task.id);
+      if (exists) {
+        await updateTask(task.id, task);
+      } else {
+        await createTask(task);
+      }
+      setTaskModalVisible(false);
+      setEditingTask(null);
+    } catch (error) {
+      Alert.alert("Error", "Failed to save task. Please try again.");
     }
-    setTaskModalVisible(false);
-    setEditingTask(null);
-  };
+  }, [tasks, updateTask, createTask]);
 
-  const handleToggleTask = (id: string) => {
-    const task = tasks.find((t) => t.id === id);
-    if (task) updateTask(id, { completed: !task.completed });
-  };
+  const handleToggleTask = useCallback(async (id: string) => {
+    try {
+      const task = tasks.find((t) => t.id === id);
+      if (task) await updateTask(id, { completed: !task.completed });
+    } catch (error) {
+      Alert.alert("Error", "Failed to update task. Please try again.");
+    }
+  }, [tasks, updateTask]);
 
-  const handleDeleteTask = (id: string) => {
-    deleteTask(id);
-  };
+  const handleDeleteTask = useCallback(async (id: string) => {
+    try {
+      await deleteTask(id);
+    } catch (error) {
+      Alert.alert("Error", "Failed to delete task. Please try again.");
+    }
+  }, [deleteTask]);
 
-  const openNewTask = () => {
+  const openNewTask = useCallback(() => {
     setEditingTask(null);
     setTaskModalVisible(true);
-  };
+  }, []);
 
-  const openEditTask = (task: Task) => {
+  const openEditTask = useCallback((task: Task) => {
     setEditingTask(task);
     setTaskModalVisible(true);
-  };
+  }, []);
 
   // ── Derived ──────────────────────────────────────────────────────────────
   const SIZE = 240;
-  const pendingTasks = tasks.filter((t) => !t.completed).length;
+  const pendingTasks = useMemo(() => tasks.filter((t) => !t.completed).length, [tasks]);
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -981,66 +610,13 @@ export default function TimerScreen() {
         />
 
         {/* Session task picker */}
-        <Modal
+        <TaskPicker
           visible={taskPickerVisible}
-          animationType="fade"
-          transparent
-          onRequestClose={() => setTaskPickerVisible(false)}
-        >
-          <View style={pickerStyles.overlay}>
-            <View style={pickerStyles.sheet}>
-              <View style={pickerStyles.header}>
-                <Text style={pickerStyles.title}>Choose Focus Task</Text>
-                <TouchableOpacity onPress={() => setTaskPickerVisible(false)}>
-                  <Ionicons name="close" size={20} color={Colors.textMuted} />
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={StyleSheet.flatten([
-                  pickerStyles.item,
-                  !activeTask && pickerStyles.itemActive,
-                ])}
-                onPress={() => {
-                  setActiveTask(null);
-                  setTaskPickerVisible(false);
-                }}
-              >
-                <Text style={pickerStyles.itemTitle}>Unassigned Session</Text>
-                <Text style={pickerStyles.itemMeta}>No task linked</Text>
-              </TouchableOpacity>
-
-              <ScrollView
-                style={pickerStyles.list}
-                showsVerticalScrollIndicator={false}
-              >
-                {tasks
-                  .filter((task) => !task.completed)
-                  .map((task) => (
-                    <TouchableOpacity
-                      key={task.id}
-                      style={StyleSheet.flatten([
-                        pickerStyles.item,
-                        activeTask?.id === task.id && pickerStyles.itemActive,
-                      ])}
-                      onPress={() => {
-                        setActiveTask(task);
-                        setTaskPickerVisible(false);
-                      }}
-                    >
-                      <Text style={pickerStyles.itemTitle}>
-                        {getTaskTitle(task)}
-                      </Text>
-                      <Text style={pickerStyles.itemMeta}>
-                        {Math.floor(task.totalTime / 3600)}h{" "}
-                        {Math.floor((task.totalTime % 3600) / 60)}m logged
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
+          tasks={tasks}
+          activeTask={activeTask}
+          onSelect={(task) => setActiveTask(task)}
+          onClose={() => setTaskPickerVisible(false)}
+        />
 
         <PostActivityModal
           visible={postActivityVisible}
@@ -1268,43 +844,4 @@ const styles = StyleSheet.create({
   addBtnText: { fontSize: 12, fontWeight: "700", color: "#fff" },
   emptyState: { alignItems: "center", paddingVertical: 20, gap: 8 },
   emptyText: { fontSize: 13, color: "#C4A8A8", fontWeight: "500" },
-});
-
-const pickerStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
-    justifyContent: "center",
-    paddingHorizontal: 18,
-  },
-  sheet: {
-    backgroundColor: Colors.background,
-    borderRadius: 16,
-    padding: 14,
-    maxHeight: "70%",
-    flex: 1,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  title: { fontSize: 16, fontWeight: "800", color: Colors.text },
-  list: { marginTop: 6, flex: 1 },
-  item: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 8,
-    backgroundColor: Colors.surface,
-  },
-  itemActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primary + "14",
-  },
-  itemTitle: { fontSize: 14, fontWeight: "700", color: Colors.text },
-  itemMeta: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
 });

@@ -47,7 +47,7 @@ function WelcomeScreen() {
 
         <Text style={styles.welcomeTitle}>Welcome to PomoJI</Text>
         <Text style={styles.welcomeSub}>
-          A Gamified Productivity and Progress Monitoring System
+          A Productivity and Progress Monitoring System
         </Text>
 
         {/* Buttons */}
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     paddingVertical: 6,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },

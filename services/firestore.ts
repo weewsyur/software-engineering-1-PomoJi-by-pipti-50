@@ -10,7 +10,6 @@ export interface UserDocument {
 
 export const createUserDocument = async (user: User) => {
   try {
-    console.log("Creating user document for:", user.uid);
     const userRef = doc(db, "users", user.uid);
     const payload: UserDocument = {
       uid: user.uid,
@@ -18,10 +17,8 @@ export const createUserDocument = async (user: User) => {
       createdAt: serverTimestamp(),
     };
     await setDoc(userRef, payload, { merge: true });
-    console.log("User document created successfully");
     return payload;
   } catch (error) {
-    console.error("Error creating user document:", error);
     throw error;
   }
 };

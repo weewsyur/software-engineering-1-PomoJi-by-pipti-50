@@ -4,6 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
 import { StreakData } from "@/utils/streakCalculator";
+import { Activity } from "@/hooks/useActivities";
+import { calculateWeeklyStreak, groupSessionsByDay } from "@/utils/sessionFilters";
 
 interface StreakCardProps {
   streakCount?: number;
@@ -11,6 +13,8 @@ interface StreakCardProps {
   streakData?: StreakData | null;
   loading?: boolean;
   error?: Error | null;
+  activities?: Activity[];
+  useWeeklyStreak?: boolean;
 }
 
 const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
@@ -21,6 +25,8 @@ export const StreakCard: React.FC<StreakCardProps> = ({
   streakData,
   loading = false,
   error = null,
+  activities = [],
+  useWeeklyStreak = false,
 }) => {
   // Calculate the current date and day of the week
   const today = new Date();
@@ -46,17 +52,44 @@ export const StreakCard: React.FC<StreakCardProps> = ({
     return dates;
   }, [startOfWeek]);
 
-  // Use streakData if provided (real-time), otherwise fall back to streakCount
+  // Calculate weekly streak if enabled
+  const weeklyStreak = useMemo(() => {
+    if (useWeeklyStreak && activities.length > 0) {
+      return calculateWeeklyStreak(activities, today);
+    }
+    return 0;
+  }, [useWeeklyStreak, activities, today]);
+
+  // Get daily session counts for progress indicator
+  const dailySessions = useMemo(() => {
+    if (useWeeklyStreak && activities.length > 0) {
+      return groupSessionsByDay(activities, today);
+    }
+    return [];
+  }, [useWeeklyStreak, activities, today]);
+
+  // Use streakData if provided (real-time), otherwise fall back to streakCount or weeklyStreak
   const displayCount = useMemo(() => {
+    if (useWeeklyStreak) {
+      return weeklyStreak;
+    }
     if (streakData) {
       return streakData.currentStreak;
     }
     return streakCount || 0;
-  }, [streakData, streakCount]);
+  }, [useWeeklyStreak, weeklyStreak, streakData, streakCount]);
+
+  // Update streak unit for weekly mode
+  const displayUnit = useMemo(() => {
+    if (useWeeklyStreak) {
+      return "sessions";
+    }
+    return streakUnit;
+  }, [useWeeklyStreak, streakUnit]);
 
   return (
     <View style={StyleSheet.flatten([SharedStyles.card, styles.card])}>
-      <Text style={styles.title}>Your Streak</Text>
+      <Text style={styles.title}>{useWeeklyStreak ? "This Week's Streak" : "Your Streak"}</Text>
 
       {/* Loading State */}
       {loading && (
@@ -82,7 +115,7 @@ export const StreakCard: React.FC<StreakCardProps> = ({
               <Ionicons name="flame" size={22} color={Colors.surface} />
               <Text style={styles.flameCount}>{displayCount}</Text>
             </View>
-            <Text style={styles.streakUnit}>{streakUnit}</Text>
+            <Text style={styles.streakUnit}>{displayUnit}</Text>
           </View>
 
           {/* Days row */}
@@ -91,6 +124,8 @@ export const StreakCard: React.FC<StreakCardProps> = ({
               const isActive = i === mondayIndex;
               const currentDate = weekDates[i];
               const isCurrentDay = currentDate.toDateString() === today.toDateString();
+              const daySessionCount = useWeeklyStreak ? (dailySessions[i]?.totalSessions || 0) : 0;
+              const hasSession = useWeeklyStreak && daySessionCount > 0;
 
               return (
                 <View key={i} style={styles.dayColumn}>
@@ -102,20 +137,20 @@ export const StreakCard: React.FC<StreakCardProps> = ({
                   <View
                     style={StyleSheet.flatten([
                       styles.dayCircle,
-                      isCurrentDay
-                        ? styles.dayCircleActive
-                        : styles.dayCircleInactive,
+                      useWeeklyStreak
+                        ? (hasSession ? styles.dayCircleActive : styles.dayCircleInactive)
+                        : (isCurrentDay ? styles.dayCircleActive : styles.dayCircleInactive),
                     ])}
                   >
                     <Text
                       style={StyleSheet.flatten([
                         styles.dayNumber,
-                        isCurrentDay
-                          ? styles.dayNumberActive
-                          : styles.dayNumberInactive,
+                        useWeeklyStreak
+                          ? (hasSession ? styles.dayNumberActive : styles.dayNumberInactive)
+                          : (isCurrentDay ? styles.dayNumberActive : styles.dayNumberInactive),
                       ])}
                     >
-                      {currentDate.getDate()}
+                      {useWeeklyStreak ? daySessionCount : currentDate.getDate()}
                     </Text>
                   </View>
                 </View>

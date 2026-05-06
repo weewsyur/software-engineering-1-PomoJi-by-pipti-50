@@ -47,8 +47,8 @@ const normalizeTask = (raw: unknown): Task => {
     typeof task.title === "string"
       ? task.title
       : typeof nestedTitle === "string"
-      ? nestedTitle
-      : "Untitled Task";
+        ? nestedTitle
+        : "Untitled Task";
   const categoryCandidate = task.category;
   const category: TaskCategory =
     typeof categoryCandidate === "string" && VALID_CATEGORIES.includes(categoryCandidate as TaskCategory)
@@ -73,7 +73,6 @@ export function useTasks() {
   useEffect(() => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
-      console.warn("useTasks: auth.currentUser is null; skipping tasks subscription.");
       setTasksState([]);
       return;
     }
@@ -91,7 +90,6 @@ export function useTasks() {
   const getUid = useCallback(() => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
-      console.warn("useTasks: auth.currentUser is null; skipping Firestore write.");
       return null;
     }
     return currentUser.uid;
@@ -146,7 +144,6 @@ export function useSessions() {
   useEffect(() => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
-      console.warn("useSessions: auth.currentUser is null; skipping sessions subscription.");
       setSessionsState([]);
       return;
     }
@@ -166,7 +163,6 @@ export function useSessions() {
     async (params: Omit<Session, "id">) => {
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        console.warn("useSessions: auth.currentUser is null; skipping session write.");
         return;
       }
       await addDoc(collection(db, "users", currentUser.uid, "sessions"), params);

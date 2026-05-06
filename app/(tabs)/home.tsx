@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   View,
   Text,
   ScrollView,
@@ -18,29 +19,19 @@ import { Colors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
 import { StreakCard } from "../components/StreakCard";
 import { ActivityCard } from "../components/ActivityCard";
-import { db, auth } from "@/services/firebase";
+import { auth, db } from "@/services/firebase";
 import { useRouter } from "expo-router";
 import { useStreakListener } from "@/utils/useStreakListener";
 import { getUserStore } from "@/store/userStore";
 import { useReminders } from "@/hooks/useReminders";
 import { useActivities } from "@/hooks/useActivities";
 import {
-  collection,
-  query,
-  where,
-  getDocs,
-  doc,
-  getDoc,
-  writeBatch,
-  serverTimestamp,
-  limit,
-} from "firebase/firestore";
-
-type UserSearchResult = {
-  id: string;
-  username: string;
-};
-type FollowStatus = "follow" | "followBack" | "following";
+  searchUsers,
+  getFollowStatusMap,
+  followUser,
+  UserSearchResult,
+  FollowStatus,
+} from "@/services/social";
 
 const fmtTotalHours = (seconds: number) => {
   const minutes = Math.max(0, Math.round(seconds / 60));
@@ -86,13 +77,7 @@ export default function HomeScreen() {
     return email.slice(0, 2).toUpperCase();
   }, [userId]);
 
-  const runUserSearch = async () => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      console.warn("HomeScreen: auth.currentUser is null; skipping user search.");
-      return;
-    }
-
+  const runUserSearch = useCallback(async () => {
     const trimmed = searchQuery.trim();
     if (!trimmed) {
       setSearchResults([]);
@@ -101,78 +86,25 @@ export default function HomeScreen() {
 
     setSearching(true);
     try {
-      const usersRef = collection(db, "users");
-      const usersQuery = query(
-        usersRef,
-        where("username", ">=", trimmed),
-        where("username", "<=", `${trimmed}\uf8ff`),
-        limit(20)
-      );
-      const snapshot = await getDocs(usersQuery);
-      const results = snapshot.docs
-        .map((userDoc) => ({
-          id: userDoc.id,
-          username: userDoc.data().username as string,
-        }))
-        .filter((item) => item.id !== userId && Boolean(item.username));
+      const results = await searchUsers(searchQuery, userId);
       setSearchResults(results);
-      const currentUid = currentUser.uid;
-      if (!currentUid) {
-        setFollowStatusMap({});
-        return;
-      }
-      const statusEntries = await Promise.all(
-        results.map(async (item): Promise<[string, FollowStatus]> => {
-          const currentToTargetRef = doc(db, "following", currentUid, "list", item.id);
-          const targetToCurrentRef = doc(db, "following", item.id, "list", currentUid);
-          const [currentToTargetSnap, targetToCurrentSnap] = await Promise.all([
-            getDoc(currentToTargetRef),
-            getDoc(targetToCurrentRef),
-          ]);
-          if (currentToTargetSnap.exists()) return [item.id, "following"];
-          if (targetToCurrentSnap.exists()) return [item.id, "followBack"];
-          return [item.id, "follow"];
-        })
-      );
-      setFollowStatusMap(Object.fromEntries(statusEntries));
+      const statusMap = await getFollowStatusMap(results, userId);
+      setFollowStatusMap(statusMap);
     } finally {
       setSearching(false);
     }
-  };
+  }, [searchQuery, userId]);
 
   const handleFollow = async (target: UserSearchResult) => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      console.warn("HomeScreen: auth.currentUser is null; skipping follow write.");
-      return;
-    }
-    const currentUid = currentUser.uid;
-    if (!currentUid || currentUid === target.id) return;
-
     setFollowingUid(target.id);
     try {
-      const batch = writeBatch(db);
-      batch.set(doc(db, "following", currentUid, "list", target.id), {
-        username: target.username,
-        createdAt: serverTimestamp(),
-      });
-      batch.set(doc(db, "followers", target.id, "list", currentUid), {
-        username: currentUsername,
-        createdAt: serverTimestamp(),
-      });
-      const notificationRef = doc(collection(db, "notifications", target.id, "items"));
-      batch.set(notificationRef, {
-        type: "follow",
-        fromUid: currentUid,
-        fromUsername: currentUsername,
-        read: false,
-        createdAt: serverTimestamp(),
-      });
-      await batch.commit();
+      await followUser(target, currentUsername);
       setFollowStatusMap((prev) => ({
         ...prev,
         [target.id]: "following",
       }));
+    } catch (error) {
+      Alert.alert("Error", "Failed to follow user. Please try again.");
     } finally {
       setFollowingUid(null);
     }
@@ -333,7 +265,7 @@ export default function HomeScreen() {
                         styles.addBtn,
                         followStatusMap[item.id] === "following" && { backgroundColor: Colors.textMuted },
                         (followingUid === item.id || followStatusMap[item.id] === "following") &&
-                          styles.addBtnDisabled,
+                        styles.addBtnDisabled,
                       ])}
                       disabled={followingUid === item.id || followStatusMap[item.id] === "following"}
                       onPress={() => handleFollow(item)}

@@ -1,9 +1,14 @@
-import React, { useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, StatusBar, ActivityIndicator, Image } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, StatusBar, ActivityIndicator, Image, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../constants/colors";
 import { SharedStyles } from "../../constants/styles";
 import { useActivities } from "../../hooks/useActivities";
+import { filterSessionsByWeek, filterSessionsByMonth, groupSessionsByDay, groupSessionsByWeekForMonth } from "../../utils/sessionFilters";
+import { StreakCard } from "../components/StreakCard";
+import { useStreakListener } from "../../utils/useStreakListener";
+import { getUserStore } from "../../store/userStore";
+import { db } from "../../services/firebase";
 function fmtFocusTime(totalSeconds: number): string {
   const totalMinutes = Math.floor(totalSeconds / 60);
   const h = Math.floor(totalMinutes / 60);
@@ -22,33 +27,38 @@ function fmtDate(iso: string): string {
 
 export default function HistoryScreen() {
   const { activities, isLoading } = useActivities();
+  const [viewMode, setViewMode] = useState<'weekly' | 'monthly'>('weekly');
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const user = getUserStore();
+    setUserId(user.userId);
+  }, []);
+
+  const { streakData, loading: streakLoading, error: streakError } = useStreakListener(db, userId, "UTC");
+
+  const filteredActivities = useMemo(() => {
+    if (viewMode === 'weekly') {
+      return filterSessionsByWeek(activities);
+    }
+    return filterSessionsByMonth(activities);
+  }, [activities, viewMode]);
 
   const totalSessions = useMemo(
-    () => activities.reduce((sum, activity) => sum + (activity.sessions || 0), 0),
-    [activities]
+    () => filteredActivities.reduce((sum, activity) => sum + (activity.sessions || 0), 0),
+    [filteredActivities]
   );
   const totalFocusTime = useMemo(
-    () => activities.reduce((sum, activity) => sum + (activity.totalTime || 0), 0),
-    [activities]
+    () => filteredActivities.reduce((sum, activity) => sum + (activity.totalTime || 0), 0),
+    [filteredActivities]
   );
 
   const dailyData = useMemo(() => {
-    const totalsByDay = new Map<string, number>();
-    activities.forEach((activity) => {
-      const key = new Date(activity.createdAt).toISOString().slice(0, 10);
-      totalsByDay.set(key, (totalsByDay.get(key) ?? 0) + (activity.totalTime || 0));
-    });
-
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
-      const key = d.toISOString().slice(0, 10);
-      return {
-        day: d.toLocaleDateString([], { weekday: "short" }),
-        totalTime: totalsByDay.get(key) ?? 0,
-      };
-    });
-  }, [activities]);
+    if (viewMode === 'weekly') {
+      return groupSessionsByDay(activities);
+    }
+    return groupSessionsByWeekForMonth(activities);
+  }, [activities, viewMode]);
 
   const byCategory = useMemo(() => {
     const categoryMap = new Map<string, number>();
@@ -71,6 +81,30 @@ export default function HistoryScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <StreakCard
+          streakData={streakData}
+          loading={streakLoading}
+          error={streakError}
+          streakUnit="Days"
+        />
+        <View style={styles.viewToggleContainer}>
+          <TouchableOpacity
+            style={StyleSheet.flatten([styles.viewToggle, viewMode === 'weekly' && styles.viewToggleActive])}
+            onPress={() => setViewMode('weekly')}
+          >
+            <Text style={StyleSheet.flatten([styles.viewToggleText, viewMode === 'weekly' && styles.viewToggleTextActive])}>
+              Weekly
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={StyleSheet.flatten([styles.viewToggle, viewMode === 'monthly' && styles.viewToggleActive])}
+            onPress={() => setViewMode('monthly')}
+          >
+            <Text style={StyleSheet.flatten([styles.viewToggleText, viewMode === 'monthly' && styles.viewToggleTextActive])}>
+              Monthly
+            </Text>
+          </TouchableOpacity>
+        </View>
         <View style={StyleSheet.flatten([SharedStyles.card, styles.statsCard])}>
           <View style={styles.statsRow}>
             <View style={styles.statBlock}>
@@ -79,7 +113,7 @@ export default function HistoryScreen() {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statBlock}>
-              <Text style={styles.statValue}>{activities.length}</Text>
+              <Text style={styles.statValue}>{filteredActivities.length}</Text>
               <Text style={styles.statLabel}>Recorded Activities</Text>
             </View>
             <View style={styles.statDivider} />
@@ -91,10 +125,13 @@ export default function HistoryScreen() {
         </View>
 
         <View style={StyleSheet.flatten([SharedStyles.card, styles.chartCard])}>
-          <Text style={styles.cardTitle}>Focus Time - Last 7 Days</Text>
+          <Text style={styles.cardTitle}>
+            Focus Time - {viewMode === 'weekly' ? 'This Week' : 'This Month'}
+          </Text>
           <View style={styles.bars}>
             {dailyData.map((d, i) => {
               const heightPercent = d.totalTime / maxDailySeconds;
+              const label = 'day' in d ? d.day : d.weekLabel;
               return (
                 <View key={i} style={styles.barColumn}>
                   <View style={styles.barTrack}>
@@ -108,7 +145,7 @@ export default function HistoryScreen() {
                       ])}
                     />
                   </View>
-                  <Text style={styles.barLabel}>{d.day}</Text>
+                  <Text style={styles.barLabel} numberOfLines={1}>{label}</Text>
                 </View>
               );
             })}
@@ -176,6 +213,31 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 110, gap: 12 },
+  viewToggleContainer: {
+    flexDirection: "row",
+    backgroundColor: Colors.background,
+    borderRadius: 8,
+    padding: 4,
+    marginBottom: 12,
+  },
+  viewToggle: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignItems: "center",
+  },
+  viewToggleActive: {
+    backgroundColor: Colors.primary,
+  },
+  viewToggleText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.textMuted,
+  },
+  viewToggleTextActive: {
+    color: Colors.surface,
+  },
   statsCard: { paddingVertical: 18 },
   statsRow: { flexDirection: "row", alignItems: "center" },
   statBlock: { flex: 1, alignItems: "center", gap: 4 },
