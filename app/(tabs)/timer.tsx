@@ -350,8 +350,12 @@ export default function TimerScreen() {
       }
       setTaskModalVisible(false);
       setEditingTask(null);
-    } catch {
-      Alert.alert("Error", "Failed to save task. Please try again.");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to save task. Please try again.";
+      Alert.alert("Error", message);
     }
   }, [tasks, updateTask, createTask]);
 

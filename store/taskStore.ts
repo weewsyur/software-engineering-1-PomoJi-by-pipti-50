@@ -10,6 +10,7 @@ import {
   setDoc,
   updateDoc,
 } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 import {
   cancelTaskReminder,
   upsertTaskReminder,
@@ -72,6 +73,8 @@ interface TaskState {
 }
 
 let unsubscribeTasks: (() => void) | null = null;
+let unsubscribeAuth: (() => void) | null = null;
+let activeUid: string | null = null;
 
 const getCurrentUid = () => auth.currentUser?.uid ?? null;
 
@@ -79,27 +82,44 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
   initialized: false,
   initialize: () => {
-    if (unsubscribeTasks) return;
-    const currentUid = getCurrentUid();
-    if (!currentUid) {
-      set({ tasks: [], initialized: true });
-      return;
-    }
+    if (unsubscribeAuth) return;
 
-    const tasksQuery = query(
-      collection(db, "users", currentUid, "tasks"),
-      orderBy("createdAt", "desc"),
-    );
-    unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
-      const tasks = snapshot.docs.map((snapshotDoc) =>
-        normalizeTask({ id: snapshotDoc.id, ...snapshotDoc.data() }),
+    const bindTasksForUid = (uid: string | null) => {
+      if (unsubscribeTasks) {
+        unsubscribeTasks();
+        unsubscribeTasks = null;
+      }
+
+      activeUid = uid;
+      if (!uid) {
+        set({ tasks: [], initialized: true });
+        return;
+      }
+
+      const tasksQuery = query(
+        collection(db, "users", uid, "tasks"),
+        orderBy("createdAt", "desc"),
       );
-      set({ tasks, initialized: true });
+      unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
+        const tasks = snapshot.docs.map((snapshotDoc) =>
+          normalizeTask({ id: snapshotDoc.id, ...snapshotDoc.data() }),
+        );
+        set({ tasks, initialized: true });
+      });
+    };
+
+    bindTasksForUid(getCurrentUid());
+    unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      const nextUid = user?.uid ?? null;
+      if (nextUid === activeUid) return;
+      bindTasksForUid(nextUid);
     });
   },
   addTask: async (task) => {
     const currentUid = getCurrentUid();
-    if (!currentUid) return;
+    if (!currentUid) {
+      throw new Error("You need to sign in before saving tasks.");
+    }
     const normalized = normalizeTask(task);
     const reminderNotificationId = await upsertTaskReminder(
       normalized,
@@ -112,9 +132,13 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
   updateTask: async (id, patch) => {
     const currentUid = getCurrentUid();
-    if (!currentUid) return;
+    if (!currentUid) {
+      throw new Error("You need to sign in before updating tasks.");
+    }
     const existing = get().tasks.find((task) => task.id === id);
-    if (!existing) return;
+    if (!existing) {
+      throw new Error("Task not found. Please refresh and try again.");
+    }
 
     const merged = normalizeTask({ ...existing, ...patch, id, createdAt: existing.createdAt });
     const reminderNotificationId = await upsertTaskReminder(
@@ -130,16 +154,22 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
   deleteTask: async (id) => {
     const currentUid = getCurrentUid();
-    if (!currentUid) return;
+    if (!currentUid) {
+      throw new Error("You need to sign in before deleting tasks.");
+    }
     const existing = get().tasks.find((task) => task.id === id);
     await cancelTaskReminder(existing?.reminderNotificationId);
     await deleteDoc(doc(db, "users", currentUid, "tasks", id));
   },
   completeTask: async (id, completed = true) => {
     const currentUid = getCurrentUid();
-    if (!currentUid) return;
+    if (!currentUid) {
+      throw new Error("You need to sign in before updating tasks.");
+    }
     const existing = get().tasks.find((task) => task.id === id);
-    if (!existing) return;
+    if (!existing) {
+      throw new Error("Task not found. Please refresh and try again.");
+    }
 
     let reminderNotificationId = existing.reminderNotificationId ?? null;
     if (completed) {
@@ -159,9 +189,13 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
   addTimeToTask: async (id, seconds) => {
     const currentUid = getCurrentUid();
-    if (!currentUid) return;
+    if (!currentUid) {
+      throw new Error("You need to sign in before updating tasks.");
+    }
     const existing = get().tasks.find((task) => task.id === id);
-    if (!existing) return;
+    if (!existing) {
+      throw new Error("Task not found. Please refresh and try again.");
+    }
     await updateDoc(doc(db, "users", currentUid, "tasks", id), {
       totalTime: Math.max(0, (existing.totalTime ?? 0) + seconds),
     });

@@ -2,8 +2,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect } from "react";
 import DateTimePicker, {
   DateTimePickerEvent,
+  DateTimePickerAndroid,
 } from "@react-native-community/datetimepicker";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Modal,
@@ -58,7 +60,7 @@ const parseDueDate = (dateText: string): Date | null => {
 interface TaskModalProps {
   visible: boolean;
   initial?: Task | null;
-  onSave: (task: Task) => void;
+  onSave: (task: Task) => Promise<void>;
   onClose: () => void;
 }
 
@@ -69,6 +71,7 @@ export const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [category, setCategory] = useState<TaskCategory>("work");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (initial) {
@@ -88,14 +91,67 @@ export const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps)
   }, [initial, visible]);
 
   const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
-    if (Platform.OS === "android") {
-      setShowDatePicker(false);
-    }
     if (event.type === "dismissed" || !date) {
       return;
     }
+    const formatted = formatDate(date);
     setSelectedDate(date);
-    setDueDate(formatDate(date));
+    setDueDate(formatted);
+  };
+
+  const openWebDatePicker = () => {
+    const doc = (globalThis as { document?: Document }).document;
+    if (!doc) return;
+
+    const input = doc.createElement("input");
+    input.type = "date";
+    input.value = dueDate || formatDate(selectedDate ?? new Date());
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    input.style.pointerEvents = "none";
+    input.style.zIndex = "9999";
+
+    const cleanup = () => {
+      if (input.parentNode) {
+        input.parentNode.removeChild(input);
+      }
+    };
+
+    input.addEventListener("change", () => {
+      const value = input.value;
+      if (!value) {
+        cleanup();
+        return;
+      }
+      const parsed = parseDueDate(value);
+      setDueDate(value);
+      setSelectedDate(parsed);
+      cleanup();
+    });
+    input.addEventListener("blur", cleanup);
+    doc.body.appendChild(input);
+    input.focus();
+    const pickerInput = input as HTMLInputElement & { showPicker?: () => void };
+    pickerInput.showPicker?.();
+    input.click();
+  };
+
+  const openDatePicker = () => {
+    if (Platform.OS === "web") {
+      openWebDatePicker();
+      return;
+    }
+
+    if (Platform.OS === "android") {
+      DateTimePickerAndroid.open({
+        value: selectedDate ?? new Date(),
+        mode: "date",
+        onChange: handleDateChange,
+      });
+      return;
+    }
+
+    setShowDatePicker(true);
   };
 
   const handleClearDueDate = () => {
@@ -106,11 +162,14 @@ export const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps)
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim()) {
       Alert.alert("Title required", "Please enter a task title.");
       return;
     }
+
+    if (saving) return;
+
     const task: Task = {
       id: initial?.id ?? uid(),
       title: title.trim(),
@@ -122,7 +181,16 @@ export const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps)
       totalTime: initial?.totalTime ?? 0,
       createdAt: initial?.createdAt ?? new Date().toISOString(),
     };
-    onSave(task);
+    try {
+      setSaving(true);
+      await onSave(task);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to save task. Please try again.";
+      Alert.alert("Error", message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -171,7 +239,7 @@ export const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps)
             <Text style={modalStyles.fieldLabel}>Due Date</Text>
             <TouchableOpacity
               style={modalStyles.dateInput}
-              onPress={() => setShowDatePicker(true)}
+              onPress={openDatePicker}
               activeOpacity={0.8}
             >
               <Text
@@ -181,23 +249,21 @@ export const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps)
               </Text>
               <Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />
             </TouchableOpacity>
-            {showDatePicker && (
+            {Platform.OS === "ios" && showDatePicker && (
               <View style={modalStyles.datePickerContainer}>
                 <DateTimePicker
                   value={selectedDate ?? new Date()}
                   mode="date"
-                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  display="spinner"
                   onChange={handleDateChange}
                 />
-                {Platform.OS === "ios" && (
-                  <TouchableOpacity
-                    style={modalStyles.dateDoneBtn}
-                    onPress={() => setShowDatePicker(false)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={modalStyles.dateDoneText}>Done</Text>
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                  style={modalStyles.dateDoneBtn}
+                  onPress={() => setShowDatePicker(false)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={modalStyles.dateDoneText}>Done</Text>
+                </TouchableOpacity>
               </View>
             )}
             {Boolean(dueDate) && (
@@ -235,11 +301,26 @@ export const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps)
           </ScrollView>
 
           <View style={modalStyles.actions}>
-            <TouchableOpacity style={modalStyles.cancelBtn} onPress={onClose}>
+            <TouchableOpacity
+              style={modalStyles.cancelBtn}
+              onPress={onClose}
+              disabled={saving}
+            >
               <Text style={modalStyles.cancelText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={modalStyles.saveBtn} onPress={handleSave}>
-              <Text style={modalStyles.saveText}>Save Task</Text>
+            <TouchableOpacity
+              style={StyleSheet.flatten([
+                modalStyles.saveBtn,
+                saving ? modalStyles.saveBtnDisabled : null,
+              ])}
+              onPress={handleSave}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={modalStyles.saveText}>Save Task</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -359,5 +440,6 @@ const modalStyles = StyleSheet.create({
     backgroundColor: "#C94C3C",
     alignItems: "center",
   },
+  saveBtnDisabled: { opacity: 0.7 },
   saveText: { fontSize: 14, fontWeight: "700", color: "#fff" },
 });
