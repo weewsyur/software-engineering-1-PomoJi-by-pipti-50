@@ -78,7 +78,7 @@ export default function TimerScreen() {
     addTimeToTask,
   } = useTasks();
   const { createSession: createSessionRaw } = useSessions();
-  const createTask = createTaskRaw as unknown as (task: Task) => void;
+  const createTask = createTaskRaw as unknown as (task: Task) => Promise<void>;
   const createSession = createSessionRaw as unknown as (params: {
     taskId: string | null;
     taskTitle: string;
@@ -341,7 +341,15 @@ export default function TimerScreen() {
     try {
       const exists = tasks.find((t) => t.id === task.id);
       if (exists) {
-        await updateTask(task.id, task);
+        await updateTask(task.id, {
+          title: task.title,
+          description: task.description,
+          dueDate: task.dueDate,
+          category: task.category,
+          completed: task.completed,
+          reminderEnabled: Boolean(task.dueDate?.trim()),
+          totalTime: task.totalTime,
+        });
       } else {
         await createTask({
           ...task,
