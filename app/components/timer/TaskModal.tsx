@@ -1,5 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect } from "react";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -33,6 +36,25 @@ const CATEGORY_COLORS: Record<TaskCategory, string> = {
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
+const formatDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const parseDueDate = (dateText: string): Date | null => {
+  if (!dateText) return null;
+  const [yearText, monthText, dayText] = dateText.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  if (!year || !month || !day) return null;
+  const parsed = new Date(year, month - 1, day);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+};
+
 interface TaskModalProps {
   visible: boolean;
   initial?: Task | null;
@@ -44,6 +66,8 @@ export const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps)
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [category, setCategory] = useState<TaskCategory>("work");
 
   useEffect(() => {
@@ -51,14 +75,36 @@ export const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps)
       setTitle(initial.title);
       setDescription(initial.description);
       setDueDate(initial.dueDate);
+      setSelectedDate(parseDueDate(initial.dueDate));
       setCategory(initial.category);
     } else {
       setTitle("");
       setDescription("");
       setDueDate("");
+      setSelectedDate(null);
       setCategory("work");
     }
+    setShowDatePicker(false);
   }, [initial, visible]);
+
+  const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+    }
+    if (event.type === "dismissed" || !date) {
+      return;
+    }
+    setSelectedDate(date);
+    setDueDate(formatDate(date));
+  };
+
+  const handleClearDueDate = () => {
+    setSelectedDate(null);
+    setDueDate("");
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+    }
+  };
 
   const handleSave = () => {
     if (!title.trim()) {
@@ -123,13 +169,46 @@ export const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps)
               numberOfLines={3}
             />
             <Text style={modalStyles.fieldLabel}>Due Date</Text>
-            <TextInput
-              style={modalStyles.input}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#C4A8A8"
-              value={dueDate}
-              onChangeText={setDueDate}
-            />
+            <TouchableOpacity
+              style={modalStyles.dateInput}
+              onPress={() => setShowDatePicker(true)}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={dueDate ? modalStyles.dateText : modalStyles.placeholderText}
+              >
+                {dueDate || "Select due date"}
+              </Text>
+              <Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />
+            </TouchableOpacity>
+            {showDatePicker && (
+              <View style={modalStyles.datePickerContainer}>
+                <DateTimePicker
+                  value={selectedDate ?? new Date()}
+                  mode="date"
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  onChange={handleDateChange}
+                />
+                {Platform.OS === "ios" && (
+                  <TouchableOpacity
+                    style={modalStyles.dateDoneBtn}
+                    onPress={() => setShowDatePicker(false)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={modalStyles.dateDoneText}>Done</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+            {Boolean(dueDate) && (
+              <TouchableOpacity
+                style={modalStyles.clearDateBtn}
+                onPress={handleClearDueDate}
+                activeOpacity={0.8}
+              >
+                <Text style={modalStyles.clearDateText}>Clear due date</Text>
+              </TouchableOpacity>
+            )}
             <Text style={modalStyles.fieldLabel}>Category</Text>
             <View style={modalStyles.catRow}>
               {CATEGORIES.map((c) => (
@@ -209,6 +288,51 @@ const modalStyles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
     color: "#1A0808",
+  },
+  dateInput: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#EAD8D8",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 42,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  dateText: { fontSize: 14, color: "#1A0808", fontWeight: "500" },
+  placeholderText: { fontSize: 14, color: "#C4A8A8" },
+  datePickerContainer: {
+    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#EAD8D8",
+    paddingHorizontal: 8,
+    paddingTop: 4,
+    paddingBottom: 8,
+  },
+  dateDoneBtn: {
+    alignSelf: "flex-end",
+    marginTop: 6,
+    backgroundColor: "#EAD8D8",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  dateDoneText: { fontSize: 12, fontWeight: "700", color: "#9A7070" },
+  clearDateBtn: {
+    alignSelf: "flex-start",
+    marginTop: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  clearDateText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#9A7070",
+    textDecorationLine: "underline",
   },
   textArea: { minHeight: 72, textAlignVertical: "top" },
   catRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
