@@ -12,13 +12,15 @@
     },
     "android": {
       "backgroundColor": "#E6F4FE",
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["NOTIFICATIONS"]
     },
     "web": {
       "output": "static"
     },
     "plugins": [
       "expo-router",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {

@@ -19,7 +19,7 @@ import { Colors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
 import { StreakCard } from "../components/StreakCard";
 import { ActivityCard } from "../components/ActivityCard";
-import { auth, db } from "@/services/firebase";
+import { db } from "@/services/firebase";
 import { useRouter } from "expo-router";
 import { useStreakListener } from "@/utils/useStreakListener";
 import { getUserStore } from "@/store/userStore";
@@ -32,6 +32,8 @@ import {
   UserSearchResult,
   FollowStatus,
 } from "@/services/social";
+import { initializeNotifications } from "@/services/notificationService";
+import Constants from "expo-constants";
 
 const fmtTotalHours = (seconds: number) => {
   const minutes = Math.max(0, Math.round(seconds / 60));
@@ -70,6 +72,31 @@ export default function HomeScreen() {
     setCurrentUsername(user.username || "User");
   }, []);
 
+  useEffect(() => {
+    let sub: { remove: () => void } | null = null;
+    let mounted = true;
+
+    (async () => {
+      if (Constants.executionEnvironment === "storeClient") return;
+      await initializeNotifications().catch(() => null);
+
+      const Notifications = await import("expo-notifications");
+      if (!mounted) return;
+
+      sub = Notifications.addNotificationResponseReceivedListener((response) => {
+        const taskId = response.notification.request.content.data?.taskId;
+        if (typeof taskId === "string") {
+          router.push({ pathname: "/(tabs)/timer", params: { taskId } });
+        }
+      });
+    })();
+
+    return () => {
+      mounted = false;
+      sub?.remove();
+    };
+  }, [router]);
+
   // Real-time streak listener
   const { streakData, loading, error } = useStreakListener(db, userId, "UTC");
   const initials = useMemo(() => {
@@ -103,7 +130,7 @@ export default function HomeScreen() {
         ...prev,
         [target.id]: "following",
       }));
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Failed to follow user. Please try again.");
     } finally {
       setFollowingUid(null);
@@ -180,7 +207,14 @@ export default function HomeScreen() {
               <Text style={styles.reminderEmpty}>No pending reminders.</Text>
             ) : (
               reminders.map((item) => (
-                <View key={item.id} style={styles.reminderRow}>
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.reminderRow}
+                  onPress={() => {
+                    setShowReminders(false);
+                    router.push({ pathname: "/(tabs)/timer", params: { taskId: item.taskId } });
+                  }}
+                >
                   <View style={{ flex: 1 }}>
                     <Text style={styles.reminderRowTitle}>{item.title}</Text>
                     <Text style={styles.reminderRowDate}>{fmtDate(item.dueDate)}</Text>
@@ -193,7 +227,7 @@ export default function HomeScreen() {
                   >
                     {item.status}
                   </Text>
-                </View>
+                </TouchableOpacity>
               ))
             )}
           </View>

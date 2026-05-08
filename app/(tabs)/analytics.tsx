@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, StatusBar, ActivityIndicator, Image, TouchableOpacity } from "react-native";
+import { useWindowDimensions } from "react-native";
+import { Alert, View, Text, StyleSheet, ScrollView, StatusBar, ActivityIndicator, Image, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../constants/colors";
 import { SharedStyles } from "../../constants/styles";
@@ -9,6 +10,14 @@ import { StreakCard } from "../components/StreakCard";
 import { useStreakListener } from "../../utils/useStreakListener";
 import { getUserStore } from "../../store/userStore";
 import { db } from "../../services/firebase";
+import { ActivityDetailModal } from "../components/ActivityDetailModal";
+import { useDeleteActivity } from "../../hooks/useDeleteActivity";
+import { Activity } from "../../hooks/useActivities";
+import { AreaChart, CHART_PAD_X, LABEL_AREA, type DailyPoint } from "../components/AreaChart";
+import { StreakSection, type StreakData } from "../components/StreakSection";
+
+// ─── helpers ────────────────────────────────────────────────────────────────
+
 function fmtFocusTime(totalSeconds: number): string {
   const totalMinutes = Math.floor(totalSeconds / 60);
   const h = Math.floor(totalMinutes / 60);
@@ -25,10 +34,15 @@ function fmtDate(iso: string): string {
   })}`;
 }
 
+// ─── Main Screen ─────────────────────────────────────────────────────────────
+
 export default function HistoryScreen() {
   const { activities, isLoading } = useActivities();
-  const [viewMode, setViewMode] = useState<'weekly' | 'monthly'>('weekly');
+  const [viewMode, setViewMode] = useState<"weekly" | "monthly">("weekly");
   const [userId, setUserId] = useState<string | null>(null);
+  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
+  const { deleteActivity, deleting } = useDeleteActivity();
+  const { width: screenWidth } = useWindowDimensions();
 
   useEffect(() => {
     const user = getUserStore();
@@ -36,27 +50,24 @@ export default function HistoryScreen() {
   }, []);
 
   const { streakData, loading: streakLoading, error: streakError } = useStreakListener(db, userId, "UTC");
+  const typedStreakData = streakData as StreakData | null | undefined;
 
   const filteredActivities = useMemo(() => {
-    if (viewMode === 'weekly') {
-      return filterSessionsByWeek(activities);
-    }
+    if (viewMode === "weekly") return filterSessionsByWeek(activities);
     return filterSessionsByMonth(activities);
   }, [activities, viewMode]);
 
   const totalSessions = useMemo(
-    () => filteredActivities.reduce((sum, activity) => sum + (activity.sessions || 0), 0),
+    () => filteredActivities.reduce((sum, a) => sum + (a.sessions || 0), 0),
     [filteredActivities]
   );
   const totalFocusTime = useMemo(
-    () => filteredActivities.reduce((sum, activity) => sum + (activity.totalTime || 0), 0),
+    () => filteredActivities.reduce((sum, a) => sum + (a.totalTime || 0), 0),
     [filteredActivities]
   );
 
-  const dailyData = useMemo(() => {
-    if (viewMode === 'weekly') {
-      return groupSessionsByDay(activities);
-    }
+  const dailyData = useMemo<DailyPoint[]>(() => {
+    if (viewMode === "weekly") return groupSessionsByDay(activities);
     return groupSessionsByWeekForMonth(activities);
   }, [activities, viewMode]);
 
@@ -73,6 +84,20 @@ export default function HistoryScreen() {
 
   const maxDailySeconds = Math.max(...dailyData.map((d) => d.totalTime), 1);
 
+  // Chart width: card has 16px horizontal padding on each side, content padding 16px each side
+  const cardPadding = 32; // SharedStyles.card typically has 16px padding each side
+  const chartWidth = screenWidth - 32 - cardPadding; // 32 = content paddingHorizontal * 2
+
+  // Build label positions for chart x-axis
+  const chartLabels = useMemo(() => {
+    if (dailyData.length === 0) return [];
+    const step = dailyData.length === 1 ? 0 : (chartWidth - CHART_PAD_X * 2) / (dailyData.length - 1);
+    return dailyData.map((d, i) => ({
+      label: "day" in d ? d.day : d.weekLabel,
+      x: CHART_PAD_X + i * step,
+    }));
+  }, [dailyData, chartWidth]);
+
   return (
     <SafeAreaView style={StyleSheet.flatten([SharedStyles.screen, styles.safe])}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
@@ -81,30 +106,35 @@ export default function HistoryScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <StreakCard
-          streakData={streakData}
+
+        {/* ── 1. Strava-style Streak Section ── */}
+        <StreakSection
+          streakData={typedStreakData}
           loading={streakLoading}
           error={streakError}
-          streakUnit="Days"
         />
+
+        {/* ── Weekly / Monthly Toggle ── */}
         <View style={styles.viewToggleContainer}>
           <TouchableOpacity
-            style={StyleSheet.flatten([styles.viewToggle, viewMode === 'weekly' && styles.viewToggleActive])}
-            onPress={() => setViewMode('weekly')}
+            style={StyleSheet.flatten([styles.viewToggle, viewMode === "weekly" && styles.viewToggleActive])}
+            onPress={() => setViewMode("weekly")}
           >
-            <Text style={StyleSheet.flatten([styles.viewToggleText, viewMode === 'weekly' && styles.viewToggleTextActive])}>
+            <Text style={StyleSheet.flatten([styles.viewToggleText, viewMode === "weekly" && styles.viewToggleTextActive])}>
               Weekly
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={StyleSheet.flatten([styles.viewToggle, viewMode === 'monthly' && styles.viewToggleActive])}
-            onPress={() => setViewMode('monthly')}
+            style={StyleSheet.flatten([styles.viewToggle, viewMode === "monthly" && styles.viewToggleActive])}
+            onPress={() => setViewMode("monthly")}
           >
-            <Text style={StyleSheet.flatten([styles.viewToggleText, viewMode === 'monthly' && styles.viewToggleTextActive])}>
+            <Text style={StyleSheet.flatten([styles.viewToggleText, viewMode === "monthly" && styles.viewToggleTextActive])}>
               Monthly
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* ── Stats Card ── */}
         <View style={StyleSheet.flatten([SharedStyles.card, styles.statsCard])}>
           <View style={styles.statsRow}>
             <View style={styles.statBlock}>
@@ -124,34 +154,39 @@ export default function HistoryScreen() {
           </View>
         </View>
 
+        {/* ── 2. SVG Area Chart ── */}
         <View style={StyleSheet.flatten([SharedStyles.card, styles.chartCard])}>
           <Text style={styles.cardTitle}>
-            Focus Time - {viewMode === 'weekly' ? 'This Week' : 'This Month'}
+            Focus Time — {viewMode === "weekly" ? "This Week" : "This Month"}
           </Text>
-          <View style={styles.bars}>
-            {dailyData.map((d, i) => {
-              const heightPercent = d.totalTime / maxDailySeconds;
-              const label = 'day' in d ? d.day : d.weekLabel;
-              return (
-                <View key={i} style={styles.barColumn}>
-                  <View style={styles.barTrack}>
-                    <View
-                      style={StyleSheet.flatten([
-                        styles.barFill,
-                        {
-                          height: `${Math.max(heightPercent * 100, 4)}%`,
-                          backgroundColor: Colors.primary,
-                        },
-                      ])}
-                    />
-                  </View>
-                  <Text style={styles.barLabel} numberOfLines={1}>{label}</Text>
-                </View>
-              );
-            })}
+
+          <View style={styles.svgChartWrapper}>
+            <AreaChart data={dailyData} maxValue={maxDailySeconds} width={chartWidth} />
+
+            {/* X-axis labels rendered as RN Text (more reliable than SVG text in RN) */}
+            <View style={[styles.xLabelsRow, { width: chartWidth }]}>
+              {chartLabels.map((lbl, i) => (
+                <Text
+                  key={i}
+                  style={[
+                    styles.xLabel,
+                    {
+                      position: "absolute",
+                      left: lbl.x - 16, // center ~32px wide text
+                      width: 32,
+                      textAlign: "center",
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {lbl.label}
+                </Text>
+              ))}
+            </View>
           </View>
         </View>
 
+        {/* ── Focus Time by Category ── */}
         <View style={StyleSheet.flatten([SharedStyles.card, styles.chartCard])}>
           <Text style={styles.cardTitle}>Focus Time by Category</Text>
           {byCategory.length === 0 ? (
@@ -170,6 +205,7 @@ export default function HistoryScreen() {
           )}
         </View>
 
+        {/* ── Activity History ── */}
         <Text style={StyleSheet.flatten([SharedStyles.sectionLabel, { marginHorizontal: 4, marginTop: 8 }])}>
           Activity History
         </Text>
@@ -183,7 +219,12 @@ export default function HistoryScreen() {
           </View>
         ) : (
           activities.map((activity) => (
-            <View key={activity.id} style={StyleSheet.flatten([SharedStyles.card, styles.activityItem])}>
+            <TouchableOpacity
+              key={activity.id}
+              activeOpacity={0.75}
+              onPress={() => setSelectedActivity(activity)}
+              style={StyleSheet.flatten([SharedStyles.card, styles.activityItem])}
+            >
               <View style={styles.activityContent}>
                 <Text style={styles.historyTitle}>{activity.title}</Text>
                 <Text style={styles.historyDate}>{fmtDate(activity.createdAt)}</Text>
@@ -194,15 +235,32 @@ export default function HistoryScreen() {
               {activity.images[0] ? (
                 <Image source={{ uri: activity.images[0] }} style={styles.activityImage} resizeMode="cover" />
               ) : null}
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>
+
+      <ActivityDetailModal
+        activity={selectedActivity}
+        visible={selectedActivity !== null}
+        onClose={() => setSelectedActivity(null)}
+        onDelete={async (id) => {
+          try {
+            await deleteActivity(id);
+            setSelectedActivity(null);
+          } catch (error) {
+            Alert.alert("Error", (error as Error).message);
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }
 
+// ─── Screen Styles ───────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
+  // Layout
   safe: { flex: 1 },
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
   headerLabel: {
@@ -213,6 +271,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 110, gap: 12 },
+
+  // Toggle
   viewToggleContainer: {
     flexDirection: "row",
     backgroundColor: Colors.background,
@@ -238,34 +298,51 @@ const styles = StyleSheet.create({
   viewToggleTextActive: {
     color: Colors.surface,
   },
+
+  // Stats
   statsCard: { paddingVertical: 18 },
   statsRow: { flexDirection: "row", alignItems: "center" },
   statBlock: { flex: 1, alignItems: "center", gap: 4 },
   statDivider: { width: 1, height: 36, backgroundColor: Colors.border },
   statValue: { fontSize: 19, fontWeight: "800", color: Colors.text, letterSpacing: -0.4 },
   statLabel: { fontSize: 11, color: Colors.textMuted, fontWeight: "500", textAlign: "center" },
+
+  // Chart
   chartCard: { paddingBottom: 14 },
   cardTitle: { fontSize: 13, fontWeight: "700", color: Colors.text, marginBottom: 12 },
-  bars: { flexDirection: "row", alignItems: "flex-end", height: 120, gap: 6 },
-  barColumn: { flex: 1, alignItems: "center", height: "100%", gap: 6 },
-  barTrack: {
-    flex: 1,
-    width: "100%",
-    justifyContent: "flex-end",
-    borderRadius: 6,
-    overflow: "hidden",
-    backgroundColor: Colors.background,
+  svgChartWrapper: {
+    position: "relative",
   },
-  barFill: { width: "100%", borderRadius: 6, minHeight: 4 },
-  barLabel: { fontSize: 11, color: Colors.textMuted, fontWeight: "500" },
-  barLabelToday: { color: Colors.primary, fontWeight: "800" },
+  xLabelsRow: {
+    height: LABEL_AREA,
+    position: "relative",
+  },
+  xLabel: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    fontWeight: "500",
+  },
+
+  // History
   taskBarRow: { marginBottom: 10 },
-  taskBarLabelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6, gap: 8 },
+  taskBarLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+    gap: 8,
+  },
   taskBarTitle: { flex: 1, fontSize: 13, fontWeight: "700", color: Colors.text },
   taskBarMeta: { fontSize: 11, color: Colors.textMuted, fontWeight: "500" },
   historyTitle: { fontSize: 13, fontWeight: "700", color: Colors.text },
   historyDate: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
-  activityItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, gap: 12 },
+  activityItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    gap: 12,
+  },
   activityContent: { flex: 1 },
   activityMeta: { fontSize: 11, color: Colors.primary, marginTop: 6, fontWeight: "600" },
   activityImage: { width: 52, height: 52, borderRadius: 10, backgroundColor: Colors.background },

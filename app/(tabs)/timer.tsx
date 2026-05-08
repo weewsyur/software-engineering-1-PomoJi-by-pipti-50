@@ -5,6 +5,7 @@ import { useActivities } from "@/hooks/useActivities";
 import { Task, TaskCategory, useSessions, useTasks } from "@/hooks/usePomodoro";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocalSearchParams } from "expo-router";
 import {
   Alert,
   Animated,
@@ -19,10 +20,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { TaskModal } from "@/app/components/timer/TaskModal";
-import { CategoryPill } from "@/app/components/timer/CategoryPill";
-import { TaskRow, getTaskTitle } from "@/app/components/timer/TaskRow";
+import { TaskRow } from "@/app/components/timer/TaskRow";
 import { BreakBanner } from "@/app/components/timer/BreakBanner";
 import { TaskPicker } from "@/app/components/timer/TaskPicker";
+import { scheduleSessionCompletionNotification } from "@/services/notificationService";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,9 +57,6 @@ const isTaskCategory = (value: unknown): value is TaskCategory =>
 const getTaskCategory = (task: Task): TaskCategory =>
   isTaskCategory(task?.category) ? task.category : "other";
 
-const getTaskDueDate = (task: Task) =>
-  typeof task?.dueDate === "string" ? task.dueDate : "";
-
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function TimerScreen() {
@@ -76,6 +74,7 @@ export default function TimerScreen() {
     createTask: createTaskRaw,
     updateTask,
     deleteTask,
+    completeTask,
     addTimeToTask,
   } = useTasks();
   const { createSession: createSessionRaw } = useSessions();
@@ -104,6 +103,7 @@ export default function TimerScreen() {
   const pauseStartedAtRef = useRef<number | null>(null);
   const pausedAccumulatedMsRef = useRef(0);
   const { createActivity } = useActivities();
+  const { taskId } = useLocalSearchParams<{ taskId?: string }>();
 
   // ── Refs ─────────────────────────────────────────────────────────────────
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -114,8 +114,16 @@ export default function TimerScreen() {
     activeTaskRef.current = activeTask;
   }, [activeTask]);
 
+  useEffect(() => {
+    if (!taskId) return;
+    const next = tasks.find((task) => task.id === taskId) ?? null;
+    if (next) {
+      setActiveTask(next);
+      setShowTasks(true);
+    }
+  }, [taskId, tasks]);
+
   const currentMode = MODES.find((m) => m.key === mode)!;
-  const progress = timeLeft / currentMode.duration;
 
   const endBreak = useCallback(() => {
     setMode("focus");
@@ -185,11 +193,18 @@ export default function TimerScreen() {
                 totalTimeSeconds: durationSeconds,
               });
               setCanRecordSession(true);
+              setPostActivityVisible(true);
 
               // Show confirmation Alert with session results
               const taskName =
                 activeTaskRef.current?.title ?? "Unassigned Session";
               const durationText = `${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}s`;
+
+              scheduleSessionCompletionNotification({
+                taskId: activeTaskRef.current?.id ?? null,
+                taskTitle: taskName,
+                durationSeconds,
+              }).catch(() => null);
 
               Alert.alert(
                 "Session Complete!",
@@ -328,11 +343,14 @@ export default function TimerScreen() {
       if (exists) {
         await updateTask(task.id, task);
       } else {
-        await createTask(task);
+        await createTask({
+          ...task,
+          reminderEnabled: Boolean(task.dueDate?.trim()),
+        });
       }
       setTaskModalVisible(false);
       setEditingTask(null);
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Failed to save task. Please try again.");
     }
   }, [tasks, updateTask, createTask]);
@@ -340,16 +358,16 @@ export default function TimerScreen() {
   const handleToggleTask = useCallback(async (id: string) => {
     try {
       const task = tasks.find((t) => t.id === id);
-      if (task) await updateTask(id, { completed: !task.completed });
-    } catch (error) {
+      if (task) await completeTask(id, !task.completed);
+    } catch {
       Alert.alert("Error", "Failed to update task. Please try again.");
     }
-  }, [tasks, updateTask]);
+  }, [tasks, completeTask]);
 
   const handleDeleteTask = useCallback(async (id: string) => {
     try {
       await deleteTask(id);
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Failed to delete task. Please try again.");
     }
   }, [deleteTask]);

@@ -70,6 +70,7 @@ export const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps)
       title: title.trim(),
       description: description.trim(),
       dueDate,
+      reminderEnabled: initial?.reminderEnabled ?? Boolean(dueDate.trim()),
       category,
       completed: initial?.completed ?? false,
       totalTime: initial?.totalTime ?? 0,
