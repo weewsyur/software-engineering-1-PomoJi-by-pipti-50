@@ -3,7 +3,6 @@
 // Handles subscription lifecycle automatically
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Unsubscribe } from 'firebase/firestore';
 import {
   listenToDocument,
   listenToCollection,

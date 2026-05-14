@@ -6,11 +6,9 @@ import {
 } from '@/services/firebase';
 import {
   collection,
-  addDoc,
   serverTimestamp,
   doc,
   setDoc,
-  updateDoc,
   Timestamp,
   writeBatch,
 } from 'firebase/firestore';

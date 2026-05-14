@@ -9,8 +9,8 @@ import {
 } from "firebase/firestore";
 import { useTasks as useGlobalTasks } from "@/hooks/useTasks";
 import type { Task as StoreTask, TaskCategory } from "@/store/taskStore";
-export type { TaskCategory };
-export interface Task extends StoreTask {}
+export type { TaskCategory, Task as StoreTask };
+export type Task = StoreTask;
 
 export interface Session {
   id: string;

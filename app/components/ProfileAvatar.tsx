@@ -57,7 +57,14 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = memo(({
       )}
     </TouchableOpacity>
   );
+}, (prevProps, nextProps) => {
+  return prevProps.profile.name === nextProps.profile.name &&
+    prevProps.profile.photoUri === nextProps.profile.photoUri &&
+    prevProps.size === nextProps.size &&
+    prevProps.onPress === nextProps.onPress;
 });
+
+ProfileAvatar.displayName = 'ProfileAvatar';
 
 export default ProfileAvatar;
 
