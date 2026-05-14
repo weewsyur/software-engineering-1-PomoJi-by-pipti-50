@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, memo } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
@@ -19,7 +19,7 @@ interface StreakCardProps {
 
 const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
 
-export const StreakCard: React.FC<StreakCardProps> = ({
+export const StreakCard = memo<StreakCardProps>(({
   streakCount,
   streakUnit = "Days",
   streakData,
@@ -60,13 +60,13 @@ export const StreakCard: React.FC<StreakCardProps> = ({
     return 0;
   }, [useWeeklyStreak, activities, today]);
 
-  // Get daily session counts for progress indicator
+  // Get daily session counts for progress indicator (always calculate for activity marking)
   const dailySessions = useMemo(() => {
-    if (useWeeklyStreak && activities.length > 0) {
+    if (activities.length > 0) {
       return groupSessionsByDay(activities, today);
     }
     return [];
-  }, [useWeeklyStreak, activities, today]);
+  }, [activities, today]);
 
   // Use streakData if provided (real-time), otherwise fall back to streakCount or weeklyStreak
   const displayCount = useMemo(() => {
@@ -124,8 +124,8 @@ export const StreakCard: React.FC<StreakCardProps> = ({
               const isActive = i === mondayIndex;
               const currentDate = weekDates[i];
               const isCurrentDay = currentDate.toDateString() === today.toDateString();
-              const daySessionCount = useWeeklyStreak ? (dailySessions[i]?.totalSessions || 0) : 0;
-              const hasSession = useWeeklyStreak && daySessionCount > 0;
+              const daySessionCount = dailySessions[i]?.totalSessions || 0;
+              const hasSession = daySessionCount > 0;
 
               return (
                 <View key={i} style={styles.dayColumn}>
@@ -139,7 +139,7 @@ export const StreakCard: React.FC<StreakCardProps> = ({
                       styles.dayCircle,
                       useWeeklyStreak
                         ? (hasSession ? styles.dayCircleActive : styles.dayCircleInactive)
-                        : (isCurrentDay ? styles.dayCircleActive : styles.dayCircleInactive),
+                        : (hasSession ? styles.dayCircleActive : (isCurrentDay ? styles.dayCircleActive : styles.dayCircleInactive)),
                     ])}
                   >
                     <Text
@@ -147,7 +147,7 @@ export const StreakCard: React.FC<StreakCardProps> = ({
                         styles.dayNumber,
                         useWeeklyStreak
                           ? (hasSession ? styles.dayNumberActive : styles.dayNumberInactive)
-                          : (isCurrentDay ? styles.dayNumberActive : styles.dayNumberInactive),
+                          : (hasSession ? styles.dayNumberActive : (isCurrentDay ? styles.dayNumberActive : styles.dayNumberInactive)),
                       ])}
                     >
                       {useWeeklyStreak ? daySessionCount : currentDate.getDate()}
@@ -161,7 +161,9 @@ export const StreakCard: React.FC<StreakCardProps> = ({
       )}
     </View>
   );
-};
+});
+
+StreakCard.displayName = 'StreakCard';
 
 export default StreakCard;
 

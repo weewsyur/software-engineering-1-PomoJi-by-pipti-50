@@ -1,33 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
   ScrollView,
+  Image,
   TouchableOpacity,
+  TextInput,
+  Platform,
   StatusBar,
   Modal,
-  TextInput,
-  Image,
   KeyboardAvoidingView,
-  Platform,
-  Alert,
   ActivityIndicator,
   FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
-import { File } from "expo-file-system";
-import { Colors } from "@/constants/colors";
-import { SharedStyles } from "@/constants/styles";
-import { signOutUser } from "@/store/userStore";
-import { useRouter } from "expo-router";
-import { auth, db, storage } from "@/services/firebase";
-import { collection, query, where, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { Colors } from '@/constants/colors';
+import { SharedStyles } from '@/constants/styles';
+import { signOut } from '@/services/auth';
+import { getUserStore } from '@/store/userStore';
+import { useProfile } from '@/hooks/useProfile';
+import { uploadProfileImage } from '@/services/profile';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import Constants from 'expo-constants';
 import { getDownloadURL, ref, uploadString } from "firebase/storage";
 import { updateProfile } from "firebase/auth";
-import * as FileSystem from 'expo-file-system/legacy';
+import { auth, db, storage } from '@/services/firebase';
+import { doc, getDoc, getDocs, collection, query, where, updateDoc } from 'firebase/firestore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface UserProfile {
@@ -245,7 +248,7 @@ export default function ProfileScreen() {
         : true;
       if (!confirmed) return;
       try {
-        await signOutUser();
+        await signOut();
         router.replace("/welcome");
       } catch (error) {
         Alert.alert("Error", "Failed to sign out. Please try again.");
@@ -260,7 +263,7 @@ export default function ProfileScreen() {
         style: "destructive",
         onPress: async () => {
           try {
-            await signOutUser();
+            await signOut();
             // Navigate to welcome screen
             router.replace("/welcome");
           } catch (error) {
@@ -308,9 +311,12 @@ export default function ProfileScreen() {
       if (draftPhotoUri !== profile.photoUri) {
         if (draftPhotoUri) {
           const avatarRef = ref(storage, `profileImages/${userId}`);
-          const photoFile = new File(draftPhotoUri);
-          const fileInfo = photoFile.info();
-          if (photoFile.exists && fileInfo.size && fileInfo.size > 5 * 1024 * 1024) {
+          const fileInfo = await FileSystem.getInfoAsync(draftPhotoUri);
+          if (!fileInfo.exists) {
+            Alert.alert("Error", "Photo file not found.");
+            return;
+          }
+          if (fileInfo.size && fileInfo.size > 5 * 1024 * 1024) {
             Alert.alert("Photo too large", "Please upload an image under 5MB.");
             return;
           }
@@ -329,7 +335,9 @@ export default function ProfileScreen() {
           }
 
           try {
-            const base64 = await photoFile.base64();
+            const base64 = await FileSystem.readAsStringAsync(draftPhotoUri, {
+              encoding: "base64",
+            });
             await uploadString(avatarRef, base64, "base64", { contentType });
             nextPhotoUri = await getDownloadURL(avatarRef);
             updates.photoUrl = nextPhotoUri;

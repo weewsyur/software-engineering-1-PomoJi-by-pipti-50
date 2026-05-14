@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, StyleSheet, ImageSourcePropType } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { SharedStyles } from '@/constants/styles';
@@ -13,9 +13,12 @@ interface ActivityCardProps {
   sessions: number;
   totalHours: string;
   images?: ImageSourcePropType[];
+  photoUri?: string | null;
+  userName?: string;
+  userPhotoUri?: string | null;
 }
 
-export const ActivityCard: React.FC<ActivityCardProps> = ({
+export const ActivityCard = memo<ActivityCardProps>(({
   initials,
   name,
   timestamp,
@@ -23,14 +26,17 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   sessions,
   totalHours,
   images,
+  photoUri,
+  userName,
+  userPhotoUri,
 }) => {
   return (
     <View style={StyleSheet.flatten([SharedStyles.card, styles.card])}>
       {/* Header */}
       <View style={styles.header}>
-        <Avatar initials={initials} size={42} />
+        <Avatar initials={initials} size={42} photoUri={userPhotoUri || photoUri} />
         <View style={styles.headerText}>
-          <Text style={styles.name}>{name}</Text>
+          <Text style={styles.name}>{userName || name}</Text>
           <Text style={styles.timestamp}>{timestamp}</Text>
         </View>
       </View>
@@ -57,7 +63,9 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
       )}
     </View>
   );
-};
+});
+
+ActivityCard.displayName = 'ActivityCard';
 
 export default ActivityCard;
 

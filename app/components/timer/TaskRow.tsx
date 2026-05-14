@@ -1,3 +1,4 @@
+import React from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Task } from "@/hooks/usePomodoro";
@@ -32,7 +33,7 @@ interface TaskRowProps {
   onDelete: (id: string) => void;
 }
 
-export const TaskRow = ({ task, onToggle, onEdit, onDelete }: TaskRowProps) => (
+export const TaskRow = React.memo(({ task, onToggle, onEdit, onDelete }: TaskRowProps) => (
   <View style={taskRowStyles.row}>
     <TouchableOpacity
       style={taskRowStyles.check}
@@ -79,7 +80,9 @@ export const TaskRow = ({ task, onToggle, onEdit, onDelete }: TaskRowProps) => (
       <Ionicons name="trash-outline" size={16} color="#C94C3C" />
     </TouchableOpacity>
   </View>
-);
+));
+
+TaskRow.displayName = 'TaskRow';
 
 export default TaskRow;
 

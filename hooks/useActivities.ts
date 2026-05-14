@@ -16,7 +16,7 @@ export interface Activity {
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-const normalizeActivity = (raw: unknown): Activity => {
+export const normalizeActivity = (raw: unknown): Activity => {
   const value = (raw ?? {}) as Record<string, unknown>;
   return {
     id: typeof value.id === "string" ? value.id : uid(),

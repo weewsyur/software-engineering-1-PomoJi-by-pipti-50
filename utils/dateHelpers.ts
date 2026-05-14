@@ -62,3 +62,30 @@ export function getEndOfMonth(date: Date = new Date()): Date {
   d.setHours(0, 0, 0, 0);
   return d;
 }
+
+/**
+ * Get the start of the year (January 1st at 12:00 AM)
+ * @param date - Reference date (defaults to current date)
+ * @returns Date object set to January 1st of the year at 12:00 AM
+ */
+export function getStartOfYear(date: Date = new Date()): Date {
+  const d = new Date(date);
+  d.setMonth(0);
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/**
+ * Get the end of the year (January 1st of next year at 12:00 AM)
+ * @param date - Reference date (defaults to current date)
+ * @returns Date object set to January 1st of next year at 12:00 AM
+ */
+export function getEndOfYear(date: Date = new Date()): Date {
+  const d = new Date(date);
+  d.setFullYear(d.getFullYear() + 1);
+  d.setMonth(0);
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}

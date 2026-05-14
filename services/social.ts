@@ -8,6 +8,7 @@ import {
   writeBatch,
   serverTimestamp,
   limit,
+  onSnapshot,
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
 
@@ -17,6 +18,31 @@ export interface UserSearchResult {
 }
 
 export type FollowStatus = "follow" | "followBack" | "following";
+
+/**
+ * Get followed users list
+ */
+export const getFollowedUsers = async (currentUserId: string | null): Promise<string[]> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    return [];
+  }
+
+  const currentUid = currentUser.uid;
+  if (!currentUid) {
+    return [];
+  }
+
+  try {
+    const followingRef = collection(db, "following", currentUid, "list");
+    const snapshot = await getDocs(followingRef);
+    const followedIds = snapshot.docs.map((doc) => doc.id);
+    return followedIds;
+  } catch (error) {
+    console.error("Error fetching followed users:", error);
+    return [];
+  }
+};
 
 /**
  * Search for users by username prefix

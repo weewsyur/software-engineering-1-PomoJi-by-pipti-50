@@ -5,7 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../constants/colors";
 import { SharedStyles } from "../../constants/styles";
 import { useActivities } from "../../hooks/useActivities";
-import { filterSessionsByWeek, filterSessionsByMonth, groupSessionsByDay, groupSessionsByWeekForMonth } from "../../utils/sessionFilters";
+import { filterSessionsByWeek, filterSessionsByMonth, filterSessionsByYear, groupSessionsByDay, groupSessionsByWeekForMonth, groupSessionsByMonthForYear } from "../../utils/sessionFilters";
 import { StreakCard } from "../components/StreakCard";
 import { useStreakListener } from "../../utils/useStreakListener";
 import { getUserStore } from "../../store/userStore";
@@ -38,7 +38,7 @@ function fmtDate(iso: string): string {
 
 export default function HistoryScreen() {
   const { activities, isLoading } = useActivities();
-  const [viewMode, setViewMode] = useState<"weekly" | "monthly">("weekly");
+  const [viewMode, setViewMode] = useState<"weekly" | "monthly" | "yearly">("weekly");
   const [userId, setUserId] = useState<string | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const { deleteActivity, deleting } = useDeleteActivity();
@@ -54,7 +54,8 @@ export default function HistoryScreen() {
 
   const filteredActivities = useMemo(() => {
     if (viewMode === "weekly") return filterSessionsByWeek(activities);
-    return filterSessionsByMonth(activities);
+    if (viewMode === "monthly") return filterSessionsByMonth(activities);
+    return filterSessionsByYear(activities);
   }, [activities, viewMode]);
 
   const totalSessions = useMemo(
@@ -68,8 +69,13 @@ export default function HistoryScreen() {
 
   const dailyData = useMemo<DailyPoint[]>(() => {
     if (viewMode === "weekly") return groupSessionsByDay(activities);
-    return groupSessionsByWeekForMonth(activities);
+    if (viewMode === "monthly") return groupSessionsByWeekForMonth(activities);
+    return groupSessionsByMonthForYear(activities);
   }, [activities, viewMode]);
+
+  const maxDailySeconds = useMemo(() => {
+    return Math.max(...dailyData.map((d) => d.totalTime), 1);
+  }, [dailyData]);
 
   const byCategory = useMemo(() => {
     const categoryMap = new Map<string, number>();
@@ -82,8 +88,6 @@ export default function HistoryScreen() {
       .sort((a, b) => b.totalTime - a.totalTime);
   }, [activities]);
 
-  const maxDailySeconds = Math.max(...dailyData.map((d) => d.totalTime), 1);
-
   // Chart width: card has 16px horizontal padding on each side, content padding 16px each side
   const cardPadding = 32; // SharedStyles.card typically has 16px padding each side
   const chartWidth = screenWidth - 32 - cardPadding; // 32 = content paddingHorizontal * 2
@@ -93,7 +97,7 @@ export default function HistoryScreen() {
     if (dailyData.length === 0) return [];
     const step = dailyData.length === 1 ? 0 : (chartWidth - CHART_PAD_X * 2) / (dailyData.length - 1);
     return dailyData.map((d, i) => ({
-      label: "day" in d ? d.day : d.weekLabel,
+      label: "day" in d ? d.day : "weekLabel" in d ? d.weekLabel : d.monthLabel,
       x: CHART_PAD_X + i * step,
     }));
   }, [dailyData, chartWidth]);
@@ -114,7 +118,7 @@ export default function HistoryScreen() {
           error={streakError}
         />
 
-        {/* ── Weekly / Monthly Toggle ── */}
+        {/* ── Weekly / Monthly / Yearly Toggle ── */}
         <View style={styles.viewToggleContainer}>
           <TouchableOpacity
             style={StyleSheet.flatten([styles.viewToggle, viewMode === "weekly" && styles.viewToggleActive])}
@@ -130,6 +134,14 @@ export default function HistoryScreen() {
           >
             <Text style={StyleSheet.flatten([styles.viewToggleText, viewMode === "monthly" && styles.viewToggleTextActive])}>
               Monthly
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={StyleSheet.flatten([styles.viewToggle, viewMode === "yearly" && styles.viewToggleActive])}
+            onPress={() => setViewMode("yearly")}
+          >
+            <Text style={StyleSheet.flatten([styles.viewToggleText, viewMode === "yearly" && styles.viewToggleTextActive])}>
+              Yearly
             </Text>
           </TouchableOpacity>
         </View>
@@ -156,9 +168,12 @@ export default function HistoryScreen() {
 
         {/* ── 2. SVG Area Chart ── */}
         <View style={StyleSheet.flatten([SharedStyles.card, styles.chartCard])}>
-          <Text style={styles.cardTitle}>
-            Focus Time — {viewMode === "weekly" ? "This Week" : "This Month"}
-          </Text>
+          <View style={styles.chartTitleRow}>
+            <Text style={styles.cardTitle}>
+              Focus Time — {viewMode === "weekly" ? "This Week" : viewMode === "monthly" ? "This Month" : "This Year"}
+            </Text>
+            <Text style={styles.chartUnit}>hrs</Text>
+          </View>
 
           <View style={styles.svgChartWrapper}>
             <AreaChart data={dailyData} maxValue={maxDailySeconds} width={chartWidth} />
@@ -309,44 +324,56 @@ const styles = StyleSheet.create({
 
   // Chart
   chartCard: { paddingBottom: 14 },
-  cardTitle: { fontSize: 13, fontWeight: "700", color: Colors.text, marginBottom: 12 },
+  chartTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  cardTitle: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  chartUnit: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+  },
   svgChartWrapper: {
-    position: "relative",
+    position: 'relative',
   },
   xLabelsRow: {
     height: LABEL_AREA,
-    position: "relative",
+    position: 'relative',
   },
   xLabel: {
     fontSize: 10,
     color: Colors.textMuted,
-    fontWeight: "500",
+    fontWeight: '500',
   },
 
   // History
   taskBarRow: { marginBottom: 10 },
   taskBarLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 6,
     gap: 8,
   },
-  taskBarTitle: { flex: 1, fontSize: 13, fontWeight: "700", color: Colors.text },
-  taskBarMeta: { fontSize: 11, color: Colors.textMuted, fontWeight: "500" },
-  historyTitle: { fontSize: 13, fontWeight: "700", color: Colors.text },
+  taskBarTitle: { flex: 1, fontSize: 13, fontWeight: '700', color: Colors.text },
+  taskBarMeta: { fontSize: 11, color: Colors.textMuted, fontWeight: '500' },
+  historyTitle: { fontSize: 13, fontWeight: '700', color: Colors.text },
   historyDate: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
   activityItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 12,
     gap: 12,
   },
   activityContent: { flex: 1 },
-  activityMeta: { fontSize: 11, color: Colors.primary, marginTop: 6, fontWeight: "600" },
+  activityMeta: { fontSize: 11, color: Colors.primary, marginTop: 6, fontWeight: '600' },
   activityImage: { width: 52, height: 52, borderRadius: 10, backgroundColor: Colors.background },
-  loadingCard: { alignItems: "center", justifyContent: "center", paddingVertical: 20 },
-  emptyCard: { alignItems: "center", paddingVertical: 24 },
-  emptyText: { fontSize: 13, color: "#C4A8A8", fontWeight: "500" },
+  loadingCard: { alignItems: 'center', justifyContent: 'center', paddingVertical: 20 },
+  emptyCard: { alignItems: 'center', paddingVertical: 24 },
+  emptyText: { fontSize: 13, color: '#C4A8A8', fontWeight: '500' },
 });

@@ -1,13 +1,13 @@
 import { create } from "zustand";
 import { auth, db } from "@/services/firebase";
 import {
+  addDoc,
   collection,
   deleteDoc,
   doc,
   onSnapshot,
   orderBy,
   query,
-  setDoc,
   updateDoc,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
@@ -44,7 +44,7 @@ const normalizeTask = (raw: unknown): Task => {
   const dueDate = typeof task.dueDate === "string" ? task.dueDate : "";
 
   return {
-    id: typeof task.id === "string" ? task.id : uid(),
+    id: typeof task.id === "string" && task.id.trim() ? task.id : uid(),
     title: typeof task.title === "string" ? task.title : "Untitled Task",
     description: typeof task.description === "string" ? task.description : "",
     dueDate,
@@ -64,7 +64,7 @@ interface TaskState {
   tasks: Task[];
   initialized: boolean;
   initialize: () => void;
-  addTask: (task: Task) => Promise<void>;
+  addTask: (task: Task) => Promise<string>;
   updateTask: (id: string, patch: TaskPatch) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   completeTask: (id: string, completed?: boolean) => Promise<void>;
@@ -125,10 +125,29 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       normalized,
       normalized.reminderNotificationId,
     );
-    await setDoc(doc(db, "users", currentUid, "tasks", normalized.id), {
-      ...normalized,
-      reminderNotificationId,
-    });
+    // Optimistic update: add task to local state immediately
+    const tempId = `temp-${Date.now()}`;
+    const optimisticTask = { ...normalized, id: tempId, reminderNotificationId };
+    set((state) => ({ tasks: [optimisticTask, ...state.tasks] }));
+    try {
+      // Strip id field so Firestore auto-generates it
+      const { id, ...taskData } = normalized;
+      const docRef = await addDoc(collection(db, "users", currentUid, "tasks"), {
+        ...taskData,
+        reminderNotificationId,
+      });
+      // Replace temp ID with real ID from Firestore
+      set((state) => ({
+        tasks: state.tasks.map((t) =>
+          t.id === tempId ? { ...t, id: docRef.id } : t
+        ),
+      }));
+      return docRef.id;
+    } catch (error) {
+      // Rollback optimistic update on error
+      set((state) => ({ tasks: state.tasks.filter((t) => t.id !== tempId) }));
+      throw error;
+    }
   },
   updateTask: async (id, patch) => {
     const currentUid = getCurrentUid();
@@ -141,16 +160,29 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
 
     const merged = normalizeTask({ ...existing, ...patch, id, createdAt: existing.createdAt });
-    const reminderNotificationId = await upsertTaskReminder(
-      merged,
-      existing.reminderNotificationId,
-    );
-    await updateDoc(doc(db, "users", currentUid, "tasks", id), {
-      ...patch,
-      dueDate: merged.dueDate,
-      reminderEnabled: merged.reminderEnabled,
-      reminderNotificationId,
-    });
+    // Optimistic update: update task in local state immediately
+    set((state) => ({
+      tasks: state.tasks.map((t) => (t.id === id ? merged : t)),
+    }));
+    try {
+      const reminderNotificationId = await upsertTaskReminder(
+        merged,
+        existing.reminderNotificationId,
+      );
+      await updateDoc(doc(db, "users", currentUid, "tasks", id), {
+        ...patch,
+        category: merged.category,
+        dueDate: merged.dueDate,
+        reminderEnabled: merged.reminderEnabled,
+        reminderNotificationId,
+      });
+    } catch (error) {
+      // Rollback optimistic update on error
+      set((state) => ({
+        tasks: state.tasks.map((t) => (t.id === id ? existing : t)),
+      }));
+      throw error;
+    }
   },
   deleteTask: async (id) => {
     const currentUid = getCurrentUid();
@@ -158,8 +190,23 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       throw new Error("You need to sign in before deleting tasks.");
     }
     const existing = get().tasks.find((task) => task.id === id);
-    await cancelTaskReminder(existing?.reminderNotificationId);
-    await deleteDoc(doc(db, "users", currentUid, "tasks", id));
+    if (!existing) {
+      throw new Error("Task not found. Please refresh and try again.");
+    }
+    // Optimistic update: remove task from local state immediately
+    set((state) => ({
+      tasks: state.tasks.filter((t) => t.id !== id),
+    }));
+    try {
+      await cancelTaskReminder(existing?.reminderNotificationId);
+      await deleteDoc(doc(db, "users", currentUid, "tasks", id));
+    } catch (error) {
+      // Rollback optimistic update on error
+      set((state) => ({
+        tasks: [...state.tasks, existing],
+      }));
+      throw error;
+    }
   },
   completeTask: async (id, completed = true) => {
     const currentUid = getCurrentUid();
@@ -171,21 +218,34 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       throw new Error("Task not found. Please refresh and try again.");
     }
 
-    let reminderNotificationId = existing.reminderNotificationId ?? null;
-    if (completed) {
-      await cancelTaskReminder(reminderNotificationId);
-      reminderNotificationId = null;
-    } else {
-      // Ensure we pass `completed: false` so upsertTaskReminder can schedule.
-      reminderNotificationId = await upsertTaskReminder(
-        { ...existing, completed: false },
+    // Optimistic update: update task in local state immediately
+    set((state) => ({
+      tasks: state.tasks.map((t) => (t.id === id ? { ...t, completed } : t)),
+    }));
+
+    try {
+      let reminderNotificationId = existing.reminderNotificationId ?? null;
+      if (completed) {
+        await cancelTaskReminder(reminderNotificationId);
+        reminderNotificationId = null;
+      } else {
+        // Ensure we pass `completed: false` so upsertTaskReminder can schedule.
+        reminderNotificationId = await upsertTaskReminder(
+          { ...existing, completed: false },
+          reminderNotificationId,
+        );
+      }
+      await updateDoc(doc(db, "users", currentUid, "tasks", id), {
+        completed,
         reminderNotificationId,
-      );
+      });
+    } catch (error) {
+      // Rollback optimistic update on error
+      set((state) => ({
+        tasks: state.tasks.map((t) => (t.id === id ? existing : t)),
+      }));
+      throw error;
     }
-    await updateDoc(doc(db, "users", currentUid, "tasks", id), {
-      completed,
-      reminderNotificationId,
-    });
   },
   addTimeToTask: async (id, seconds) => {
     const currentUid = getCurrentUid();

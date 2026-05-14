@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import {
   Alert,
   View,
@@ -24,7 +24,8 @@ import { useRouter } from "expo-router";
 import { useStreakListener } from "@/utils/useStreakListener";
 import { getUserStore } from "@/store/userStore";
 import { useReminders } from "@/hooks/useReminders";
-import { useActivities } from "@/hooks/useActivities";
+import { useSocialActivities, SocialActivity } from "@/hooks/useSocialActivities";
+import { useProfile } from "@/hooks/useProfile";
 import {
   searchUsers,
   getFollowStatusMap,
@@ -63,7 +64,17 @@ export default function HomeScreen() {
   const [followingUid, setFollowingUid] = useState<string | null>(null);
   const [followStatusMap, setFollowStatusMap] = useState<Record<string, FollowStatus>>({});
   const { reminders, pendingCount } = useReminders();
-  const { activities } = useActivities();
+  const { activities } = useSocialActivities();
+  const { profile } = useProfile();
+
+  // Real-time streak listener
+  const { streakData, loading, error } = useStreakListener(db, userId, "UTC");
+
+  // Memoize expensive calculations
+  const initials = useMemo(() => {
+    const email = userId ?? "User";
+    return email.slice(0, 2).toUpperCase();
+  }, [userId]);
 
   // Get user ID from store on mount
   useEffect(() => {
@@ -97,13 +108,6 @@ export default function HomeScreen() {
     };
   }, [router]);
 
-  // Real-time streak listener
-  const { streakData, loading, error } = useStreakListener(db, userId, "UTC");
-  const initials = useMemo(() => {
-    const email = userId ?? "User";
-    return email.slice(0, 2).toUpperCase();
-  }, [userId]);
-
   const runUserSearch = useCallback(async () => {
     const trimmed = searchQuery.trim();
     if (!trimmed) {
@@ -121,6 +125,24 @@ export default function HomeScreen() {
       setSearching(false);
     }
   }, [searchQuery, userId]);
+
+  // Debounced search
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      runUserSearch();
+    }, 300);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery, runUserSearch]);
 
   const handleFollow = async (target: UserSearchResult) => {
     setFollowingUid(target.id);
@@ -182,12 +204,15 @@ export default function HomeScreen() {
             <View key={activity.id} style={styles.activityCardWrap}>
               <ActivityCard
                 initials={initials}
-                name="You"
+                name={profile.name}
                 timestamp={fmtDate(activity.createdAt)}
                 title={activity.title}
                 sessions={activity.sessions}
                 totalHours={fmtTotalHours(activity.totalTime)}
                 images={activity.images.map((uri) => ({ uri }))}
+                photoUri={profile.photoUri}
+                userName={activity.userName}
+                userPhotoUri={activity.userPhotoUri}
               />
             </View>
           ))

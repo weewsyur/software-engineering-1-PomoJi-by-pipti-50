@@ -68,6 +68,12 @@ export default function TimerScreen() {
   const [sessions, setSessions] = useState(0);
   const [streakCount, setStreakCount] = useState(0);
 
+  // Memoize timer duration calculations
+  const currentModeDuration = useMemo(() => {
+    const modeConfig = MODES.find((m) => m.key === mode);
+    return modeConfig?.duration || 25 * 60;
+  }, [mode]);
+
   // ── Task & Session state ───────────────────────────────────────────────
   const {
     tasks,
@@ -77,15 +83,7 @@ export default function TimerScreen() {
     completeTask,
     addTimeToTask,
   } = useTasks();
-  const { createSession: createSessionRaw } = useSessions();
-  const createTask = createTaskRaw as unknown as (task: Task) => Promise<void>;
-  const createSession = createSessionRaw as unknown as (params: {
-    taskId: string | null;
-    taskTitle: string;
-    durationMinutes: number;
-    date: string;
-    mode: "focus";
-  }) => void;
+  const { createSession } = useSessions();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [taskPickerVisible, setTaskPickerVisible] = useState(false);
   const [taskModalVisible, setTaskModalVisible] = useState(false);
@@ -351,8 +349,10 @@ export default function TimerScreen() {
           totalTime: task.totalTime,
         });
       } else {
-        await createTask({
+        // New task: let Firestore generate ID, pass empty string as placeholder
+        await createTaskRaw({
           ...task,
+          id: "", // Firestore will generate the ID
           reminderEnabled: Boolean(task.dueDate?.trim()),
         });
       }
@@ -365,7 +365,7 @@ export default function TimerScreen() {
           : "Failed to save task. Please try again.";
       Alert.alert("Error", message);
     }
-  }, [tasks, updateTask, createTask]);
+  }, [tasks, updateTask, createTaskRaw]);
 
   const handleToggleTask = useCallback(async (id: string) => {
     try {
@@ -379,10 +379,14 @@ export default function TimerScreen() {
   const handleDeleteTask = useCallback(async (id: string) => {
     try {
       await deleteTask(id);
+      // Clear active task if it was deleted
+      if (activeTask?.id === id) {
+        setActiveTask(null);
+      }
     } catch {
       Alert.alert("Error", "Failed to delete task. Please try again.");
     }
-  }, [deleteTask]);
+  }, [deleteTask, activeTask?.id]);
 
   const openNewTask = useCallback(() => {
     setEditingTask(null);
@@ -623,6 +627,10 @@ export default function TimerScreen() {
                   />
                 )}
                 scrollEnabled={false}
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={10}
+                windowSize={5}
+                initialNumToRender={5}
               />
             )}
           </View>

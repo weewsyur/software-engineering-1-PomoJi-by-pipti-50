@@ -36,8 +36,6 @@ const CATEGORY_COLORS: Record<TaskCategory, string> = {
   other: "#9A7AC9",
 };
 
-const uid = () => Math.random().toString(36).slice(2, 10);
-
 const formatDate = (date: Date): string => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -171,7 +169,7 @@ export const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps)
     if (saving) return;
 
     const task: Task = {
-      id: initial?.id ?? uid(),
+      id: initial?.id ?? "", // Empty string for new tasks, Firestore will generate ID
       title: title.trim(),
       description: description.trim(),
       dueDate,

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, memo } from "react";
 import Svg, { Path, Defs, LinearGradient, Stop, Circle } from "react-native-svg";
 import { Colors } from "../../constants/colors";
 
@@ -12,7 +12,12 @@ export interface DailyPointByWeek {
   weekLabel: string;
 }
 
-export type DailyPoint = DailyPointByDay | DailyPointByWeek;
+export interface DailyPointByMonth {
+  totalTime: number;
+  monthLabel: string;
+}
+
+export type DailyPoint = DailyPointByDay | DailyPointByWeek | DailyPointByMonth;
 
 interface ChartPoint {
   x: number;
@@ -101,7 +106,7 @@ function buildAreaPath(points: ChartPoint[], bottomY: number): string {
   );
 }
 
-export function AreaChart({ data, maxValue, width }: AreaChartProps) {
+export const AreaChart = memo<AreaChartProps>(({ data, maxValue, width }: AreaChartProps) => {
   const svgH = CHART_HEIGHT + LABEL_AREA;
   const chartH = CHART_HEIGHT - 12;
   const bottomY = chartH;
@@ -146,6 +151,8 @@ export function AreaChart({ data, maxValue, width }: AreaChartProps) {
       ))}
     </Svg>
   );
-}
+});
+
+AreaChart.displayName = 'AreaChart';
 
 export default AreaChart;

@@ -2,7 +2,7 @@ import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "fireb
 import { getDownloadURL, ref, uploadString } from "firebase/storage";
 import { updateProfile as updateFirebaseProfile } from "firebase/auth";
 import { auth, db, storage } from "./firebase";
-import { File } from "expo-file-system";
+import * as FileSystem from "expo-file-system";
 
 export interface UserProfile {
   name: string;
@@ -28,7 +28,7 @@ export const fetchUserProfile = async (userId: string): Promise<UserProfile | nu
     const userRef = doc(db, "users", userId);
     const userSnap = await getDoc(userRef);
     if (!userSnap.exists()) return null;
-    
+
     const userData = userSnap.data();
     return {
       name: (userData.username as string) || "Your Name",
@@ -133,10 +133,13 @@ export const uploadProfileImage = async (
 ): Promise<string> => {
   try {
     const avatarRef = ref(storage, `profileImages/${userId}`);
-    const photoFile = new File(photoUri);
-    const fileInfo = await photoFile.info();
-    
-    if (fileInfo.exists && fileInfo.size && fileInfo.size > 5 * 1024 * 1024) {
+    const fileInfo = await FileSystem.getInfoAsync(photoUri);
+
+    if (!fileInfo.exists) {
+      throw new Error("Photo file not found.");
+    }
+
+    if (fileInfo.size && fileInfo.size > 5 * 1024 * 1024) {
       throw new Error("Photo too large. Please upload an image under 5MB.");
     }
 
@@ -148,12 +151,14 @@ export const uploadProfileImage = async (
       webp: "image/webp",
     };
     const contentType = mimeMap[ext] ?? "image/jpeg";
-    
+
     if (!Object.values(mimeMap).includes(contentType)) {
       throw new Error("Invalid photo type. Please upload a JPG, PNG, or WEBP.");
     }
 
-    const base64 = await photoFile.text();
+    const base64 = await FileSystem.readAsStringAsync(photoUri, {
+      encoding: "base64",
+    });
     await uploadString(avatarRef, base64, "base64", { contentType });
     return await getDownloadURL(avatarRef);
   } catch (error) {
