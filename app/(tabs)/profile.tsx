@@ -262,7 +262,7 @@ export default function ProfileScreen() {
             await signOut();
             // Navigate to welcome screen
             router.replace("/welcome");
-          } catch (error) {
+          } catch {
             Alert.alert("Error", "Failed to sign out. Please try again.");
           }
         },

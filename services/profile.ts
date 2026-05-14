@@ -35,7 +35,7 @@ export const fetchUserProfile = async (userId: string): Promise<UserProfile | nu
       email: (userData.email as string) || auth.currentUser?.email || "your@email.com",
       photoUri: (userData.photoUrl as string) || null,
     };
-  } catch (error) {
+  } catch {
     throw new Error("Failed to fetch profile");
   }
 };
