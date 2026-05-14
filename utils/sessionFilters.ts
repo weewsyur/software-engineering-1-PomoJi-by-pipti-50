@@ -54,12 +54,12 @@ export function calculateWeeklyStreak(activities: Activity[], date: Date = new D
  * @param date - Reference date (defaults to current date)
  * @returns Array of daily totals for the week (Mon-Sun)
  */
-export function groupSessionsByDay(activities: Activity[], date: Date = new Date()): Array<{
+export function groupSessionsByDay(activities: Activity[], date: Date = new Date()): {
   day: string;
   date: Date;
   totalSessions: number;
   totalTime: number;
-}> {
+}[] {
   const startOfWeek = getStartOfWeek(date);
   const weeklyActivities = filterSessionsByWeek(activities, date);
 
@@ -106,11 +106,11 @@ export function groupSessionsByDay(activities: Activity[], date: Date = new Date
  * @param date - Reference date (defaults to current date)
  * @returns Array of weekly totals for the month
  */
-export function groupSessionsByWeekForMonth(activities: Activity[], date: Date = new Date()): Array<{
+export function groupSessionsByWeekForMonth(activities: Activity[], date: Date = new Date()): {
   weekLabel: string;
   totalSessions: number;
   totalTime: number;
-}> {
+}[] {
   const startOfMonth = getStartOfMonth(date);
   const endOfMonth = getEndOfMonth(date);
   const monthlyActivities = activities.filter((activity) => {
@@ -174,11 +174,11 @@ export function filterSessionsByYear(activities: Activity[], date: Date = new Da
  * @param date - Reference date (defaults to current date)
  * @returns Array of monthly totals for the year
  */
-export function groupSessionsByMonthForYear(activities: Activity[], date: Date = new Date()): Array<{
+export function groupSessionsByMonthForYear(activities: Activity[], date: Date = new Date()): {
   monthLabel: string;
   totalSessions: number;
   totalTime: number;
-}> {
+}[] {
   const startOfYear = getStartOfYear(date);
   const endOfYear = getEndOfYear(date);
   const yearlyActivities = activities.filter((activity) => {

@@ -32,7 +32,7 @@ export const useProfile = () => {
         if (data) {
           setProfile(data);
         }
-      } catch (error) {
+      } catch {
         // Error handling is done in service layer
       } finally {
         setLoadingProfile(false);
@@ -65,7 +65,7 @@ export const useProfileStats = () => {
         }
         const data = await fetchUserStats(userId);
         setStats(data);
-      } catch (error) {
+      } catch {
         // Error handling is done in service layer
       } finally {
         setLoadingStats(false);
@@ -90,7 +90,7 @@ export const useConnections = () => {
     try {
       const data = await fetchConnections(userId, type);
       setConnectionsList(data);
-    } catch (error) {
+    } catch {
       // Error handling is done in service layer
     } finally {
       setLoadingConnections(false);

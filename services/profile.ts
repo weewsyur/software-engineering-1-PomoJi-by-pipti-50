@@ -78,7 +78,7 @@ export const fetchUserStats = async (userId: string): Promise<UserStats> => {
       following: followingSnapshot.size,
       followers: followersSnapshot.size,
     };
-  } catch (error) {
+  } catch {
     throw new Error("Failed to fetch stats");
   }
 };
@@ -97,7 +97,7 @@ export const fetchConnections = async (
       id: itemDoc.id,
       username: (itemDoc.data().username as string) || "User",
     }));
-  } catch (error) {
+  } catch {
     throw new Error("Failed to fetch connections");
   }
 };
@@ -109,7 +109,7 @@ export const updateProfileData = async (
   try {
     const userRef = doc(db, "users", userId);
     await updateDoc(userRef, data);
-  } catch (error) {
+  } catch {
     throw new Error("Failed to update profile");
   }
 };
@@ -122,7 +122,7 @@ export const updateFirebaseUserProfile = async (
     const currentUser = auth.currentUser;
     if (!currentUser) throw new Error("User not authenticated");
     await updateFirebaseProfile(currentUser, { displayName, photoURL });
-  } catch (error) {
+  } catch {
     throw new Error("Failed to update Firebase profile");
   }
 };

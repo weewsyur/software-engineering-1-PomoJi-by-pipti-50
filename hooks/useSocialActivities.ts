@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { auth, db } from "@/services/firebase";
 import { collection, onSnapshot, orderBy, query, getDocs, doc, getDoc, limit } from "firebase/firestore";
 import { getFollowedUsers } from "@/services/social";

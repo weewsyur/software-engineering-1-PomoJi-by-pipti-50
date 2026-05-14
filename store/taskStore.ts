@@ -69,7 +69,7 @@ interface TaskState {
   deleteTask: (id: string) => Promise<void>;
   completeTask: (id: string, completed?: boolean) => Promise<void>;
   addTimeToTask: (id: string, seconds: number) => Promise<void>;
-  getPendingReminders: () => Array<Task & { status: "upcoming" | "overdue" }>;
+  getPendingReminders: () => (Task & { status: "upcoming" | "overdue" })[];
 }
 
 let unsubscribeTasks: (() => void) | null = null;

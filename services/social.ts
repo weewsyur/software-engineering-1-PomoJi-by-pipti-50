@@ -8,7 +8,6 @@ import {
   writeBatch,
   serverTimestamp,
   limit,
-  onSnapshot,
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
 
@@ -77,7 +76,7 @@ export const searchUsers = async (
       }))
       .filter((item) => item.id !== currentUserId && Boolean(item.username));
     return results;
-  } catch (error) {
+  } catch {
     return [];
   }
 };
@@ -114,7 +113,7 @@ export const getFollowStatusMap = async (
       })
     );
     return Object.fromEntries(statusEntries);
-  } catch (error) {
+  } catch {
     return {};
   }
 };
