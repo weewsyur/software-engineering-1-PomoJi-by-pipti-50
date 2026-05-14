@@ -1,5 +1,14 @@
-import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  Alert,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { ChevronLeft, X } from "lucide-react";
 import { Colors } from "@/constants/colors";
 import { Activity } from "@/hooks/useActivities";
 
@@ -20,13 +29,21 @@ const fmtFocusTime = (totalSeconds: number): string => {
 
 const fmtDate = (iso: string): string => {
   const d = new Date(iso);
-  return `${d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })} ${d.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
+  return `${d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })} ${d.toLocaleTimeString(
+    [],
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+    },
+  )}`;
 };
 
-export const ActivityDetailModal = ({ activity, visible, onClose, onDelete }: ActivityDetailModalProps) => {
+export const ActivityDetailModal = ({
+  activity,
+  visible,
+  onClose,
+  onDelete,
+}: ActivityDetailModalProps) => {
   const handleDelete = () => {
     if (!activity) return;
     Alert.alert(
@@ -42,7 +59,7 @@ export const ActivityDetailModal = ({ activity, visible, onClose, onDelete }: Ac
             onClose();
           },
         },
-      ]
+      ],
     );
   };
 
@@ -57,15 +74,21 @@ export const ActivityDetailModal = ({ activity, visible, onClose, onDelete }: Ac
     >
       <View style={styles.container}>
         <View style={styles.header}>
+          <TouchableOpacity onPress={onClose}>
+            <ChevronLeft size={24} color={Colors.text} strokeWidth={2.5} />
+          </TouchableOpacity>
           <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
             <Text style={styles.deleteButtonText}>Delete</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color={Colors.text} />
+            <X size={24} color={Colors.text} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={styles.title}>{activity.title}</Text>
           <Text style={styles.date}>{fmtDate(activity.createdAt)}</Text>
 
@@ -76,7 +99,9 @@ export const ActivityDetailModal = ({ activity, visible, onClose, onDelete }: Ac
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statBlock}>
-              <Text style={styles.statValue}>{fmtFocusTime(activity.totalTime)}</Text>
+              <Text style={styles.statValue}>
+                {fmtFocusTime(activity.totalTime)}
+              </Text>
               <Text style={styles.statLabel}>Focus Time</Text>
             </View>
           </View>
@@ -95,7 +120,11 @@ export const ActivityDetailModal = ({ activity, visible, onClose, onDelete }: Ac
           {activity.images && activity.images.length > 0 && (
             <View style={styles.imagesSection}>
               <Text style={styles.sectionLabel}>Images</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScroll}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.imagesScroll}
+              >
                 {activity.images.map((uri, index) => (
                   <Image
                     key={index}

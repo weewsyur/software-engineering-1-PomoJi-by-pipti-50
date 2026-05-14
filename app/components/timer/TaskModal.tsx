@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import { X, Calendar } from "lucide-react";
 import { useState, useEffect } from "react";
 import DateTimePicker, {
   DateTimePickerEvent,
@@ -208,7 +208,7 @@ export const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps)
               {initial ? "Edit Task" : "New Task"}
             </Text>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={22} color={Colors.textMuted} />
+              <X size={22} color={Colors.textMuted} strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
 
@@ -245,7 +245,7 @@ export const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps)
               >
                 {dueDate || "Select due date"}
               </Text>
-              <Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />
+              <Calendar size={18} color={Colors.textMuted} strokeWidth={2.5} />
             </TouchableOpacity>
             {Platform.OS === "ios" && showDatePicker && (
               <View style={modalStyles.datePickerContainer}>

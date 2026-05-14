@@ -1,5 +1,5 @@
 import React from "react";
-import { Ionicons } from "@expo/vector-icons";
+import { CheckCircle2, Circle, Edit, Trash2 } from "lucide-react-native";
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Task } from "@/hooks/usePomodoro";
 import { CategoryPill } from "./CategoryPill";
@@ -39,11 +39,11 @@ export const TaskRow = React.memo(({ task, onToggle, onEdit, onDelete }: TaskRow
       style={taskRowStyles.check}
       onPress={() => onToggle(task.id)}
     >
-      <Ionicons
-        name={task.completed ? "checkmark-circle" : "ellipse-outline"}
-        size={22}
-        color={task.completed ? "#C94C3C" : "#C4A8A8"}
-      />
+      {task.completed ? (
+        <CheckCircle2 size={22} color="#C94C3C" strokeWidth={2.5} />
+      ) : (
+        <Circle size={22} color="#C4A8A8" strokeWidth={2.5} />
+      )}
     </TouchableOpacity>
     <View style={taskRowStyles.body}>
       <Text
@@ -62,7 +62,7 @@ export const TaskRow = React.memo(({ task, onToggle, onEdit, onDelete }: TaskRow
       </View>
     </View>
     <TouchableOpacity style={taskRowStyles.icon} onPress={() => onEdit(task)}>
-      <Ionicons name="pencil-outline" size={16} color="#9A7070" />
+      <Edit size={16} color="#9A7070" strokeWidth={2.5} />
     </TouchableOpacity>
     <TouchableOpacity
       style={taskRowStyles.icon}
@@ -77,7 +77,7 @@ export const TaskRow = React.memo(({ task, onToggle, onEdit, onDelete }: TaskRow
         ])
       }
     >
-      <Ionicons name="trash-outline" size={16} color="#C94C3C" />
+      <Trash2 size={16} color="#C94C3C" strokeWidth={2.5} />
     </TouchableOpacity>
   </View>
 ));

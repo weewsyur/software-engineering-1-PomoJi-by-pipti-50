@@ -1,6 +1,6 @@
 import React, { memo } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Camera } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
 import { UserProfile } from "@/services/profile";
 
@@ -52,7 +52,7 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = memo(({
       )}
       {onPress && (
         <View style={styles.cameraBadge}>
-          <Ionicons name="camera" size={11} color={Colors.surface} />
+          <Camera size={11} color={Colors.surface} strokeWidth={2.5} />
         </View>
       )}
     </TouchableOpacity>

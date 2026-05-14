@@ -10,7 +10,7 @@ import {
   Image,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { Ionicons } from "@expo/vector-icons";
+import { X, Images } from "lucide-react";
 import { Colors } from "@/constants/colors";
 
 interface PostActivityModalProps {
@@ -71,7 +71,7 @@ export default function PostActivityModal({
           <View style={styles.header}>
             <Text style={styles.title}>Save Activity</Text>
             <TouchableOpacity onPress={onSkip}>
-              <Ionicons name="close" size={20} color={Colors.textMuted} />
+              <X size={20} color={Colors.textMuted} strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
 
@@ -101,7 +101,7 @@ export default function PostActivityModal({
             </View>
 
             <TouchableOpacity style={styles.imageButton} onPress={pickImages}>
-              <Ionicons name="images-outline" size={18} color={Colors.primary} />
+              <Images size={18} color={Colors.primary} strokeWidth={2.5} />
               <Text style={styles.imageButtonText}>Add Images</Text>
             </TouchableOpacity>
 

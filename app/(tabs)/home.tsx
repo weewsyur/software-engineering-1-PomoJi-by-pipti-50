@@ -127,7 +127,7 @@ export default function HomeScreen() {
   }, [searchQuery, userId]);
 
   // Debounced search
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (searchTimeoutRef.current) {

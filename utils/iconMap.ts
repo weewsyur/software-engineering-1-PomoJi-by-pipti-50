@@ -1,0 +1,20 @@
+// Lucide-react-native icon map (replaces Ionicons)
+export const lucideIcons = {
+  add: 'Plus',
+  'calendar-outline': 'Calendar',
+  camera: 'Camera',
+  'chevron-back': 'ChevronLeft',
+  'clipboard-outline': 'Clipboard',
+  close: 'X',
+  flame: 'Flame',
+  'images-outline': 'Images',
+  'notifications-outline': 'Bell',
+  pause: 'Pause',
+  pencil: 'Edit',
+  'pencil-outline': 'Edit',
+  play: 'Play',
+  search: 'Search',
+  'search-outline': 'Search',
+  stop: 'Square',
+  'trash-outline': 'Trash2',
+} as const;

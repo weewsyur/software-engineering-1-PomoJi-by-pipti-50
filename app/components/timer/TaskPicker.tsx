@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import { X } from "lucide-react";
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Colors } from "@/constants/colors";
 import { Task } from "@/hooks/usePomodoro";
@@ -24,7 +24,7 @@ export const TaskPicker = ({ visible, tasks, activeTask, onSelect, onClose }: Ta
         <View style={pickerStyles.header}>
           <Text style={pickerStyles.title}>Choose Focus Task</Text>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={20} color={Colors.textMuted} />
+            <X size={20} color={Colors.textMuted} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
 

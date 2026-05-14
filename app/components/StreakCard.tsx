@@ -1,6 +1,6 @@
 import React, { useMemo, memo } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Flame } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
 import { StreakData } from "@/utils/streakCalculator";
@@ -112,7 +112,7 @@ export const StreakCard = memo<StreakCardProps>(({
           {/* Flame + count */}
           <View style={styles.flameBlock}>
             <View style={styles.flameBadge}>
-              <Ionicons name="flame" size={22} color={Colors.surface} />
+              <Flame size={22} color={Colors.surface} strokeWidth={2.5} fill={Colors.surface} />
               <Text style={styles.flameCount}>{displayCount}</Text>
             </View>
             <Text style={styles.streakUnit}>{displayUnit}</Text>
