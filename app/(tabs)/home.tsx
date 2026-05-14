@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as Notifications from "expo-notifications";
 import { Colors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
 import { StreakCard } from "../components/StreakCard";
@@ -91,7 +92,6 @@ export default function HomeScreen() {
       if (Constants.executionEnvironment === "storeClient") return;
       await initializeNotifications().catch(() => null);
 
-      const Notifications = await import("expo-notifications");
       if (!mounted) return;
 
       sub = Notifications.addNotificationResponseReceivedListener((response) => {
