@@ -22,7 +22,7 @@ export async function initializeNotifications() {
 function toReminderDate(dueDate: string) {
   const date = new Date(dueDate);
   if (Number.isNaN(date.getTime())) return null;
-  return date;
+  return date;  
 }
 
 export async function upsertTaskReminder(
