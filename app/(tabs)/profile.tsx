@@ -384,14 +384,17 @@ export default function ProfileScreen() {
 
   // ── Image picking ───────────────────────────────────────────────────────────
   const pickFromLibrary = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission needed", "Please allow photo library access.");
-      return;
+    // On web, no permission request needed
+    if (Platform.OS !== "web") {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission needed", "Please allow photo library access.");
+        return;
+      }
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
+      allowsEditing: Platform.OS !== "web", // Editing not supported on web
       aspect: [1, 1],
       quality: 0.85,
     });
@@ -401,6 +404,10 @@ export default function ProfileScreen() {
   };
 
   const takePhoto = async () => {
+    if (Platform.OS === "web") {
+      Alert.alert("Not supported", "Camera is not available on web. Please choose from library.");
+      return;
+    }
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
       Alert.alert("Permission needed", "Please allow camera access.");
@@ -417,20 +424,26 @@ export default function ProfileScreen() {
   };
 
   const showPhotoSheet = () => {
-    Alert.alert("Profile Photo", "Choose an option", [
-      { text: "Take Photo", onPress: takePhoto },
+    const options: Array<{ text: string; onPress: () => void | Promise<void>; style?: "destructive" | "cancel" }> = [
       { text: "Choose from Library", onPress: pickFromLibrary },
-      ...(draftPhotoUri
-        ? [
-          {
-            text: "Remove Photo",
-            style: "destructive" as const,
-            onPress: () => setDraftPhotoUri(null),
-          },
-        ]
-        : []),
-      { text: "Cancel", style: "cancel" },
-    ]);
+    ];
+
+    // Only show camera option on mobile
+    if (Platform.OS !== "web") {
+      options.unshift({ text: "Take Photo", onPress: takePhoto });
+    }
+
+    if (draftPhotoUri) {
+      options.push({
+        text: "Remove Photo",
+        style: "destructive",
+        onPress: () => setDraftPhotoUri(null),
+      });
+    }
+
+    options.push({ text: "Cancel", style: "cancel", onPress: () => { } });
+
+    Alert.alert("Profile Photo", "Choose an option", options);
   };
 
   const openConnectionsModal = async (type: ConnectionModalType) => {
