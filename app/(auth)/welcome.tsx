@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   pillButton: {
     color: COLORS.primary,
     paddingVertical: 6,
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   pillButtonText: {
     fontSize: 14,
     fontWeight: "700",
-    letterSpacing: 0.6,
+    letterSpacing: 0.5,
   },
   pillButtonTextPrimary: {
     color: COLORS.white,
