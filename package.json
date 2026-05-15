@@ -16,7 +16,6 @@
     "build:ios": "eas build --platform ios"
   },
   "dependencies": {
-    "lucide-react-native": "^0.344.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "^9.1.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
@@ -38,6 +37,8 @@
     "expo-web-browser": "~55.0.14",
     "feather-icons": "^4.29.2",
     "firebase": "^12.12.1",
+    "lucide-react": "^1.16.0",
+    "lucide-react-native": "^0.344.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-native": "0.83.6",

@@ -1,5 +1,12 @@
-import { X } from "lucide-react-native";
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { X } from "lucide-react";
+import {
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Colors } from "@/constants/colors";
 import { Task } from "@/hooks/usePomodoro";
 import { getTaskTitle } from "./TaskRow";
@@ -12,7 +19,13 @@ interface TaskPickerProps {
   onClose: () => void;
 }
 
-export const TaskPicker = ({ visible, tasks, activeTask, onSelect, onClose }: TaskPickerProps) => (
+export const TaskPicker = ({
+  visible,
+  tasks,
+  activeTask,
+  onSelect,
+  onClose,
+}: TaskPickerProps) => (
   <Modal
     visible={visible}
     animationType="fade"
@@ -60,9 +73,7 @@ export const TaskPicker = ({ visible, tasks, activeTask, onSelect, onClose }: Ta
                   onClose();
                 }}
               >
-                <Text style={pickerStyles.itemTitle}>
-                  {getTaskTitle(task)}
-                </Text>
+                <Text style={pickerStyles.itemTitle}>{getTaskTitle(task)}</Text>
                 <Text style={pickerStyles.itemMeta}>
                   {Math.floor(task.totalTime / 3600)}h{" "}
                   {Math.floor((task.totalTime % 3600) / 60)}m logged

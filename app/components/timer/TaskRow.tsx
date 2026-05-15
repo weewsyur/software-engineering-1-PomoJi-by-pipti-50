@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircle2, Circle, Edit, Trash2 } from "lucide-react-native";
+import { CheckCircle2, Circle, Edit, Trash2 } from "lucide-react";
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Task } from "@/hooks/usePomodoro";
 import { CategoryPill } from "./CategoryPill";

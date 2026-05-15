@@ -3,7 +3,7 @@ import { Colors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
 import { useActivities } from "@/hooks/useActivities";
 import { Task, TaskCategory, useSessions, useTasks } from "@/hooks/usePomodoro";
-import { Plus, Square, Play, Pause, Clipboard } from "lucide-react-native";
+import { Plus, Square, Play, Pause, Clipboard } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import {

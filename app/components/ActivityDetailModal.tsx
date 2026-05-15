@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { ChevronLeft, X } from "lucide-react-native";
+import { ChevronLeft, X } from "lucide-react";
 import { Colors } from "@/constants/colors";
 import { Activity } from "@/hooks/useActivities";
 

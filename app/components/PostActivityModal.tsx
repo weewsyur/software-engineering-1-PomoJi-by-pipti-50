@@ -10,7 +10,7 @@ import {
   Image,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { X, Images } from "lucide-react-native";
+import { X, Images } from "lucide-react";
 import { Colors } from "@/constants/colors";
 
 interface PostActivityModalProps {
@@ -19,7 +19,11 @@ interface PostActivityModalProps {
   sessions: number;
   totalTimeSeconds: number;
   onSkip: () => void;
-  onSave: (payload: { title: string; description: string; images: string[] }) => void;
+  onSave: (payload: {
+    title: string;
+    description: string;
+    images: string[];
+  }) => void;
 }
 
 const fmtDuration = (seconds: number) => {
@@ -42,7 +46,10 @@ export default function PostActivityModal({
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<string[]>([]);
 
-  const totalTimeLabel = useMemo(() => fmtDuration(totalTimeSeconds), [totalTimeSeconds]);
+  const totalTimeLabel = useMemo(
+    () => fmtDuration(totalTimeSeconds),
+    [totalTimeSeconds],
+  );
 
   React.useEffect(() => {
     if (!visible) return;
@@ -65,7 +72,12 @@ export default function PostActivityModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onSkip}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onSkip}
+    >
       <View style={styles.overlay}>
         <View style={styles.sheet}>
           <View style={styles.header}>
@@ -77,7 +89,12 @@ export default function PostActivityModal({
 
           <ScrollView showsVerticalScrollIndicator={false}>
             <Text style={styles.label}>Title</Text>
-            <TextInput value={title} onChangeText={setTitle} style={styles.input} placeholder="Focus Session" />
+            <TextInput
+              value={title}
+              onChangeText={setTitle}
+              style={styles.input}
+              placeholder="Focus Session"
+            />
             <Text style={styles.label}>Description</Text>
             <TextInput
               value={description}
@@ -120,7 +137,13 @@ export default function PostActivityModal({
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.saveBtn}
-              onPress={() => onSave({ title: title.trim() || "Focus Session", description: description.trim(), images })}
+              onPress={() =>
+                onSave({
+                  title: title.trim() || "Focus Session",
+                  description: description.trim(),
+                  images,
+                })
+              }
             >
               <Text style={styles.saveText}>Save Activity</Text>
             </TouchableOpacity>
@@ -132,7 +155,11 @@ export default function PostActivityModal({
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "flex-end" },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "flex-end",
+  },
   sheet: {
     backgroundColor: Colors.background,
     borderTopLeftRadius: 24,
@@ -140,9 +167,20 @@ const styles = StyleSheet.create({
     padding: 18,
     maxHeight: "85%",
   },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
   title: { fontSize: 17, fontWeight: "800", color: Colors.text },
-  label: { fontSize: 11, color: Colors.textMuted, fontWeight: "700", marginTop: 10, marginBottom: 6 },
+  label: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    fontWeight: "700",
+    marginTop: 10,
+    marginBottom: 6,
+  },
   input: {
     borderWidth: 1,
     borderColor: Colors.border,
@@ -154,10 +192,25 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   textArea: { minHeight: 88, textAlignVertical: "top" },
-  statsRow: { flexDirection: "row", alignItems: "center", marginTop: 14, marginBottom: 6 },
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 14,
+    marginBottom: 6,
+  },
   statLabel: { fontSize: 11, color: Colors.textMuted, fontWeight: "500" },
-  statValue: { fontSize: 19, color: Colors.text, fontWeight: "800", marginTop: 2 },
-  statDivider: { width: 1, height: 32, backgroundColor: Colors.border, marginHorizontal: 14 },
+  statValue: {
+    fontSize: 19,
+    color: Colors.text,
+    fontWeight: "800",
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: Colors.border,
+    marginHorizontal: 14,
+  },
   imageButton: {
     flexDirection: "row",
     gap: 6,
@@ -171,10 +224,27 @@ const styles = StyleSheet.create({
   },
   imageButtonText: { fontSize: 12, color: Colors.primary, fontWeight: "700" },
   imageRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
-  preview: { width: 64, height: 64, borderRadius: 8, backgroundColor: Colors.border },
+  preview: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
+    backgroundColor: Colors.border,
+  },
   actions: { flexDirection: "row", gap: 10, marginTop: 14 },
-  skipBtn: { flex: 1, backgroundColor: Colors.surface, borderRadius: 12, paddingVertical: 13, alignItems: "center" },
+  skipBtn: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: "center",
+  },
   skipText: { fontSize: 14, color: Colors.textMuted, fontWeight: "700" },
-  saveBtn: { flex: 2, backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 13, alignItems: "center" },
+  saveBtn: {
+    flex: 2,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: "center",
+  },
   saveText: { fontSize: 14, color: Colors.surface, fontWeight: "700" },
 });

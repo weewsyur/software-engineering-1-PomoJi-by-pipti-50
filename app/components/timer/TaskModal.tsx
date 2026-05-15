@@ -1,4 +1,4 @@
-import { X, Calendar } from "lucide-react-native";
+import { X, Calendar } from "lucide-react";
 import { useState, useEffect } from "react";
 import DateTimePicker, {
   DateTimePickerEvent,
@@ -62,7 +62,12 @@ interface TaskModalProps {
   onClose: () => void;
 }
 
-export const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps) => {
+export const TaskModal = ({
+  visible,
+  initial,
+  onSave,
+  onClose,
+}: TaskModalProps) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -184,7 +189,9 @@ export const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps)
       await onSave(task);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Failed to save task. Please try again.";
+        error instanceof Error
+          ? error.message
+          : "Failed to save task. Please try again.";
       Alert.alert("Error", message);
     } finally {
       setSaving(false);
@@ -241,7 +248,9 @@ export const TaskModal = ({ visible, initial, onSave, onClose }: TaskModalProps)
               activeOpacity={0.8}
             >
               <Text
-                style={dueDate ? modalStyles.dateText : modalStyles.placeholderText}
+                style={
+                  dueDate ? modalStyles.dateText : modalStyles.placeholderText
+                }
               >
                 {dueDate || "Select due date"}
               </Text>

@@ -1,6 +1,6 @@
 import React, { memo } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
-import { Camera } from "lucide-react-native";
+import { Camera } from "lucide-react";
 import { Colors } from "@/constants/colors";
 import { UserProfile } from "@/services/profile";
 

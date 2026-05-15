@@ -1,6 +1,6 @@
 import React, { useMemo, memo } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
-import { Flame } from "lucide-react-native";
+import { Flame } from "lucide-react";
 import { Colors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
 import { StreakData } from "@/utils/streakCalculator";
