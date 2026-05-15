@@ -109,12 +109,18 @@ export const TaskModal = ({
     const input = doc.createElement("input");
     input.type = "date";
     input.value = dueDate || formatDate(selectedDate ?? new Date());
+    // Position off-screen instead of hiding with opacity/pointer-events
     input.style.position = "fixed";
-    input.style.opacity = "0";
-    input.style.pointerEvents = "none";
+    input.style.left = "-9999px";
+    input.style.top = "-9999px";
     input.style.zIndex = "9999";
+    input.style.visibility = "visible";
+
+    let isCleaningUp = false;
 
     const cleanup = () => {
+      if (isCleaningUp) return;
+      isCleaningUp = true;
       if (input.parentNode) {
         input.parentNode.removeChild(input);
       }
@@ -129,14 +135,31 @@ export const TaskModal = ({
       const parsed = parseDueDate(value);
       setDueDate(value);
       setSelectedDate(parsed);
-      cleanup();
+      // Delay cleanup to ensure state updates complete
+      setTimeout(cleanup, 100);
     });
-    input.addEventListener("blur", cleanup);
+
+    // Only cleanup on cancel/dismiss, not on blur during selection
+    input.addEventListener("cancel", cleanup);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        cleanup();
+      }
+    });
+
     doc.body.appendChild(input);
-    input.focus();
-    const pickerInput = input as HTMLInputElement & { showPicker?: () => void };
-    pickerInput.showPicker?.();
+
+    // Use click() to trigger the browser's native date picker
+    // This is more reliable than showPicker() across browsers
     input.click();
+
+    // Fallback: try showPicker if click doesn't work (Chrome/Edge)
+    const pickerInput = input as HTMLInputElement & { showPicker?: () => void };
+    setTimeout(() => {
+      if (!isCleaningUp && pickerInput.showPicker) {
+        pickerInput.showPicker();
+      }
+    }, 0);
   };
 
   const openDatePicker = () => {
