@@ -21,6 +21,7 @@ import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { SharedStyles } from '@/constants/styles';
 import { signOut } from '@/services/auth';
+import { LucideIcon } from '@/app/components/LucideIcon';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { getDownloadURL, ref, uploadString } from "firebase/storage";
