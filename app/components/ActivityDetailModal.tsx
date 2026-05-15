@@ -1,5 +1,4 @@
 import {
-  Alert,
   Image,
   Modal,
   ScrollView,
@@ -11,6 +10,7 @@ import {
 import { ChevronLeft, X } from "lucide-react";
 import { Colors } from "@/constants/colors";
 import { Activity } from "@/hooks/useActivities";
+import { useState } from "react";
 
 interface ActivityDetailModalProps {
   activity: Activity | null;
@@ -44,23 +44,21 @@ export const ActivityDetailModal = ({
   onClose,
   onDelete,
 }: ActivityDetailModalProps) => {
-  const handleDelete = () => {
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const handleDeletePress = () => {
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = () => {
     if (!activity) return;
-    Alert.alert(
-      "Delete Activity",
-      "Are you sure you want to delete this activity? This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            onDelete(activity.id);
-            onClose();
-          },
-        },
-      ],
-    );
+    setShowDeleteModal(false);
+    onDelete(activity.id);
+    onClose();
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
   };
 
   if (!activity) return null;
@@ -77,7 +75,7 @@ export const ActivityDetailModal = ({
           <TouchableOpacity onPress={onClose}>
             <ChevronLeft size={24} color={Colors.text} strokeWidth={2.5} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
+          <TouchableOpacity onPress={handleDeletePress} style={styles.deleteButton}>
             <Text style={styles.deleteButtonText}>Delete</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={onClose}>
@@ -138,6 +136,44 @@ export const ActivityDetailModal = ({
           )}
         </ScrollView>
       </View>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleDeleteCancel}
+      >
+        <View style={deleteModalStyles.overlay}>
+          <View style={deleteModalStyles.container}>
+            <View style={deleteModalStyles.header}>
+              <Text style={deleteModalStyles.title}>Delete Activity</Text>
+              <TouchableOpacity onPress={handleDeleteCancel} style={deleteModalStyles.closeBtn}>
+                <X size={20} color="#9A7070" strokeWidth={2.5} />
+              </TouchableOpacity>
+            </View>
+            <Text style={deleteModalStyles.message}>
+              Are you sure you want to delete "{activity.title}"? This action cannot be undone.
+            </Text>
+            <View style={deleteModalStyles.buttons}>
+              <TouchableOpacity
+                style={deleteModalStyles.cancelButton}
+                onPress={handleDeleteCancel}
+                activeOpacity={0.8}
+              >
+                <Text style={deleteModalStyles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={deleteModalStyles.deleteButton}
+                onPress={handleDeleteConfirm}
+                activeOpacity={0.8}
+              >
+                <Text style={deleteModalStyles.deleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 };
@@ -246,5 +282,77 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 12,
     marginRight: 12,
+  },
+});
+
+const deleteModalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  container: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1A0808",
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  message: {
+    fontSize: 14,
+    color: "#1A0808",
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  buttons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: "#EAD8D8",
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#9A7070",
+  },
+  deleteButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: "#C94C3C",
+    alignItems: "center",
+  },
+  deleteButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 });

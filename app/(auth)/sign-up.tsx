@@ -208,7 +208,7 @@ export default function SignUp() {
             secureEntry
           />
 
-          <AuthInput
+          <AuthInput  
             label="Confirm Password"
             value={confirmPassword}
             onChangeText={setConfirmPassword}

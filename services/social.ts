@@ -44,6 +44,44 @@ export const getFollowedUsers = async (currentUserId: string | null): Promise<st
 };
 
 /**
+ * Get mutually connected users (both users follow each other)
+ */
+export const getMutuallyConnectedUsers = async (currentUserId: string | null): Promise<string[]> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    return [];
+  }
+
+  const currentUid = currentUser.uid;
+  if (!currentUid) {
+    return [];
+  }
+
+  try {
+    const followingRef = collection(db, "following", currentUid, "list");
+    const followingSnapshot = await getDocs(followingRef);
+    const followedIds = followingSnapshot.docs.map((doc) => doc.id);
+
+    // Check which of these users also follow back
+    const mutualConnections: string[] = [];
+    await Promise.all(
+      followedIds.map(async (followedId) => {
+        const followBackRef = doc(db, "following", followedId, "list", currentUid);
+        const followBackSnap = await getDoc(followBackRef);
+        if (followBackSnap.exists()) {
+          mutualConnections.push(followedId);
+        }
+      })
+    );
+
+    return mutualConnections;
+  } catch (error) {
+    console.error("Error fetching mutually connected users:", error);
+    return [];
+  }
+};
+
+/**
  * Search for users by username prefix
  */
 export const searchUsers = async (

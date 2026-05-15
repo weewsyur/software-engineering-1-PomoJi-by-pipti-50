@@ -61,11 +61,11 @@ export function useSocialActivities() {
       isFetchingRef.current = true;
 
       try {
-        // Get followed users
-        const followedIds = await getFollowedUsers(currentUid);
+        // Get mutually connected users (both users follow each other)
+        const connectedIds = await getMutuallyConnectedUsers(currentUid);
 
         // Include current user in the list
-        const allUserIds = [currentUid, ...followedIds];
+        const allUserIds = [currentUid, ...connectedIds];
 
         // Fetch activities from all users with limit
         const activityPromises = allUserIds.map(async (uid) => {
