@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { X } from "lucide-react-native";
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Colors } from "@/constants/colors";
 import { Task } from "@/hooks/usePomodoro";

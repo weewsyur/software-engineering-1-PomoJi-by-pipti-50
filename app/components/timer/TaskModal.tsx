@@ -1,4 +1,4 @@
-import { X, Calendar } from "lucide-react";
+import { X, Calendar } from "lucide-react-native";
 import { useState, useEffect } from "react";
 import DateTimePicker, {
   DateTimePickerEvent,
