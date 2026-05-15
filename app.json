@@ -13,7 +13,10 @@
     "android": {
       "backgroundColor": "#E6F4FE",
       "predictiveBackGestureEnabled": false,
-      "permissions": ["NOTIFICATIONS"]
+      "permissions": [
+        "NOTIFICATIONS"
+      ],
+      "package": "com.yuuriii.PomoJI"
     },
     "web": {
       "output": "static"
@@ -40,6 +43,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "eae10108-01a2-4065-8a98-7e88b0f69c5f"
+      }
     }
   }
 }
