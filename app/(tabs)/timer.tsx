@@ -1,9 +1,10 @@
 import PostActivityModal from "@/app/components/PostActivityModal";
-import { Colors } from "@/constants/colors";
+import { Colors, useColors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
 import { useActivities } from "@/hooks/useActivities";
 import { Task, TaskCategory, useSessions, useTasks } from "@/hooks/usePomodoro";
 import { LucideIcon } from "@/app/components/LucideIcon";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Plus, Square, Play, Pause, Clipboard } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
@@ -62,6 +63,9 @@ const getTaskCategory = (task: Task): TaskCategory =>
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function TimerScreen() {
+  const { isDarkMode } = useTheme();
+  const colors = useColors(isDarkMode);
+
   // ── Timer state ──────────────────────────────────────────────────────────
   const [mode, setMode] = useState<TimerMode>("focus");
   const [timeLeft, setTimeLeft] = useState(25 * 60);
@@ -407,7 +411,7 @@ export default function TimerScreen() {
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <SafeAreaView
-      style={StyleSheet.flatten([SharedStyles.screen, styles.safe])}
+      style={StyleSheet.flatten([SharedStyles.screen, styles.safe, { backgroundColor: colors.background }])}
     >
       <ScrollView
         contentContainerStyle={{ paddingBottom: 32 }}
@@ -415,26 +419,26 @@ export default function TimerScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <StatusBar
-          barStyle="dark-content"
-          backgroundColor={Colors.background}
+          barStyle={isDarkMode ? "light-content" : "dark-content"}
+          backgroundColor={colors.background}
         />
 
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerLabel}>TIMER</Text>
+        <View style={[styles.header, { backgroundColor: colors.background }]}>
+          <Text style={[styles.headerLabel, { color: colors.textMuted }]}>TIMER</Text>
           <TouchableOpacity
             style={styles.tasksToggle}
             onPress={() => setShowTasks((v) => !v)}
           >
             {pendingTasks > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{pendingTasks}</Text>
+              <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+                <Text style={[styles.badgeText, { color: colors.surface }]}>{pendingTasks}</Text>
               </View>
             )}
             <LucideIcon
               name={showTasks ? "list" : "list-outline"}
               size={20}
-              color={showTasks ? Colors.primary : Colors.textMuted}
+              color={showTasks ? colors.primary : colors.textMuted}
             />
           </TouchableOpacity>
         </View>
@@ -507,19 +511,20 @@ export default function TimerScreen() {
             style={StyleSheet.flatten([
               SharedStyles.card,
               styles.activeTaskCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
             ])}
           >
-            <Text style={styles.activeTaskLabel}>Active Task</Text>
+            <Text style={[styles.activeTaskLabel, { color: colors.textMuted }]}>Active Task</Text>
             <TouchableOpacity
               style={styles.activeTaskButton}
               onPress={() => setTaskPickerVisible(true)}
               disabled={hasStarted}
             >
               <View style={styles.activeTaskTextWrap}>
-                <Text style={styles.activeTaskTitle} numberOfLines={1}>
+                <Text style={[styles.activeTaskTitle, { color: colors.text }]} numberOfLines={1}>
                   {activeTask?.title ?? "Unassigned Session"}
                 </Text>
-                <Text style={styles.activeTaskHint}>
+                <Text style={[styles.activeTaskHint, { color: colors.textMuted }]}>
                   {hasStarted
                     ? "Locked during this session"
                     : "Tap to choose task"}
@@ -528,7 +533,7 @@ export default function TimerScreen() {
               <LucideIcon
                 name="chevron-down"
                 size={18}
-                color={Colors.textMuted}
+                color={colors.textMuted}
               />
             </TouchableOpacity>
           </View>
@@ -538,62 +543,62 @@ export default function TimerScreen() {
         <View style={styles.controls}>
           {hasStarted ? (
             <TouchableOpacity style={styles.resetBtn} onPress={handleStop}>
-              <LucideIcon name="stop" size={20} color={Colors.textMuted} />
+              <LucideIcon name="stop" size={20} color={colors.textMuted} />
             </TouchableOpacity>
           ) : (
             <View style={styles.resetBtn} />
           )}
 
           {!hasStarted ? (
-            <TouchableOpacity style={styles.playBtn} onPress={handleStart}>
-              <LucideIcon name="play" size={28} color={Colors.surface} />
+            <TouchableOpacity style={[styles.playBtn, { backgroundColor: colors.primary }]} onPress={handleStart}>
+              <LucideIcon name="play" size={28} color={colors.surface} />
             </TouchableOpacity>
           ) : isRunning ? (
-            <TouchableOpacity style={styles.playBtn} onPress={handlePause}>
-              <LucideIcon name="pause" size={28} color={Colors.surface} />
+            <TouchableOpacity style={[styles.playBtn, { backgroundColor: colors.primary }]} onPress={handlePause}>
+              <LucideIcon name="pause" size={28} color={colors.surface} />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={StyleSheet.flatten([styles.playBtn, styles.resumeBtn])}
+              style={StyleSheet.flatten([styles.playBtn, styles.resumeBtn, { backgroundColor: colors.primary }])}
               onPress={handleResume}
             >
-              <LucideIcon name="play" size={28} color={Colors.surface} />
+              <LucideIcon name="play" size={28} color={colors.surface} />
             </TouchableOpacity>
           )}
 
-          <View style={styles.sessionBadge}>
-            <Text style={styles.sessionCount}>{sessions}</Text>
-            <Text style={styles.sessionLabel}>done</Text>
+          <View style={[styles.sessionBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.sessionCount, { color: colors.text }]}>{sessions}</Text>
+            <Text style={[styles.sessionLabel, { color: colors.textMuted }]}>done</Text>
           </View>
         </View>
 
         {hasStarted && !isRunning && canRecordSession && (
           <TouchableOpacity
-            style={styles.recordSessionBtn}
+            style={[styles.recordSessionBtn, { backgroundColor: colors.primary }]}
             onPress={() => setPostActivityVisible(true)}
           >
-            <Text style={styles.recordSessionBtnText}>Record Session</Text>
+            <Text style={[styles.recordSessionBtnText, { color: colors.surface }]}>Record Session</Text>
           </TouchableOpacity>
         )}
 
         {/* Session info card */}
-        <View style={StyleSheet.flatten([SharedStyles.card, styles.infoCard])}>
+        <View style={StyleSheet.flatten([SharedStyles.card, styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.border }])}>
           <View style={styles.infoRow}>
             <View style={styles.infoBlock}>
-              <Text style={styles.infoLabel}>Sessions Today</Text>
-              <Text style={styles.infoValue}>{sessions}</Text>
+              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Sessions Today</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>{sessions}</Text>
             </View>
-            <View style={styles.infoDivider} />
+            <View style={[styles.infoDivider, { backgroundColor: colors.border }]} />
             <View style={styles.infoBlock}>
-              <Text style={styles.infoLabel}>Focus Time</Text>
-              <Text style={styles.infoValue}>
+              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Focus Time</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
                 {Math.floor((sessions * 25) / 60)}h {(sessions * 25) % 60}m
               </Text>
             </View>
-            <View style={styles.infoDivider} />
+            <View style={[styles.infoDivider, { backgroundColor: colors.border }]} />
             <View style={styles.infoBlock}>
-              <Text style={styles.infoLabel}>Tasks Left</Text>
-              <Text style={styles.infoValue}>{pendingTasks}</Text>
+              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Tasks Left</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>{pendingTasks}</Text>
             </View>
           </View>
         </View>
@@ -601,20 +606,20 @@ export default function TimerScreen() {
         {/* Task list panel */}
         {showTasks && (
           <View
-            style={StyleSheet.flatten([SharedStyles.card, styles.taskCard])}
+            style={StyleSheet.flatten([SharedStyles.card, styles.taskCard, { backgroundColor: colors.surface, borderColor: colors.border }])}
           >
             <View style={styles.taskHeader}>
-              <Text style={styles.taskTitle}>Tasks</Text>
-              <TouchableOpacity style={styles.addBtn} onPress={openNewTask}>
-                <LucideIcon name="add" size={18} color="#fff" />
-                <Text style={styles.addBtnText}>Add Task</Text>
+              <Text style={[styles.taskTitle, { color: colors.text }]}>Tasks</Text>
+              <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]} onPress={openNewTask}>
+                <LucideIcon name="add" size={18} color={colors.surface} />
+                <Text style={[styles.addBtnText, { color: colors.surface }]}>Add Task</Text>
               </TouchableOpacity>
             </View>
 
             {tasks.length === 0 ? (
               <View style={styles.emptyState}>
-                <LucideIcon name="clipboard-outline" size={32} color="#C4A8A8" />
-                <Text style={styles.emptyText}>No tasks yet. Add one!</Text>
+                <LucideIcon name="clipboard-outline" size={32} color={colors.textMuted} />
+                <Text style={[styles.emptyText, { color: colors.textMuted }]}>No tasks yet. Add one!</Text>
               </View>
             ) : (
               <FlatList

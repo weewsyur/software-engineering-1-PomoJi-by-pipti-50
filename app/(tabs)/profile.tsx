@@ -22,6 +22,7 @@ import { Colors, useColors } from '@/constants/colors';
 import { SharedStyles } from '@/constants/styles';
 import { signOut } from '@/services/auth';
 import { LucideIcon } from '@/app/components/LucideIcon';
+import { useTheme } from '@/contexts/ThemeContext';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { getDownloadURL, ref, uploadString } from "firebase/storage";
@@ -136,8 +137,8 @@ const SETTINGS = [
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const router = useRouter();
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
-  const colors = useColors(darkModeEnabled);
+  const { isDarkMode, toggleDarkMode } = useTheme();
+  const colors = useColors(isDarkMode);
 
   const [profile, setProfile] = useState<UserProfile>({
     name: "Your Name",
@@ -305,8 +306,9 @@ export default function ProfileScreen() {
       setNotificationsEnabled(value);
       // TODO: Implement actual notification permission handling
     } else if (label === "Dark Mode") {
-      setDarkModeEnabled(value);
-      // TODO: Implement actual dark mode theme switching
+      if (value !== isDarkMode) {
+        toggleDarkMode();
+      }
     }
   };
 
@@ -541,7 +543,7 @@ export default function ProfileScreen() {
     <SafeAreaView
       style={StyleSheet.flatten([SharedStyles.screen, styles.safe, { backgroundColor: colors.background }])}
     >
-      <StatusBar barStyle={darkModeEnabled ? "light-content" : "dark-content"} backgroundColor={colors.background} />
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.background }]}>
@@ -611,7 +613,7 @@ export default function ProfileScreen() {
               i < SETTINGS.length - 1 && styles.settingBorder,
             ]);
             const isToggle = item.toggle;
-            const toggleValue = item.label === "Notifications" ? notificationsEnabled : darkModeEnabled;
+            const toggleValue = item.label === "Notifications" ? notificationsEnabled : isDarkMode;
 
             return (
               <TouchableOpacity
@@ -716,7 +718,7 @@ export default function ProfileScreen() {
                   onPress={showPhotoSheet}
                 />
                 <TouchableOpacity onPress={showPhotoSheet} activeOpacity={0.7}>
-                  <Text style={[styles.changePhotoText, { color: darkModeEnabled ? colors.textSecondary : colors.primary }]}>
+                  <Text style={[styles.changePhotoText, { color: colors.primary }]}>
                     Change Profile Photo
                   </Text>
                 </TouchableOpacity>

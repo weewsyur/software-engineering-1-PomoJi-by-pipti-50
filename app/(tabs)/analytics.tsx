@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useWindowDimensions } from "react-native";
 import { Alert, View, Text, StyleSheet, ScrollView, StatusBar, ActivityIndicator, Image, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Colors } from "../../constants/colors";
+import { Colors, useColors } from "../../constants/colors";
 import { SharedStyles } from "../../constants/styles";
+import { useTheme } from "@/contexts/ThemeContext";
 import { getFreshDownloadURL, isStoragePath } from "@/utils/imageStorage";
 import { useActivities } from "../../hooks/useActivities";
 import { filterSessionsByWeek, filterSessionsByMonth, filterSessionsByYear, groupSessionsByDay, groupSessionsByWeekForMonth, groupSessionsByMonthForYear } from "../../utils/sessionFilters";
@@ -39,6 +40,8 @@ function fmtDate(iso: string): string {
 
 export default function HistoryScreen() {
   const { activities, isLoading } = useActivities();
+  const { isDarkMode } = useTheme();
+  const colors = useColors(isDarkMode);
   const [viewMode, setViewMode] = useState<"weekly" | "monthly" | "yearly">("weekly");
   const [userId, setUserId] = useState<string | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
@@ -132,10 +135,10 @@ export default function HistoryScreen() {
   }, [dailyData, chartWidth]);
 
   return (
-    <SafeAreaView style={StyleSheet.flatten([SharedStyles.screen, styles.safe])}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
-      <View style={styles.header}>
-        <Text style={styles.headerLabel}>ANALYTICS</Text>
+    <SafeAreaView style={StyleSheet.flatten([SharedStyles.screen, styles.safe, { backgroundColor: colors.background }])}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.background} />
+      <View style={[styles.header, { backgroundColor: colors.background }]}>
+        <Text style={[styles.headerLabel, { color: colors.textMuted }]}>ANALYTICS</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -148,60 +151,60 @@ export default function HistoryScreen() {
         />
 
         {/* ── Weekly / Monthly / Yearly Toggle ── */}
-        <View style={styles.viewToggleContainer}>
+        <View style={[styles.viewToggleContainer, { backgroundColor: colors.background }]}>
           <TouchableOpacity
-            style={StyleSheet.flatten([styles.viewToggle, viewMode === "weekly" && styles.viewToggleActive])}
+            style={[styles.viewToggle, viewMode === "weekly" && { backgroundColor: colors.primary }]}
             onPress={() => setViewMode("weekly")}
           >
-            <Text style={StyleSheet.flatten([styles.viewToggleText, viewMode === "weekly" && styles.viewToggleTextActive])}>
+            <Text style={[styles.viewToggleText, { color: colors.textMuted }, viewMode === "weekly" && styles.viewToggleTextActive]}>
               Weekly
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={StyleSheet.flatten([styles.viewToggle, viewMode === "monthly" && styles.viewToggleActive])}
+            style={[styles.viewToggle, viewMode === "monthly" && { backgroundColor: colors.primary }]}
             onPress={() => setViewMode("monthly")}
           >
-            <Text style={StyleSheet.flatten([styles.viewToggleText, viewMode === "monthly" && styles.viewToggleTextActive])}>
+            <Text style={[styles.viewToggleText, { color: colors.textMuted }, viewMode === "monthly" && styles.viewToggleTextActive]}>
               Monthly
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={StyleSheet.flatten([styles.viewToggle, viewMode === "yearly" && styles.viewToggleActive])}
+            style={[styles.viewToggle, viewMode === "yearly" && { backgroundColor: colors.primary }]}
             onPress={() => setViewMode("yearly")}
           >
-            <Text style={StyleSheet.flatten([styles.viewToggleText, viewMode === "yearly" && styles.viewToggleTextActive])}>
+            <Text style={[styles.viewToggleText, { color: colors.textMuted }, viewMode === "yearly" && styles.viewToggleTextActive]}>
               Yearly
             </Text>
           </TouchableOpacity>
         </View>
 
         {/* ── Stats Card ── */}
-        <View style={StyleSheet.flatten([SharedStyles.card, styles.statsCard])}>
+        <View style={StyleSheet.flatten([SharedStyles.card, styles.statsCard, { backgroundColor: colors.surface, borderColor: colors.border }])}>
           <View style={styles.statsRow}>
             <View style={styles.statBlock}>
-              <Text style={styles.statValue}>{totalSessions}</Text>
-              <Text style={styles.statLabel}>Total Sessions</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{totalSessions}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Total Sessions</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statBlock}>
-              <Text style={styles.statValue}>{filteredActivities.length}</Text>
-              <Text style={styles.statLabel}>Recorded Activities</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{filteredActivities.length}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Recorded Activities</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statBlock}>
-              <Text style={styles.statValue}>{fmtFocusTime(totalFocusTime)}</Text>
-              <Text style={styles.statLabel}>Total Focus Time</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{fmtFocusTime(totalFocusTime)}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Total Focus Time</Text>
             </View>
           </View>
         </View>
 
         {/* ── 2. SVG Area Chart ── */}
-        <View style={StyleSheet.flatten([SharedStyles.card, styles.chartCard])}>
+        <View style={StyleSheet.flatten([SharedStyles.card, styles.chartCard, { backgroundColor: colors.surface, borderColor: colors.border }])}>
           <View style={styles.chartTitleRow}>
-            <Text style={styles.cardTitle}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>
               Focus Time — {viewMode === "weekly" ? "This Week" : viewMode === "monthly" ? "This Month" : "This Year"}
             </Text>
-            <Text style={styles.chartUnit}>hrs</Text>
+            <Text style={[styles.chartUnit, { color: colors.textMuted }]}>hrs</Text>
           </View>
 
           <View style={styles.svgChartWrapper}>
@@ -214,6 +217,7 @@ export default function HistoryScreen() {
                   key={i}
                   style={[
                     styles.xLabel,
+                    { color: colors.textMuted },
                     {
                       position: "absolute",
                       left: lbl.x - 16, // center ~32px wide text
@@ -231,18 +235,18 @@ export default function HistoryScreen() {
         </View>
 
         {/* ── Focus Time by Category ── */}
-        <View style={StyleSheet.flatten([SharedStyles.card, styles.chartCard])}>
-          <Text style={styles.cardTitle}>Focus Time by Category</Text>
+        <View style={StyleSheet.flatten([SharedStyles.card, styles.chartCard, { backgroundColor: colors.surface, borderColor: colors.border }])}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Focus Time by Category</Text>
           {byCategory.length === 0 ? (
-            <Text style={styles.emptyText}>No sessions yet. Complete a focus session to see stats.</Text>
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>No sessions yet. Complete a focus session to see stats.</Text>
           ) : (
             byCategory.map((item) => (
               <View key={item.category} style={styles.taskBarRow}>
                 <View style={styles.taskBarLabelRow}>
-                  <Text style={styles.taskBarTitle} numberOfLines={1}>
+                  <Text style={[styles.taskBarTitle, { color: colors.text }]} numberOfLines={1}>
                     {item.category}
                   </Text>
-                  <Text style={styles.taskBarMeta}>{fmtFocusTime(item.totalTime)}</Text>
+                  <Text style={[styles.taskBarMeta, { color: colors.textMuted }]}>{fmtFocusTime(item.totalTime)}</Text>
                 </View>
               </View>
             ))
@@ -250,16 +254,16 @@ export default function HistoryScreen() {
         </View>
 
         {/* ── Activity History ── */}
-        <Text style={StyleSheet.flatten([SharedStyles.sectionLabel, { marginHorizontal: 4, marginTop: 8 }])}>
+        <Text style={StyleSheet.flatten([SharedStyles.sectionLabel, { marginHorizontal: 4, marginTop: 8, color: colors.textMuted }])}>
           Activity History
         </Text>
         {isLoading ? (
-          <View style={StyleSheet.flatten([SharedStyles.card, styles.loadingCard])}>
-            <ActivityIndicator color={Colors.primary} />
+          <View style={StyleSheet.flatten([SharedStyles.card, styles.loadingCard, { backgroundColor: colors.surface, borderColor: colors.border }])}>
+            <ActivityIndicator color={colors.primary} />
           </View>
         ) : activities.length === 0 ? (
-          <View style={StyleSheet.flatten([SharedStyles.card, styles.emptyCard])}>
-            <Text style={styles.emptyText}>No sessions yet. Complete a focus session to see stats.</Text>
+          <View style={StyleSheet.flatten([SharedStyles.card, styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }])}>
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>No sessions yet. Complete a focus session to see stats.</Text>
           </View>
         ) : (
           activities.map((activity) => (
@@ -267,17 +271,17 @@ export default function HistoryScreen() {
               key={activity.id}
               activeOpacity={0.75}
               onPress={() => setSelectedActivity(activity)}
-              style={StyleSheet.flatten([SharedStyles.card, styles.activityItem])}
+              style={StyleSheet.flatten([SharedStyles.card, styles.activityItem, { backgroundColor: colors.surface, borderColor: colors.border }])}
             >
               <View style={styles.activityContent}>
-                <Text style={styles.historyTitle}>{activity.title}</Text>
-                <Text style={styles.historyDate}>{fmtDate(activity.createdAt)}</Text>
-                <Text style={styles.activityMeta}>
+                <Text style={[styles.historyTitle, { color: colors.text }]}>{activity.title}</Text>
+                <Text style={[styles.historyDate, { color: colors.textMuted }]}>{fmtDate(activity.createdAt)}</Text>
+                <Text style={[styles.activityMeta, { color: colors.primary }]}>
                   {activity.sessions} sessions • {fmtFocusTime(activity.totalTime)}
                 </Text>
               </View>
               {activity.images[0] ? (
-                <Image source={{ uri: activityImageUrls[activity.id] || activity.images[0] }} style={styles.activityImage} resizeMode="cover" />
+                <Image source={{ uri: activityImageUrls[activity.id] || activity.images[0] }} style={[styles.activityImage, { backgroundColor: colors.background }]} resizeMode="cover" />
               ) : null}
             </TouchableOpacity>
           ))
