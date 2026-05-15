@@ -155,7 +155,7 @@ export default function SignIn() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.cardTitle}>Login</Text>
+          <Text style={styles.cardTitle}>Sign In</Text>
 
           <AuthInput
             label="Email"
