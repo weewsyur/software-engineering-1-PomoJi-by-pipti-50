@@ -18,7 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/colors';
+import { Colors, useColors } from '@/constants/colors';
 import { SharedStyles } from '@/constants/styles';
 import { signOut } from '@/services/auth';
 import { LucideIcon } from '@/app/components/LucideIcon';
@@ -37,6 +37,22 @@ interface UserProfile {
 }
 type UserListItem = { id: string; username: string };
 type ConnectionModalType = "Following" | "Followers";
+
+// ─── Toggle Switch Component ─────────────────────────────────────────────────────
+function ToggleSwitch({ value, onValueChange }: { value: boolean; onValueChange: (value: boolean) => void }) {
+  return (
+    <TouchableOpacity
+      onPress={() => onValueChange(!value)}
+      activeOpacity={0.7}
+      style={[
+        styles.toggle,
+        value ? styles.toggleOn : styles.toggleOff,
+      ]}
+    >
+      <View style={[styles.toggleKnob, value ? styles.toggleKnobOn : styles.toggleKnobOff]} />
+    </TouchableOpacity>
+  );
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getInitials(name: string): string {
@@ -99,14 +115,15 @@ const SETTINGS = [
   {
     icon: "notifications-outline" as const,
     label: "Notifications",
-    value: "On",
+    value: "",
+    toggle: true,
   },
   {
     icon: "timer-outline" as const,
     label: "Default Duration",
     value: "25 min",
   },
-  { icon: "moon-outline" as const, label: "Dark Mode", value: "Off" },
+  { icon: "moon-outline" as const, label: "Dark Mode", value: "", toggle: true },
   { icon: "shield-checkmark-outline" as const, label: "Privacy", value: "" },
   {
     icon: "log-out-outline" as const,
@@ -119,6 +136,8 @@ const SETTINGS = [
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const router = useRouter();
+  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
+  const colors = useColors(darkModeEnabled);
 
   const [profile, setProfile] = useState<UserProfile>({
     name: "Your Name",
@@ -147,6 +166,7 @@ export default function ProfileScreen() {
   const [connectionsList, setConnectionsList] = useState<UserListItem[]>([]);
   const [loadingConnections, setLoadingConnections] = useState(false);
   const fileInputRef = useRef<any>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   // ── Fetch profile from Firestore ────────────────────────────────────────────
   useEffect(() => {
@@ -278,6 +298,16 @@ export default function ProfileScreen() {
       handleSignOut();
     }
     // Add other settings handlers here
+  };
+
+  const handleToggleChange = (label: string, value: boolean) => {
+    if (label === "Notifications") {
+      setNotificationsEnabled(value);
+      // TODO: Implement actual notification permission handling
+    } else if (label === "Dark Mode") {
+      setDarkModeEnabled(value);
+      // TODO: Implement actual dark mode theme switching
+    }
   };
 
   // ── Modal open/close ────────────────────────────────────────────────────────
@@ -509,20 +539,20 @@ export default function ProfileScreen() {
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <SafeAreaView
-      style={StyleSheet.flatten([SharedStyles.screen, styles.safe])}
+      style={StyleSheet.flatten([SharedStyles.screen, styles.safe, { backgroundColor: colors.background }])}
     >
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle={darkModeEnabled ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerLabel}>PROFILE</Text>
+      <View style={[styles.header, { backgroundColor: colors.background }]}>
+        <Text style={[styles.headerLabel, { color: colors.textMuted }]}>PROFILE</Text>
         <TouchableOpacity
-          style={styles.editChip}
+          style={[styles.editChip, { backgroundColor: colors.primaryMuted }]}
           onPress={openModal}
           activeOpacity={0.7}
         >
-          <LucideIcon name="pencil" size={12} color={Colors.primary} />
-          <Text style={styles.editChipText}>Edit</Text>
+          <LucideIcon name="pencil" size={12} color={colors.primary} />
+          <Text style={[styles.editChipText, { color: colors.primary }]}>Edit</Text>
         </TouchableOpacity>
       </View>
 
@@ -531,32 +561,32 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Profile hero */}
-        <View style={StyleSheet.flatten([SharedStyles.card, styles.profileCard])}>
+        <View style={StyleSheet.flatten([SharedStyles.card, styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border }])}>
           <ProfileAvatar profile={profile} size={80} onPress={openModal} />
           {/* Username displayed as the profile name */}
-          <Text style={styles.profileName}>{profile.name}</Text>
+          <Text style={[styles.profileName, { color: colors.text }]}>{profile.name}</Text>
           {/* Email from sign-up */}
-          <Text style={styles.profileEmail}>{profile.email}</Text>
+          <Text style={[styles.profileEmail, { color: colors.textMuted }]}>{profile.email}</Text>
           {loadingProfile ? (
-            <ActivityIndicator size="small" color={Colors.primary} />
+            <ActivityIndicator size="small" color={colors.primary} />
           ) : null}
 
-          <View style={styles.statsRow}>
+          <View style={[styles.statsRow, { borderTopColor: colors.border }]}>
             {stats.map((stat: { label: string; value: string }, i: number) => (
               <React.Fragment key={stat.label}>
-                {i > 0 && <View style={styles.statDivider} />}
+                {i > 0 && <View style={[styles.statDivider, { backgroundColor: colors.border }]} />}
                 {stat.label === "Following" || stat.label === "Followers" ? (
                   <TouchableOpacity
                     style={styles.statBlock}
                     onPress={() => openConnectionsModal(stat.label as ConnectionModalType)}
                   >
-                    <Text style={styles.statValue}>{loadingStats ? "..." : stat.value}</Text>
-                    <Text style={styles.statLabel}>{stat.label}</Text>
+                    <Text style={[styles.statValue, { color: colors.text }]}>{loadingStats ? "..." : stat.value}</Text>
+                    <Text style={[styles.statLabel, { color: colors.textMuted }]}>{stat.label}</Text>
                   </TouchableOpacity>
                 ) : (
                   <View style={styles.statBlock}>
-                    <Text style={styles.statValue}>{loadingStats ? "..." : stat.value}</Text>
-                    <Text style={styles.statLabel}>{stat.label}</Text>
+                    <Text style={[styles.statValue, { color: colors.text }]}>{loadingStats ? "..." : stat.value}</Text>
+                    <Text style={[styles.statLabel, { color: colors.textMuted }]}>{stat.label}</Text>
                   </View>
                 )}
               </React.Fragment>
@@ -568,37 +598,41 @@ export default function ProfileScreen() {
         <Text
           style={StyleSheet.flatten([
             SharedStyles.sectionLabel,
-            { marginHorizontal: 4 },
+            { marginHorizontal: 4, color: colors.textMuted },
           ])}
         >
           Settings
         </Text>
 
-        <View style={SharedStyles.card}>
+        <View style={[SharedStyles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {SETTINGS.map((item, i) => {
             const settingStyle = StyleSheet.flatten([
               styles.settingRow,
               i < SETTINGS.length - 1 && styles.settingBorder,
             ]);
+            const isToggle = item.toggle;
+            const toggleValue = item.label === "Notifications" ? notificationsEnabled : darkModeEnabled;
+
             return (
               <TouchableOpacity
                 key={item.label}
                 style={settingStyle}
                 activeOpacity={0.7}
-                onPress={() => handleSettingPress(item.label)}
+                onPress={() => isToggle ? handleToggleChange(item.label, !toggleValue) : handleSettingPress(item.label)}
               >
                 <View style={styles.settingLeft}>
                   <View
                     style={StyleSheet.flatten([
                       styles.iconBox,
                       item.danger && styles.iconBoxDanger,
+                      { backgroundColor: colors.background },
                     ])}
                   >
                     <LucideIcon
                       name={item.icon}
                       size={16}
                       color={
-                        item.danger ? Colors.primary : Colors.textSecondary
+                        item.danger ? colors.primary : colors.textSecondary
                       }
                     />
                   </View>
@@ -606,27 +640,31 @@ export default function ProfileScreen() {
                     style={StyleSheet.flatten([
                       styles.settingLabel,
                       item.danger && styles.settingLabelDanger,
+                      { color: colors.text },
                     ])}
                   >
                     {item.label}
                   </Text>
                 </View>
                 <View style={styles.settingRight}>
-                  {item.value ? (
-                    <Text style={styles.settingValue}>{item.value}</Text>
-                  ) : null}
-                  <LucideIcon
-                    name="chevron-forward"
-                    size={14}
-                    color={Colors.textMuted}
-                  />
+                  {isToggle ? (
+                    <ToggleSwitch value={toggleValue} onValueChange={(value) => handleToggleChange(item.label, value)} />
+                  ) : item.value ? (
+                    <Text style={[styles.settingValue, { color: colors.textMuted }]}>{item.value}</Text>
+                  ) : (
+                    <LucideIcon
+                      name="chevron-forward"
+                      size={14}
+                      color={colors.textMuted}
+                    />
+                  )}
                 </View>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <Text style={styles.version}>PomoJI v1.0.0</Text>
+        <Text style={[styles.version, { color: colors.textMuted }]}>PomoJI v1.0.0</Text>
       </ScrollView>
 
       {/* ── Edit Profile Modal ──────────────────────────────────────────────── */}
@@ -637,26 +675,26 @@ export default function ProfileScreen() {
         onRequestClose={() => setModalVisible(false)}
       >
         <KeyboardAvoidingView
-          style={{ flex: 1 }}
+          style={{ flex: 1, backgroundColor: colors.background }}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <SafeAreaView style={styles.modalSafe}>
+          <SafeAreaView style={[styles.modalSafe, { backgroundColor: colors.background }]}>
             {/* Modal nav */}
-            <View style={styles.modalNav}>
+            <View style={[styles.modalNav, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
               <TouchableOpacity
                 onPress={() => setModalVisible(false)}
                 activeOpacity={0.7}
                 style={styles.modalNavBtn}
               >
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>Edit Profile</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Profile</Text>
               <TouchableOpacity
                 onPress={handleSave}
                 activeOpacity={0.7}
                 style={styles.modalNavBtn}
               >
-                <Text style={styles.navSaveText}>Save</Text>
+                <Text style={[styles.navSaveText, { color: colors.primary }]}>Save</Text>
               </TouchableOpacity>
             </View>
 
@@ -664,6 +702,7 @@ export default function ProfileScreen() {
               contentContainerStyle={styles.modalContent}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
+              style={{ backgroundColor: colors.background }}
             >
               {/* Avatar picker */}
               <View style={styles.avatarSection}>
@@ -677,7 +716,7 @@ export default function ProfileScreen() {
                   onPress={showPhotoSheet}
                 />
                 <TouchableOpacity onPress={showPhotoSheet} activeOpacity={0.7}>
-                  <Text style={styles.changePhotoText}>
+                  <Text style={[styles.changePhotoText, { color: darkModeEnabled ? colors.textSecondary : colors.primary }]}>
                     Change Profile Photo
                   </Text>
                 </TouchableOpacity>
@@ -687,7 +726,7 @@ export default function ProfileScreen() {
                     activeOpacity={0.7}
                     style={{ marginTop: 8 }}
                   >
-                    <Text style={[styles.changePhotoText, { color: Colors.primary }]}>
+                    <Text style={[styles.changePhotoText, { color: colors.primary }]}>
                       Remove Photo
                     </Text>
                   </TouchableOpacity>
@@ -703,25 +742,25 @@ export default function ProfileScreen() {
                 )}
               </View>
 
-              <View style={styles.sectionDivider} />
+              <View style={[styles.sectionDivider, { backgroundColor: colors.border }]} />
 
               {/* Username / Display Name input */}
-              <Text style={styles.fieldLabel}>USERNAME</Text>
+              <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>USERNAME</Text>
               <View style={styles.inputCard}>
                 <View style={styles.inputRow}>
                   <View style={styles.inputIcon}>
                     <LucideIcon
                       name="at-outline"
                       size={15}
-                      color={Colors.textSecondary}
+                      color={colors.textSecondary}
                     />
                   </View>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, { color: colors.text }]}
                     value={draftName}
                     onChangeText={setDraftName}
                     placeholder="Enter your username"
-                    placeholderTextColor={Colors.textMuted}
+                    placeholderTextColor={colors.textMuted}
                     autoCorrect={false}
                     autoCapitalize="none"
                     returnKeyType="done"
@@ -735,7 +774,7 @@ export default function ProfileScreen() {
                       <LucideIcon
                         name="close-circle"
                         size={16}
-                        color={Colors.textMuted}
+                        color={colors.textMuted}
                       />
                     </TouchableOpacity>
                   )}
@@ -746,7 +785,7 @@ export default function ProfileScreen() {
               <Text
                 style={StyleSheet.flatten([
                   styles.fieldLabel,
-                  { marginTop: 16 },
+                  { marginTop: 16, color: colors.textMuted },
                 ])}
               >
                 EMAIL
@@ -757,30 +796,30 @@ export default function ProfileScreen() {
                     <LucideIcon
                       name="mail-outline"
                       size={15}
-                      color={Colors.textSecondary}
+                      color={colors.textSecondary}
                     />
                   </View>
-                  <Text style={styles.readOnlyText}>{profile.email}</Text>
-                  <View style={styles.lockedBadge}>
+                  <Text style={[styles.readOnlyText, { color: colors.textMuted }]}>{profile.email}</Text>
+                  <View style={[styles.lockedBadge, { backgroundColor: colors.background }]}>
                     <LucideIcon
                       name="lock-closed"
                       size={10}
-                      color={Colors.textMuted}
+                      color={colors.textMuted}
                     />
                   </View>
                 </View>
               </View>
-              <Text style={styles.fieldHint}>
+              <Text style={[styles.fieldHint, { color: colors.textMuted }]}>
                 Email changes are managed through your account settings.
               </Text>
 
               {/* CTA */}
               <TouchableOpacity
-                style={styles.saveBtn}
+                style={[styles.saveBtn, { backgroundColor: colors.primary }]}
                 onPress={handleSave}
                 activeOpacity={0.85}
               >
-                <Text style={styles.saveBtnText}>Save Changes</Text>
+                <Text style={[styles.saveBtnText, { color: colors.surface }]}>Save Changes</Text>
               </TouchableOpacity>
             </ScrollView>
           </SafeAreaView>
@@ -793,21 +832,21 @@ export default function ProfileScreen() {
         transparent
         onRequestClose={() => setConnectionsModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.reminderSheet}>
+        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+          <View style={[styles.reminderSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.reminderHeader}>
-              <Text style={styles.reminderTitle}>{connectionsModalType}</Text>
+              <Text style={[styles.reminderTitle, { color: colors.text }]}>{connectionsModalType}</Text>
               <TouchableOpacity onPress={() => setConnectionsModalVisible(false)}>
-                <LucideIcon name="close" size={20} color={Colors.textMuted} />
+                <LucideIcon name="close" size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
             {loadingConnections ? (
-              <Text style={styles.reminderEmpty}>Loading...</Text>
+              <Text style={[styles.reminderEmpty, { color: colors.textMuted }]}>Loading...</Text>
             ) : (
               <FlatList
                 data={connectionsList}
                 keyExtractor={(item) => item.id}
-                ListEmptyComponent={<Text style={styles.reminderEmpty}>No users yet.</Text>}
+                ListEmptyComponent={<Text style={[styles.reminderEmpty, { color: colors.textMuted }]}>No users yet.</Text>}
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     style={styles.reminderRow}
@@ -816,10 +855,10 @@ export default function ProfileScreen() {
                       router.push({ pathname: "/profile/[uid]" as never, params: { uid: item.id } });
                     }}
                   >
-                    <View style={styles.avatarCircle}>
-                      <Text style={styles.avatarText}>{getInitials(item.username)}</Text>
+                    <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
+                      <Text style={[styles.avatarText, { color: colors.surface }]}>{getInitials(item.username)}</Text>
                     </View>
-                    <Text style={styles.reminderRowTitle}>{item.username}</Text>
+                    <Text style={[styles.reminderRowTitle, { color: colors.text }]}>{item.username}</Text>
                   </TouchableOpacity>
                 )}
               />
@@ -1152,5 +1191,36 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: Colors.surface,
     letterSpacing: 0.3,
+  },
+
+  // Toggle switch
+  toggle: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    padding: 2,
+  },
+  toggleOn: {
+    backgroundColor: Colors.primary,
+  },
+  toggleOff: {
+    backgroundColor: Colors.border,
+  },
+  toggleKnob: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.surface,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  toggleKnobOn: {
+    alignSelf: "flex-end",
+  },
+  toggleKnobOff: {
+    alignSelf: "flex-start",
   },
 });
