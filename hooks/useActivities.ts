@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { auth, db } from "@/services/firebase";
 import { addDoc, collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { getLocalISODateTime } from "@/utils/dateHelpers";
 
 export interface Activity {
   id: string;
@@ -26,7 +27,7 @@ export const normalizeActivity = (raw: unknown): Activity => {
     totalTime: typeof value.totalTime === "number" ? value.totalTime : 0,
     images: Array.isArray(value.images) ? value.images.filter((img): img is string => typeof img === "string") : [],
     category: typeof value.category === "string" && value.category.trim() ? value.category : "other",
-    createdAt: typeof value.createdAt === "string" ? value.createdAt : new Date().toISOString(),
+    createdAt: typeof value.createdAt === "string" ? value.createdAt : getLocalISODateTime(),
   };
 };
 
@@ -76,7 +77,7 @@ export function useActivities() {
         totalTime: payload.totalTime ?? 0,
         images: payload.images ?? [],
         category: payload.category ?? "other",
-        createdAt: payload.createdAt ?? new Date().toISOString(),
+        createdAt: payload.createdAt ?? getLocalISODateTime(),
         uid: currentUser.uid,
       };
       return addDoc(collection(db, "users", currentUser.uid, "activities"), activityPayload);

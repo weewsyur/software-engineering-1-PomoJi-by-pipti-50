@@ -33,7 +33,7 @@ export function useReminders() {
             id: `task-${task.id}`,
             taskId: task.id,
             title: task.title || "Untitled Task",
-            dueDate: new Date(task.dueDate).toISOString(),
+            dueDate: task.dueDate,
             status,
           };
         })

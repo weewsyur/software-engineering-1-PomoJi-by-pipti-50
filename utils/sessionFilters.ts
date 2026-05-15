@@ -3,7 +3,7 @@
 // Reusable functions to filter activities by date ranges
 
 import { Activity } from "@/hooks/useActivities";
-import { getStartOfWeek, getEndOfWeek, getStartOfMonth, getEndOfMonth, getStartOfYear, getEndOfYear } from "./dateHelpers";
+import { getStartOfWeek, getEndOfWeek, getStartOfMonth, getEndOfMonth, getStartOfYear, getEndOfYear, getLocalISODate } from "./dateHelpers";
 
 /**
  * Filter sessions by week (Monday 12:00 AM to next Monday 12:00 AM)
@@ -68,13 +68,13 @@ export function groupSessionsByDay(activities: Activity[], date: Date = new Date
   for (let i = 0; i < 7; i++) {
     const d = new Date(startOfWeek);
     d.setDate(startOfWeek.getDate() + i);
-    const key = d.toISOString().slice(0, 10);
+    const key = getLocalISODate(d);
     dailyMap.set(key, { totalSessions: 0, totalTime: 0 });
   }
 
   // Aggregate activities by day
   weeklyActivities.forEach((activity) => {
-    const key = new Date(activity.createdAt).toISOString().slice(0, 10);
+    const key = getLocalISODate(new Date(activity.createdAt));
     const existing = dailyMap.get(key) || { totalSessions: 0, totalTime: 0 };
     dailyMap.set(key, {
       totalSessions: existing.totalSessions + (activity.sessions || 0),
@@ -87,7 +87,7 @@ export function groupSessionsByDay(activities: Activity[], date: Date = new Date
   for (let i = 0; i < 7; i++) {
     const d = new Date(startOfWeek);
     d.setDate(startOfWeek.getDate() + i);
-    const key = d.toISOString().slice(0, 10);
+    const key = getLocalISODate(d);
     const data = dailyMap.get(key) || { totalSessions: 0, totalTime: 0 };
     result.push({
       day: d.toLocaleDateString([], { weekday: "short" }),

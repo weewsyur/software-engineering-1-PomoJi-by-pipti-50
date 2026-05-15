@@ -15,6 +15,7 @@ import {
   cancelTaskReminder,
   upsertTaskReminder,
 } from "@/services/notificationService";
+import { getLocalISODateTime } from "@/utils/dateHelpers";
 
 export type TaskCategory = "work" | "study" | "personal" | "health" | "other";
 
@@ -52,7 +53,7 @@ const normalizeTask = (raw: unknown): Task => {
     category,
     completed: Boolean(task.completed),
     totalTime: typeof task.totalTime === "number" ? task.totalTime : 0,
-    createdAt: typeof task.createdAt === "string" ? task.createdAt : new Date().toISOString(),
+    createdAt: typeof task.createdAt === "string" ? task.createdAt : getLocalISODateTime(),
     reminderNotificationId:
       typeof task.reminderNotificationId === "string" ? task.reminderNotificationId : null,
   };

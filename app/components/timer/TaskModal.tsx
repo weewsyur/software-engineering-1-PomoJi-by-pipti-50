@@ -19,6 +19,7 @@ import {
 } from "react-native";
 import { Colors } from "@/constants/colors";
 import { Task, TaskCategory } from "@/hooks/usePomodoro";
+import { getLocalISODateTime } from "@/utils/dateHelpers";
 
 const CATEGORIES: TaskCategory[] = [
   "work",
@@ -207,7 +208,7 @@ export const TaskModal = ({
       category,
       completed: initial?.completed ?? false,
       totalTime: initial?.totalTime ?? 0,
-      createdAt: initial?.createdAt ?? new Date().toISOString(),
+      createdAt: initial?.createdAt ?? getLocalISODateTime(),
     };
     try {
       setSaving(true);

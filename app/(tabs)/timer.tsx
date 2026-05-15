@@ -7,6 +7,7 @@ import { LucideIcon } from "@/app/components/LucideIcon";
 import { Plus, Square, Play, Pause, Clipboard } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
+import { getLocalISODateTime } from "@/utils/dateHelpers";
 import {
   Alert,
   Animated,
@@ -167,7 +168,7 @@ export default function TimerScreen() {
               createSession({
                 taskTitle: activeTaskRef.current?.title ?? "Unassigned Session",
                 taskId: activeTaskRef.current?.id ?? null,
-                date: new Date().toISOString(),
+                date: getLocalISODateTime(),
                 durationMinutes,
                 mode: "focus",
               });

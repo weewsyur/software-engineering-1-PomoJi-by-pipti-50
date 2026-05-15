@@ -52,7 +52,7 @@ export async function logActivity(
 
   const batch = writeBatch(db);
   const now = serverTimestamp();
-  const todayDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const todayDate = getTodayISODate(timezone); // YYYY-MM-DD in user's timezone
 
   try {
     // 1. Add activity log

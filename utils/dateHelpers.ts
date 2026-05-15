@@ -89,3 +89,49 @@ export function getEndOfYear(date: Date = new Date()): Date {
   d.setHours(0, 0, 0, 0);
   return d;
 }
+
+/**
+ * Get current date/time in user's timezone as ISO string
+ * @param timezone - User's timezone (defaults to local timezone)
+ * @returns ISO string representation of current date/time in user's timezone
+ */
+export function getLocalISODateTime(timezone?: string): string {
+  const now = new Date();
+  if (!timezone) {
+    timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  }
+
+  // Get the date parts in the user's timezone
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    timeZone: timezone,
+  });
+
+  const parts = formatter.formatToParts(now);
+  const year = parts.find(p => p.type === 'year')?.value;
+  const month = parts.find(p => p.type === 'month')?.value;
+  const day = parts.find(p => p.type === 'day')?.value;
+  const hour = parts.find(p => p.type === 'hour')?.value;
+  const minute = parts.find(p => p.type === 'minute')?.value;
+  const second = parts.find(p => p.type === 'second')?.value;
+
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+}
+
+/**
+ * Convert a Date object to ISO date string (YYYY-MM-DD) in local timezone
+ * @param date - Date object to convert
+ * @returns Date string in YYYY-MM-DD format in local timezone
+ */
+export function getLocalISODate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
