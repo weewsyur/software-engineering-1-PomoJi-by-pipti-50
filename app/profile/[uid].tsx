@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { LucideIcon } from "@/app/components/LucideIcon";
 import { Colors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
 import { auth, db } from "@/services/firebase";
@@ -123,7 +123,7 @@ export default function UserProfileScreen() {
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={20} color={Colors.text} />
+          <LucideIcon name="chevron-back" size={20} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerLabel}>PROFILE</Text>
         <View style={styles.backBtn} />

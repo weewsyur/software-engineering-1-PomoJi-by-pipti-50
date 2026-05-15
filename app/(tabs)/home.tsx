@@ -14,7 +14,7 @@ import {
   FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { LucideIcon } from "@/app/components/LucideIcon";
 import * as Notifications from "expo-notifications";
 import { Colors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
@@ -168,7 +168,7 @@ export default function HomeScreen() {
         <Text style={styles.headerLabel}>HOME</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.iconBtn} onPress={() => setShowSearch(true)}>
-            <Ionicons name="search-outline" size={20} color={Colors.text} />
+            <LucideIcon name="search-outline" size={20} color={Colors.text} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.bellBtn} onPress={() => setShowReminders(true)}>
             {pendingCount > 0 && (
@@ -176,7 +176,7 @@ export default function HomeScreen() {
                 <Text style={styles.badgeText}>{pendingCount > 9 ? "9+" : pendingCount}</Text>
               </View>
             )}
-            <Ionicons name="notifications-outline" size={20} color={Colors.text} />
+            <LucideIcon name="notifications-outline" size={20} color={Colors.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -225,7 +225,7 @@ export default function HomeScreen() {
             <View style={styles.reminderHeader}>
               <Text style={styles.reminderTitle}>Reminders</Text>
               <TouchableOpacity onPress={() => setShowReminders(false)}>
-                <Ionicons name="close" size={20} color={Colors.textMuted} />
+                <LucideIcon name="close" size={20} color={Colors.textMuted} />
               </TouchableOpacity>
             </View>
             {reminders.length === 0 ? (
@@ -268,7 +268,7 @@ export default function HomeScreen() {
             <View style={styles.searchHeader}>
               <Text style={styles.searchTitle}>Find Friends</Text>
               <TouchableOpacity onPress={() => setShowSearch(false)}>
-                <Ionicons name="close" size={20} color={Colors.textMuted} />
+                <LucideIcon name="close" size={20} color={Colors.textMuted} />
               </TouchableOpacity>
             </View>
 
@@ -285,7 +285,7 @@ export default function HomeScreen() {
                 returnKeyType="search"
               />
               <TouchableOpacity style={styles.searchSubmitBtn} onPress={runUserSearch}>
-                <Ionicons name="search" size={16} color={Colors.surface} />
+                <LucideIcon name="search" size={16} color={Colors.surface} />
               </TouchableOpacity>
             </View>
 

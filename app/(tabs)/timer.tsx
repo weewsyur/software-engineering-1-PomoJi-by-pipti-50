@@ -429,7 +429,7 @@ export default function TimerScreen() {
                 <Text style={styles.badgeText}>{pendingTasks}</Text>
               </View>
             )}
-            <Ionicons
+            <LucideIcon
               name={showTasks ? "list" : "list-outline"}
               size={20}
               color={showTasks ? Colors.primary : Colors.textMuted}
@@ -523,7 +523,7 @@ export default function TimerScreen() {
                     : "Tap to choose task"}
                 </Text>
               </View>
-              <Ionicons
+              <LucideIcon
                 name="chevron-down"
                 size={18}
                 color={Colors.textMuted}
@@ -536,7 +536,7 @@ export default function TimerScreen() {
         <View style={styles.controls}>
           {hasStarted ? (
             <TouchableOpacity style={styles.resetBtn} onPress={handleStop}>
-              <Ionicons name="stop" size={20} color={Colors.textMuted} />
+              <LucideIcon name="stop" size={20} color={Colors.textMuted} />
             </TouchableOpacity>
           ) : (
             <View style={styles.resetBtn} />
@@ -544,18 +544,18 @@ export default function TimerScreen() {
 
           {!hasStarted ? (
             <TouchableOpacity style={styles.playBtn} onPress={handleStart}>
-              <Ionicons name="play" size={28} color={Colors.surface} />
+              <LucideIcon name="play" size={28} color={Colors.surface} />
             </TouchableOpacity>
           ) : isRunning ? (
             <TouchableOpacity style={styles.playBtn} onPress={handlePause}>
-              <Ionicons name="pause" size={28} color={Colors.surface} />
+              <LucideIcon name="pause" size={28} color={Colors.surface} />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
               style={StyleSheet.flatten([styles.playBtn, styles.resumeBtn])}
               onPress={handleResume}
             >
-              <Ionicons name="play" size={28} color={Colors.surface} />
+              <LucideIcon name="play" size={28} color={Colors.surface} />
             </TouchableOpacity>
           )}
 
@@ -604,14 +604,14 @@ export default function TimerScreen() {
             <View style={styles.taskHeader}>
               <Text style={styles.taskTitle}>Tasks</Text>
               <TouchableOpacity style={styles.addBtn} onPress={openNewTask}>
-                <Ionicons name="add" size={18} color="#fff" />
+                <LucideIcon name="add" size={18} color="#fff" />
                 <Text style={styles.addBtnText}>Add Task</Text>
               </TouchableOpacity>
             </View>
 
             {tasks.length === 0 ? (
               <View style={styles.emptyState}>
-                <Ionicons name="clipboard-outline" size={32} color="#C4A8A8" />
+                <LucideIcon name="clipboard-outline" size={32} color="#C4A8A8" />
                 <Text style={styles.emptyText}>No tasks yet. Add one!</Text>
               </View>
             ) : (

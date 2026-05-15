@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from "react";
 import { Tabs } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, View, Platform, Animated, Easing } from "react-native";
 import { Colors } from "@/constants/colors";
+import { LucideIcon } from "@/app/components/LucideIcon";
 
-type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
+type IoniconName = string;
 
 interface TabConfig {
   name: string;
@@ -142,7 +142,7 @@ const AnimatedIconWrapper = React.memo(
             ],
           }}
         >
-          <Ionicons
+          <LucideIcon
             name={focused ? tab.activeIcon : tab.icon}
             size={24}
             color={color}

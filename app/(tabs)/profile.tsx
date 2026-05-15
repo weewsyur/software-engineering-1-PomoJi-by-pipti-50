@@ -85,7 +85,7 @@ function ProfileAvatar({
       )}
       {onPress && (
         <View style={styles.cameraBadge}>
-          <Ionicons name="camera" size={11} color={Colors.surface} />
+          <LucideIcon name="camera" size={11} color={Colors.surface} />
         </View>
       )}
     </TouchableOpacity>
@@ -486,7 +486,7 @@ export default function ProfileScreen() {
           onPress={openModal}
           activeOpacity={0.7}
         >
-          <Ionicons name="pencil" size={12} color={Colors.primary} />
+          <LucideIcon name="pencil" size={12} color={Colors.primary} />
           <Text style={styles.editChipText}>Edit</Text>
         </TouchableOpacity>
       </View>
@@ -559,7 +559,7 @@ export default function ProfileScreen() {
                       item.danger && styles.iconBoxDanger,
                     ])}
                   >
-                    <Ionicons
+                    <LucideIcon
                       name={item.icon}
                       size={16}
                       color={
@@ -580,7 +580,7 @@ export default function ProfileScreen() {
                   {item.value ? (
                     <Text style={styles.settingValue}>{item.value}</Text>
                   ) : null}
-                  <Ionicons
+                  <LucideIcon
                     name="chevron-forward"
                     size={14}
                     color={Colors.textMuted}
@@ -655,7 +655,7 @@ export default function ProfileScreen() {
               <View style={styles.inputCard}>
                 <View style={styles.inputRow}>
                   <View style={styles.inputIcon}>
-                    <Ionicons
+                    <LucideIcon
                       name="at-outline"
                       size={15}
                       color={Colors.textSecondary}
@@ -677,7 +677,7 @@ export default function ProfileScreen() {
                       onPress={() => setDraftName("")}
                       activeOpacity={0.7}
                     >
-                      <Ionicons
+                      <LucideIcon
                         name="close-circle"
                         size={16}
                         color={Colors.textMuted}
@@ -699,7 +699,7 @@ export default function ProfileScreen() {
               <View style={styles.inputCard}>
                 <View style={styles.inputRow}>
                   <View style={styles.inputIcon}>
-                    <Ionicons
+                    <LucideIcon
                       name="mail-outline"
                       size={15}
                       color={Colors.textSecondary}
@@ -707,7 +707,7 @@ export default function ProfileScreen() {
                   </View>
                   <Text style={styles.readOnlyText}>{profile.email}</Text>
                   <View style={styles.lockedBadge}>
-                    <Ionicons
+                    <LucideIcon
                       name="lock-closed"
                       size={10}
                       color={Colors.textMuted}
@@ -743,7 +743,7 @@ export default function ProfileScreen() {
             <View style={styles.reminderHeader}>
               <Text style={styles.reminderTitle}>{connectionsModalType}</Text>
               <TouchableOpacity onPress={() => setConnectionsModalVisible(false)}>
-                <Ionicons name="close" size={20} color={Colors.textMuted} />
+                <LucideIcon name="close" size={20} color={Colors.textMuted} />
               </TouchableOpacity>
             </View>
             {loadingConnections ? (
