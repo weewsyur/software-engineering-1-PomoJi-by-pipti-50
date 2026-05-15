@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { auth, db } from "@/services/firebase";
 import { addDoc, collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { getLocalISODateTime } from "@/utils/dateHelpers";
+import { uploadActivityImages, getFreshDownloadURLs, isStoragePath } from "@/utils/imageStorage";
 
 export interface Activity {
   id: string;
@@ -70,12 +71,33 @@ export function useActivities() {
         console.warn("useActivities: auth.currentUser is null; skipping activity write.");
         return null;
       }
+
+      // Upload images to Firebase Storage if they are local URIs
+      let imageStoragePaths: string[] = [];
+      if (payload.images && payload.images.length > 0) {
+        const localImages = payload.images.filter((img) => img.startsWith('file://'));
+        const storageImages = payload.images.filter((img) => isStoragePath(img));
+
+        if (localImages.length > 0) {
+          try {
+            const uploadedPaths = await uploadActivityImages(currentUser.uid, localImages);
+            imageStoragePaths = [...storageImages, ...uploadedPaths];
+          } catch (error) {
+            console.error('Failed to upload activity images:', error);
+            // Continue with storage images if upload fails
+            imageStoragePaths = storageImages;
+          }
+        } else {
+          imageStoragePaths = payload.images;
+        }
+      }
+
       const activityPayload = {
         title: payload.title ?? "Focus Session",
         description: payload.description ?? "",
         sessions: payload.sessions ?? 1,
         totalTime: payload.totalTime ?? 0,
-        images: payload.images ?? [],
+        images: imageStoragePaths,
         category: payload.category ?? "other",
         createdAt: payload.createdAt ?? getLocalISODateTime(),
         uid: currentUser.uid,

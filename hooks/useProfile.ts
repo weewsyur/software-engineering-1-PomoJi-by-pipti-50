@@ -7,6 +7,7 @@ import {
   updateProfileData,
   updateFirebaseUserProfile,
   uploadProfileImage,
+  getProfileImageURL,
   UserProfile,
   UserStats,
   UserListItem,

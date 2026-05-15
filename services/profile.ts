@@ -3,6 +3,7 @@ import { getDownloadURL, ref, uploadString } from "firebase/storage";
 import { updateProfile as updateFirebaseProfile } from "firebase/auth";
 import { auth, db, storage } from "./firebase";
 import * as FileSystem from "expo-file-system";
+import { getFreshDownloadURL, isStoragePath } from "@/utils/imageStorage";
 
 export interface UserProfile {
   name: string;
@@ -160,11 +161,38 @@ export const uploadProfileImage = async (
       encoding: "base64",
     });
     await uploadString(avatarRef, base64, "base64", { contentType });
-    return await getDownloadURL(avatarRef);
+    // Return storage path instead of download URL
+    return `profileImages/${userId}`;
   } catch (error) {
     if (error instanceof Error) {
       throw error;
     }
     throw new Error("Failed to upload image");
   }
+};
+
+/**
+ * Get fresh download URL for profile image
+ * @param photoUri - Storage path or existing URL
+ * @returns Fresh download URL
+ */
+export const getProfileImageURL = async (photoUri: string | null): Promise<string | null> => {
+  if (!photoUri) return null;
+
+  // If it's already a URL, return it as-is (for backward compatibility)
+  if (photoUri.startsWith('http://') || photoUri.startsWith('https://')) {
+    return photoUri;
+  }
+
+  // If it's a storage path, get fresh download URL
+  if (isStoragePath(photoUri)) {
+    try {
+      return await getFreshDownloadURL(photoUri);
+    } catch (error) {
+      console.error('Failed to get profile image URL:', error);
+      return null;
+    }
+  }
+
+  return photoUri;
 };
