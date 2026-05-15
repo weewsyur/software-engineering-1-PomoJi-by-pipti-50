@@ -149,17 +149,19 @@ export const TaskModal = ({
 
     doc.body.appendChild(input);
 
-    // Use click() to trigger the browser's native date picker
-    // This is more reliable than showPicker() across browsers
-    input.click();
-
-    // Fallback: try showPicker if click doesn't work (Chrome/Edge)
+    // Try showPicker() first if available (Chrome/Edge) - must be synchronous
     const pickerInput = input as HTMLInputElement & { showPicker?: () => void };
-    setTimeout(() => {
-      if (!isCleaningUp && pickerInput.showPicker) {
+    if (pickerInput.showPicker) {
+      try {
         pickerInput.showPicker();
+      } catch (e) {
+        // Fallback to click() if showPicker fails
+        input.click();
       }
-    }, 0);
+    } else {
+      // Fallback for browsers without showPicker support
+      input.click();
+    }
   };
 
   const openDatePicker = () => {
