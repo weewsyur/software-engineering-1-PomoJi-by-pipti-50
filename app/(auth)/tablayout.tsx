@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Tabs } from "expo-router";
-import { StyleSheet, View, Platform, Animated, Easing } from "react-native";
+import { StyleSheet, View, Platform, Animated, Easing, Text } from "react-native";
 import { Colors } from "@/constants/colors";
 import { LucideIcon } from "@/app/components/LucideIcon";
 
@@ -39,6 +39,29 @@ const TABS: TabConfig[] = [
     activeIcon: "person",
   },
 ];
+
+const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const errorHandler = (error: ErrorEvent) => {
+      console.error(error);
+      setHasError(true);
+    };
+    window.addEventListener('error', errorHandler);
+    return () => window.removeEventListener('error', errorHandler);
+  }, []);
+
+  if (hasError) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Something went wrong.</Text>
+      </View>
+    );
+  }
+
+  return <>{children}</>;
+};
 
 const AnimatedIconWrapper = React.memo(
   ({
@@ -181,29 +204,31 @@ AnimatedIconWrapper.displayName = "AnimatedIconWrapper";
 
 export const TabLayout: React.FC = () => {
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: Colors.tabActive,
-        tabBarInactiveTintColor: Colors.tabInactive,
-        tabBarShowLabel: false,
-        tabBarItemStyle: styles.tabItem,
-      }}
-    >
-      {TABS.map((tab) => (
-        <Tabs.Screen
-          key={tab.name}
-          name={tab.name}
-          options={{
-            title: tab.title,
-            tabBarIcon: ({ focused, color }) => (
-              <AnimatedIconWrapper focused={focused} color={color} tab={tab} />
-            ),
-          }}
-        />
-      ))}
-    </Tabs>
+    <ErrorBoundary>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: styles.tabBar,
+          tabBarActiveTintColor: Colors.tabActive,
+          tabBarInactiveTintColor: Colors.tabInactive,
+          tabBarShowLabel: false,
+          tabBarItemStyle: styles.tabItem,
+        }}
+      >
+        {TABS.map((tab) => (
+          <Tabs.Screen
+            key={tab.name}
+            name={tab.name}
+            options={{
+              title: tab.title,
+              tabBarIcon: ({ focused, color }) => (
+                <AnimatedIconWrapper focused={focused} color={color} tab={tab} />
+              ),
+            }}
+          />
+        ))}
+      </Tabs>
+    </ErrorBoundary>
   );
 };
 
