@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Image,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Colors } from '@/constants/colors';
+import { getFreshDownloadURL, isStoragePath } from '@/utils/imageStorage';
 
 interface ImagePreviewProps {
   sources: ImageSourcePropType[];
@@ -17,9 +18,43 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({
   sources,
   onPress,
 }) => {
+  const [imageUrls, setImageUrls] = useState<ImageSourcePropType[]>([]);
+
+  useEffect(() => {
+    const loadImageUrls = async () => {
+      const urls: ImageSourcePropType[] = [];
+
+      for (const src of sources) {
+        if (typeof src === 'string') {
+          // If it's a storage path, get fresh download URL
+          if (isStoragePath(src)) {
+            try {
+              const freshUrl = await getFreshDownloadURL(src);
+              urls.push({ uri: freshUrl });
+            } catch (error) {
+              console.error('Failed to get download URL for:', src, error);
+              // Fallback to original source
+              urls.push({ uri: src });
+            }
+          } else {
+            // It's already a URL or local file URI
+            urls.push({ uri: src });
+          }
+        } else {
+          // It's already an ImageSourcePropType object
+          urls.push(src);
+        }
+      }
+
+      setImageUrls(urls);
+    };
+
+    loadImageUrls();
+  }, [sources]);
+
   return (
     <View style={styles.container}>
-      {sources.map((src, i) => (
+      {imageUrls.map((src, i) => (
         <TouchableOpacity
           key={i}
           style={styles.imageWrapper}

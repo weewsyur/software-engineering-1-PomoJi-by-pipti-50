@@ -1,6 +1,7 @@
-import React, { memo } from 'react';
+import React, { memo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { Colors } from '@/constants/colors';
+import { getFreshDownloadURL, isStoragePath } from '@/utils/imageStorage';
 
 interface AvatarProps {
   initials: string;
@@ -18,6 +19,32 @@ export const Avatar = memo<AvatarProps>(({
   photoUri,
 }) => {
   const fontSize = size * 0.36;
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadImageUrl = async () => {
+      if (!photoUri) {
+        setImageUrl(null);
+        return;
+      }
+
+      // If it's a storage path, get fresh download URL
+      if (isStoragePath(photoUri)) {
+        try {
+          const freshUrl = await getFreshDownloadURL(photoUri);
+          setImageUrl(freshUrl);
+        } catch (error) {
+          console.error('Failed to get download URL for avatar:', photoUri, error);
+          setImageUrl(photoUri); // Fallback to original
+        }
+      } else {
+        // It's already a URL or local file URI
+        setImageUrl(photoUri);
+      }
+    };
+
+    loadImageUrl();
+  }, [photoUri]);
 
   return (
     <View
@@ -31,9 +58,9 @@ export const Avatar = memo<AvatarProps>(({
         },
       ])}
     >
-      {photoUri ? (
+      {imageUrl ? (
         <Image
-          source={{ uri: photoUri }}
+          source={{ uri: imageUrl }}
           style={{ width: size, height: size, borderRadius: size / 2 }}
           resizeMode="cover"
         />

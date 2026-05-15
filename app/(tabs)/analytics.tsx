@@ -4,6 +4,7 @@ import { Alert, View, Text, StyleSheet, ScrollView, StatusBar, ActivityIndicator
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../constants/colors";
 import { SharedStyles } from "../../constants/styles";
+import { getFreshDownloadURL, isStoragePath } from "@/utils/imageStorage";
 import { useActivities } from "../../hooks/useActivities";
 import { filterSessionsByWeek, filterSessionsByMonth, filterSessionsByYear, groupSessionsByDay, groupSessionsByWeekForMonth, groupSessionsByMonthForYear } from "../../utils/sessionFilters";
 import { StreakCard } from "../components/StreakCard";
@@ -41,6 +42,7 @@ export default function HistoryScreen() {
   const [viewMode, setViewMode] = useState<"weekly" | "monthly" | "yearly">("weekly");
   const [userId, setUserId] = useState<string | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
+  const [activityImageUrls, setActivityImageUrls] = useState<Record<string, string>>({});
   const { deleteActivity, deleting } = useDeleteActivity();
   const { width: screenWidth } = useWindowDimensions();
 
@@ -48,6 +50,33 @@ export default function HistoryScreen() {
     const user = getUserStore();
     setUserId(user.userId);
   }, []);
+
+  useEffect(() => {
+    const loadImageUrls = async () => {
+      const urls: Record<string, string> = {};
+
+      for (const activity of activities) {
+        if (activity.images && activity.images.length > 0) {
+          const firstImage = activity.images[0];
+          if (isStoragePath(firstImage)) {
+            try {
+              const freshUrl = await getFreshDownloadURL(firstImage);
+              urls[activity.id] = freshUrl;
+            } catch (error) {
+              console.error('Failed to get download URL for activity:', activity.id, error);
+              urls[activity.id] = firstImage; // Fallback to original
+            }
+          } else {
+            urls[activity.id] = firstImage;
+          }
+        }
+      }
+
+      setActivityImageUrls(urls);
+    };
+
+    loadImageUrls();
+  }, [activities]);
 
   const { streakData, loading: streakLoading, error: streakError } = useStreakListener(db, userId, "UTC");
   const typedStreakData = streakData as StreakData | null | undefined;
@@ -248,7 +277,7 @@ export default function HistoryScreen() {
                 </Text>
               </View>
               {activity.images[0] ? (
-                <Image source={{ uri: activity.images[0] }} style={styles.activityImage} resizeMode="cover" />
+                <Image source={{ uri: activityImageUrls[activity.id] || activity.images[0] }} style={styles.activityImage} resizeMode="cover" />
               ) : null}
             </TouchableOpacity>
           ))

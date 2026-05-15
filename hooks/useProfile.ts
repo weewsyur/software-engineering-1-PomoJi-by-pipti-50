@@ -31,7 +31,9 @@ export const useProfile = () => {
         }
         const data = await fetchUserProfile(userId);
         if (data) {
-          setProfile(data);
+          // Get fresh download URL for profile image
+          const freshPhotoUri = await getProfileImageURL(data.photoUri);
+          setProfile({ ...data, photoUri: freshPhotoUri });
         }
       } catch {
         // Error handling is done in service layer

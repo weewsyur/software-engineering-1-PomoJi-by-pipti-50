@@ -10,7 +10,8 @@ import {
 import { ChevronLeft, X } from "lucide-react";
 import { Colors } from "@/constants/colors";
 import { Activity } from "@/hooks/useActivities";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getFreshDownloadURL, isStoragePath } from "@/utils/imageStorage";
 
 interface ActivityDetailModalProps {
   activity: Activity | null;
@@ -45,6 +46,34 @@ export const ActivityDetailModal = ({
   onDelete,
 }: ActivityDetailModalProps) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadImageUrls = async () => {
+      if (!activity || !activity.images || activity.images.length === 0) {
+        setImageUrls([]);
+        return;
+      }
+
+      const urls: string[] = [];
+      for (const uri of activity.images) {
+        if (isStoragePath(uri)) {
+          try {
+            const freshUrl = await getFreshDownloadURL(uri);
+            urls.push(freshUrl);
+          } catch (error) {
+            console.error('Failed to get download URL for:', uri, error);
+            urls.push(uri); // Fallback to original
+          }
+        } else {
+          urls.push(uri);
+        }
+      }
+      setImageUrls(urls);
+    };
+
+    loadImageUrls();
+  }, [activity]);
 
   const handleDeletePress = () => {
     setShowDeleteModal(true);
@@ -115,7 +144,7 @@ export const ActivityDetailModal = ({
             </View>
           ) : null}
 
-          {activity.images && activity.images.length > 0 && (
+          {imageUrls.length > 0 && (
             <View style={styles.imagesSection}>
               <Text style={styles.sectionLabel}>Images</Text>
               <ScrollView
@@ -123,7 +152,7 @@ export const ActivityDetailModal = ({
                 showsHorizontalScrollIndicator={false}
                 style={styles.imagesScroll}
               >
-                {activity.images.map((uri, index) => (
+                {imageUrls.map((uri, index) => (
                   <Image
                     key={index}
                     source={{ uri }}
