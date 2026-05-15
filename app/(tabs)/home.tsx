@@ -27,6 +27,8 @@ import { getUserStore } from "@/store/userStore";
 import { useReminders } from "@/hooks/useReminders";
 import { useSocialActivities, SocialActivity } from "@/hooks/useSocialActivities";
 import { useProfile } from "@/hooks/useProfile";
+import { useNotifications } from "@/hooks/useNotifications";
+import { NotificationsModal } from "@/app/components/NotificationsModal";
 import {
   searchUsers,
   getFollowStatusMap,
@@ -58,6 +60,7 @@ export default function HomeScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [currentUsername, setCurrentUsername] = useState<string>("User");
   const [showReminders, setShowReminders] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
@@ -67,6 +70,7 @@ export default function HomeScreen() {
   const { reminders, pendingCount } = useReminders();
   const { activities } = useSocialActivities();
   const { profile } = useProfile();
+  const { notifications, unreadCount: notificationCount, loading: notificationsLoading, markAsRead, markAllAsRead } = useNotifications();
 
   // Real-time streak listener
   const { streakData, loading, error } = useStreakListener(db, userId, "UTC");
@@ -170,10 +174,10 @@ export default function HomeScreen() {
           <TouchableOpacity style={styles.iconBtn} onPress={() => setShowSearch(true)}>
             <LucideIcon name="search-outline" size={20} color={Colors.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.bellBtn} onPress={() => setShowReminders(true)}>
-            {pendingCount > 0 && (
+          <TouchableOpacity style={styles.bellBtn} onPress={() => setShowNotifications(true)}>
+            {(pendingCount > 0 || notificationCount > 0) && (
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>{pendingCount > 9 ? "9+" : pendingCount}</Text>
+                <Text style={styles.badgeText}>{(pendingCount + notificationCount) > 9 ? "9+" : (pendingCount + notificationCount)}</Text>
               </View>
             )}
             <LucideIcon name="notifications-outline" size={20} color={Colors.text} />
@@ -258,6 +262,15 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
+      <NotificationsModal
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        notifications={notifications}
+        loading={notificationsLoading}
+        onMarkAsRead={markAsRead}
+        onMarkAllAsRead={markAllAsRead}
+      />
 
       <Modal visible={showSearch} animationType="slide" transparent onRequestClose={() => setShowSearch(false)}>
         <KeyboardAvoidingView
