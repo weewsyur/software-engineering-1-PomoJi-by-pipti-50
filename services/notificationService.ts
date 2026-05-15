@@ -1,10 +1,13 @@
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
 import type { Task } from "@/store/taskStore";
 
 let handlerConfigured = false;
 
 function shouldEnableExpoNotifications() {
+  // Disable notifications on web as expo-notifications has limited web support
+  if (Platform.OS === "web") return false;
   return Constants.executionEnvironment !== "storeClient";
 }
 
@@ -22,7 +25,7 @@ export async function initializeNotifications() {
 function toReminderDate(dueDate: string) {
   const date = new Date(dueDate);
   if (Number.isNaN(date.getTime())) return null;
-  return date;  
+  return date;
 }
 
 export async function upsertTaskReminder(
