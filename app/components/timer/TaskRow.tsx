@@ -1,6 +1,6 @@
 import React from "react";
 import { CheckCircle2, Circle, Edit, Trash2 } from "lucide-react";
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Task } from "@/hooks/usePomodoro";
 import { CategoryPill } from "./CategoryPill";
 
@@ -66,16 +66,24 @@ export const TaskRow = React.memo(({ task, onToggle, onEdit, onDelete }: TaskRow
     </TouchableOpacity>
     <TouchableOpacity
       style={taskRowStyles.icon}
-      onPress={() =>
-        Alert.alert("Delete Task", "Are you sure?", [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: () => onDelete(task.id),
-          },
-        ])
-      }
+      onPress={() => {
+        if (Platform.OS === "web") {
+          // Web: use confirm() for better browser compatibility
+          if (window.confirm("Are you sure you want to delete this task?")) {
+            onDelete(task.id);
+          }
+        } else {
+          // Native: use Alert.alert
+          Alert.alert("Delete Task", "Are you sure?", [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Delete",
+              style: "destructive",
+              onPress: () => onDelete(task.id),
+            },
+          ]);
+        }
+      }}
     >
       <Trash2 size={16} color="#C94C3C" strokeWidth={2.5} />
     </TouchableOpacity>
