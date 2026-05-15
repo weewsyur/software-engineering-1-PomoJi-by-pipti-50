@@ -3,6 +3,7 @@ import { auth, db } from "@/services/firebase";
 import { addDoc, collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { getLocalISODateTime } from "@/utils/dateHelpers";
 import { uploadActivityImages, getFreshDownloadURLs, isStoragePath } from "@/utils/imageStorage";
+import { logActivity } from "@/utils/activityTracker";
 
 export interface Activity {
   id: string;
@@ -102,7 +103,26 @@ export function useActivities() {
         createdAt: payload.createdAt ?? getLocalISODateTime(),
         uid: currentUser.uid,
       };
-      return addDoc(collection(db, "users", currentUser.uid, "activities"), activityPayload);
+
+      // Create activity in Firestore
+      const activityRef = await addDoc(collection(db, "users", currentUser.uid, "activities"), activityPayload);
+
+      // Update streak based on activity (counts days with 1+ activity as streak)
+      try {
+        const totalMinutes = Math.round((payload.totalTime ?? 0) / 60);
+        await logActivity(
+          currentUser.uid,
+          payload.title ?? "Focus Session",
+          payload.sessions ?? 1,
+          totalMinutes,
+          'UTC'
+        );
+      } catch (error) {
+        console.error('Failed to update streak after activity creation:', error);
+        // Don't fail the activity creation if streak update fails
+      }
+
+      return activityRef;
     },
     []
   );

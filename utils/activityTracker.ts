@@ -36,7 +36,7 @@ export interface ActivityStats {
  *
  * WORKFLOW:
  * 1. Add activity to activities collection
- * 2. Update user's streak data
+ * 2. Update user's streak data (only if this is the first activity of the day)
  * 3. Update user's activity stats
  */
 export async function logActivity(
@@ -71,6 +71,7 @@ export async function logActivity(
     });
 
     // 2. Update streak data (this triggers recalculation in listener)
+    // Only update lastActiveDate if this is the first activity of the day
     const streakRef = doc(db, 'users', userId, 'streakData', 'current');
     batch.set(
       streakRef,
@@ -90,13 +91,14 @@ export async function logActivity(
       {
         userId,
         totalActivities: 1,
+        totalFocusMinutes: totalMinutes,
         lastUpdated: now,
       },
       { merge: true }
     );
 
     await batch.commit();
-    console.log(`✅ Activity logged for ${userId}: ${title}`);
+    console.log(`✅ Activity logged for ${userId}: ${title} (${totalMinutes} minutes)`);
   } catch (error) {
     console.error('❌ Error logging activity:', error);
     throw error;
