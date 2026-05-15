@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Alert,
   View,
@@ -146,6 +146,7 @@ export default function ProfileScreen() {
   const [connectionsModalType, setConnectionsModalType] = useState<ConnectionModalType>("Following");
   const [connectionsList, setConnectionsList] = useState<UserListItem[]>([]);
   const [loadingConnections, setLoadingConnections] = useState(false);
+  const fileInputRef = useRef<any>(null);
 
   // ── Fetch profile from Firestore ────────────────────────────────────────────
   useEffect(() => {
@@ -308,33 +309,51 @@ export default function ProfileScreen() {
       if (draftPhotoUri !== profile.photoUri) {
         if (draftPhotoUri) {
           const avatarRef = ref(storage, `profileImages/${userId}`);
-          const fileInfo = await FileSystem.getInfoAsync(draftPhotoUri);
-          if (!fileInfo.exists) {
-            Alert.alert("Error", "Photo file not found.");
-            return;
-          }
-          if (fileInfo.size && fileInfo.size > 5 * 1024 * 1024) {
-            Alert.alert("Photo too large", "Please upload an image under 5MB.");
-            return;
-          }
 
-          const ext = draftPhotoUri.split(".").pop()?.toLowerCase() ?? "jpg";
-          const mimeMap: Record<string, string> = {
-            jpg: "image/jpeg",
-            jpeg: "image/jpeg",
-            png: "image/png",
-            webp: "image/webp",
-          };
-          const contentType = mimeMap[ext] ?? "image/jpeg";
-          if (!Object.values(mimeMap).includes(contentType)) {
-            Alert.alert("Invalid photo type", "Please upload a JPG, PNG, or WEBP.");
-            return;
+          // Handle web differently - data URL is already base64
+          let base64: string;
+          let contentType: string;
+
+          if (Platform.OS === "web" && draftPhotoUri.startsWith("data:")) {
+            // Extract content type and base64 data from data URL
+            const matches = draftPhotoUri.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+            if (!matches) {
+              Alert.alert("Error", "Invalid image format.");
+              return;
+            }
+            contentType = matches[1];
+            base64 = matches[2];
+          } else {
+            // Mobile: Use FileSystem
+            const fileInfo = await FileSystem.getInfoAsync(draftPhotoUri);
+            if (!fileInfo.exists) {
+              Alert.alert("Error", "Photo file not found.");
+              return;
+            }
+            if (fileInfo.size && fileInfo.size > 5 * 1024 * 1024) {
+              Alert.alert("Photo too large", "Please upload an image under 5MB.");
+              return;
+            }
+
+            const ext = draftPhotoUri.split(".").pop()?.toLowerCase() ?? "jpg";
+            const mimeMap: Record<string, string> = {
+              jpg: "image/jpeg",
+              jpeg: "image/jpeg",
+              png: "image/png",
+              webp: "image/webp",
+            };
+            contentType = mimeMap[ext] ?? "image/jpeg";
+            if (!Object.values(mimeMap).includes(contentType)) {
+              Alert.alert("Invalid photo type", "Please upload a JPG, PNG, or WEBP.");
+              return;
+            }
+
+            base64 = await FileSystem.readAsStringAsync(draftPhotoUri, {
+              encoding: "base64",
+            });
           }
 
           try {
-            const base64 = await FileSystem.readAsStringAsync(draftPhotoUri, {
-              encoding: "base64",
-            });
             await uploadString(avatarRef, base64, "base64", { contentType });
             nextPhotoUri = await getDownloadURL(avatarRef);
             updates.photoUrl = nextPhotoUri;
@@ -425,14 +444,16 @@ export default function ProfileScreen() {
   };
 
   const showPhotoSheet = () => {
+    // On web, trigger the file input directly
+    if (Platform.OS === "web") {
+      fileInputRef.current?.click();
+      return;
+    }
+
     const options: Array<{ text: string; onPress: () => void | Promise<void>; style?: "destructive" | "cancel" }> = [
       { text: "Choose from Library", onPress: pickFromLibrary },
+      { text: "Take Photo", onPress: takePhoto },
     ];
-
-    // Only show camera option on mobile
-    if (Platform.OS !== "web") {
-      options.unshift({ text: "Take Photo", onPress: takePhoto });
-    }
 
     if (draftPhotoUri) {
       options.push({
@@ -445,6 +466,19 @@ export default function ProfileScreen() {
     options.push({ text: "Cancel", style: "cancel", onPress: () => { } });
 
     Alert.alert("Profile Photo", "Choose an option", options);
+  };
+
+  const handleWebFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setDraftPhotoUri(event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const openConnectionsModal = async (type: ConnectionModalType) => {
@@ -647,6 +681,26 @@ export default function ProfileScreen() {
                     Change Profile Photo
                   </Text>
                 </TouchableOpacity>
+                {draftPhotoUri && Platform.OS === "web" && (
+                  <TouchableOpacity
+                    onPress={() => setDraftPhotoUri(null)}
+                    activeOpacity={0.7}
+                    style={{ marginTop: 8 }}
+                  >
+                    <Text style={[styles.changePhotoText, { color: Colors.primary }]}>
+                      Remove Photo
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {Platform.OS === "web" && (
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleWebFileChange}
+                    style={{ display: 'none' }}
+                  />
+                )}
               </View>
 
               <View style={styles.sectionDivider} />
