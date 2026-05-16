@@ -14,6 +14,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import {
   cancelTaskReminder,
   upsertTaskReminder,
+  scheduleTaskAddedNotification,
 } from "@/services/notificationService";
 import { getLocalISODateTime } from "@/utils/dateHelpers";
 
@@ -126,6 +127,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       normalized,
       normalized.reminderNotificationId,
     );
+    // Schedule notification for task added
+    await scheduleTaskAddedNotification(normalized.title);
     // Optimistic update: add task to local state immediately
     const tempId = `temp-${Date.now()}`;
     const optimisticTask = { ...normalized, id: tempId, reminderNotificationId };

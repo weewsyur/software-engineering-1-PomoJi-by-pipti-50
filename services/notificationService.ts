@@ -102,3 +102,34 @@ export async function scheduleSessionCompletionNotification(params: {
     },
   });
 }
+
+export async function scheduleTaskAddedNotification(taskTitle: string) {
+  const notifications = getNotifications();
+  if (!notifications) return null;
+
+  if (!handlerConfigured) {
+    notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldPlaySound: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldSetBadge: false,
+      }),
+    });
+    handlerConfigured = true;
+  }
+
+  const fireAt = new Date(Date.now() + 1000);
+
+  return notifications.scheduleNotificationAsync({
+    content: {
+      title: "Task Added",
+      body: `New task: ${taskTitle}`,
+      data: { type: 'task_added' },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: fireAt,
+    },
+  });
+}
