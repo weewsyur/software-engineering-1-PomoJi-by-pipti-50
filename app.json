@@ -1,54 +1,126 @@
 {
-  "expo": {
-    "name": "PomoJI",
-    "slug": "PomoJI",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "pomoji",
-    "userInterfaceStyle": "automatic",
-    "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "backgroundColor": "#E6F4FE",
-      "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "NOTIFICATIONS"
-      ],
-      "package": "com.yuuriii.PomoJI"
-    },
-    "web": {
-      "output": "static"
-    },
-    "plugins": [
-      "expo-router",
-      "expo-notifications",
-      [ 
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
+    "expo": {
+        "name": "PomoJI",
+        "slug": "pomoji",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./assets/images/icon.png",
+        "userInterfaceStyle": "automatic",
+        "splash": {
+            "image": "./assets/images/splash-icon.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#ffffff"
+        },
+        "assetBundlePatterns": [
+            "**/*"
+        ],
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "com.pomoji.app"
+        },
+        "android": {
+            "adaptiveIcon": {
+                "foregroundImage": "./assets/images/android-icon-foreground.png",
+                "backgroundImage": "./assets/images/android-icon-background.png",
+                "monochromeImage": "./assets/images/android-icon-monochrome.png"
+            },
+            "package": "com.pomoji.app"
+        },
+        "web": {
+            "bundler": "metro",
+            "output": "static",
+            "favicon": "./assets/images/favicon.png",
+            "meta": {
+                "viewport": "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
+                "theme-color": "#ef4444",
+                "description": "A powerful Pomodoro timer app with Firebase sync, offline support, and strict focus mode to boost productivity",
+                "apple-mobile-web-app-capable": "yes",
+                "apple-mobile-web-app-status-bar-style": "default",
+                "apple-mobile-web-app-title": "PomoJI"
+            },
+            "manifest": {
+                "name": "PomoJI - Pomodoro Productivity",
+                "short_name": "PomoJI",
+                "description": "A powerful Pomodoro timer app with Firebase sync, offline support, and strict focus mode to boost productivity",
+                "start_url": "/",
+                "scope": "/",
+                "display": "standalone",
+                "theme_color": "#ef4444",
+                "background_color": "#ffffff",
+                "orientation": "portrait-primary",
+                "categories": [
+                    "productivity",
+                    "utilities"
+                ],
+                "icons": [
+                    {
+                        "src": "/icon-192x192.png",
+                        "sizes": "192x192",
+                        "type": "image/png",
+                        "purpose": "any"
+                    },
+                    {
+                        "src": "/icon-maskable-192x192.png",
+                        "sizes": "192x192",
+                        "type": "image/png",
+                        "purpose": "maskable"
+                    },
+                    {
+                        "src": "/icon-512x512.png",
+                        "sizes": "512x512",
+                        "type": "image/png",
+                        "purpose": "any"
+                    },
+                    {
+                        "src": "/icon-maskable-512x512.png",
+                        "sizes": "512x512",
+                        "type": "image/png",
+                        "purpose": "maskable"
+                    }
+                ],
+                "shortcuts": [
+                    {
+                        "name": "Start Focus Session",
+                        "short_name": "Focus",
+                        "description": "Start a 25-minute focus session",
+                        "url": "/timer?mode=focus",
+                        "icons": [
+                            {
+                                "src": "/icon-192x192.png",
+                                "sizes": "192x192",
+                                "type": "image/png"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "View Tasks",
+                        "short_name": "Tasks",
+                        "description": "View and manage your tasks",
+                        "url": "/home",
+                        "icons": [
+                            {
+                                "src": "/icon-192x192.png",
+                                "sizes": "192x192",
+                                "type": "image/png"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "plugins": [
+            "expo-router",
+            [
+                "expo-splash-screen",
+                {
+                    "backgroundColor": "#ffffff",
+                    "image": "./assets/images/splash-icon.png",
+                    "imageWidth": 200
+                }
+            ]
+        ],
+        "experiments": {
+            "typedRoutes": true
         }
-      ],
-      "expo-font",
-      "expo-image",
-      "expo-web-browser"
-    ],
-    "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "eae10108-01a2-4065-8a98-7e88b0f69c5f"
-      }
     }
-  }
 }

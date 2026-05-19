@@ -3,9 +3,11 @@ import { Colors, useColors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
 import { useActivities } from "@/hooks/useActivities";
 import { Task, TaskCategory, useSessions, useTasks } from "@/hooks/usePomodoro";
+import { useTimerPersistence } from "@/hooks/useTimerPersistence";
+import { useStrictFocusMode } from "@/hooks/useStrictFocusMode";
 import { LucideIcon } from "@/app/components/LucideIcon";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Plus, Square, Play, Pause, Clipboard } from "lucide-react";
+import { Plus, Square, Play, Pause, Clipboard, AlertTriangle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { getLocalISODateTime } from "@/utils/dateHelpers";
@@ -73,6 +75,77 @@ export default function TimerScreen() {
   const [hasStarted, setHasStarted] = useState(false);
   const [sessions, setSessions] = useState(0);
   const [streakCount, setStreakCount] = useState(0);
+
+  // ── Timer persistence ─────────────────────────────────────────────────────
+  const { timerState, isLoaded: timerLoaded, updateTimerState, resetTimerState } = useTimerPersistence();
+
+  // Load persisted timer state
+  useEffect(() => {
+    if (timerLoaded && timerState.startTime === null) {
+      // Only load if timer wasn't running (to avoid conflicts)
+      setMode(timerState.mode);
+      setTimeLeft(timerState.timeLeft);
+      setIsRunning(timerState.isRunning);
+      setHasStarted(timerState.hasStarted);
+      setSessions(timerState.sessions);
+      setStreakCount(timerState.streakCount);
+    }
+  }, [timerLoaded, timerState]);
+
+  // Save timer state on changes
+  useEffect(() => {
+    if (timerLoaded) {
+      updateTimerState({
+        mode,
+        timeLeft,
+        isRunning,
+        hasStarted,
+        sessions,
+        streakCount,
+        startTime: hasStarted && isRunning ? sessionStartTimeRef.current : null,
+        pausedAt: pauseStartedAtRef.current,
+        pausedAccumulated: pausedAccumulatedMsRef.current,
+      });
+    }
+  }, [mode, timeLeft, isRunning, hasStarted, sessions, streakCount, timerLoaded, updateTimerState]);
+
+  // ── Strict focus mode ─────────────────────────────────────────────────────
+  const { state: focusState, startFocusMode, stopFocusMode, onFocusInvalidated } = useStrictFocusMode({
+    enabled: true,
+    invalidateOnTabSwitch: true,
+    invalidateOnMinimize: true,
+    invalidateOnVisibilityChange: true,
+    warningThreshold: 5,
+  });
+
+  // Start focus mode when timer starts
+  useEffect(() => {
+    if (hasStarted && mode === "focus") {
+      startFocusMode();
+    } else {
+      stopFocusMode();
+    }
+  }, [hasStarted, mode, startFocusMode, stopFocusMode]);
+
+  // Handle focus violation
+  const handleFocusViolation = useCallback(() => {
+    if (hasStarted && isRunning && mode === "focus") {
+      // Pause timer on focus violation
+      setIsRunning(false);
+      if (mode === "focus" && sessionStartTimeRef.current && !pauseStartedAtRef.current) {
+        pauseStartedAtRef.current = Date.now();
+      }
+      Alert.alert(
+        "Focus Session Interrupted",
+        "You left the app during your focus session. The timer has been paused.",
+        [{ text: "OK" }]
+      );
+    }
+  }, [hasStarted, isRunning, mode]);
+
+  useEffect(() => {
+    onFocusInvalidated(handleFocusViolation);
+  }, [onFocusInvalidated, handleFocusViolation]);
 
   // Memoize timer duration calculations
   const currentModeDuration = useMemo(() => {
@@ -426,21 +499,29 @@ export default function TimerScreen() {
         {/* Header */}
         <View style={[styles.header, { backgroundColor: colors.background }]}>
           <Text style={[styles.headerLabel, { color: colors.textMuted }]}>TIMER</Text>
-          <TouchableOpacity
-            style={styles.tasksToggle}
-            onPress={() => setShowTasks((v) => !v)}
-          >
-            {pendingTasks > 0 && (
-              <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-                <Text style={[styles.badgeText, { color: colors.surface }]}>{pendingTasks}</Text>
+          <View style={styles.headerActions}>
+            {focusState.warningActive && (
+              <View style={[styles.focusWarning, { backgroundColor: "#f59e0b" }]}>
+                <AlertTriangle size={16} color="#fff" />
+                <Text style={styles.focusWarningText}>Return to app!</Text>
               </View>
             )}
-            <LucideIcon
-              name={showTasks ? "list" : "list-outline"}
-              size={20}
-              color={showTasks ? colors.primary : colors.textMuted}
-            />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.tasksToggle}
+              onPress={() => setShowTasks((v) => !v)}
+            >
+              {pendingTasks > 0 && (
+                <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.badgeText, { color: colors.surface }]}>{pendingTasks}</Text>
+                </View>
+              )}
+              <LucideIcon
+                name={showTasks ? "list" : "list-outline"}
+                size={20}
+                color={showTasks ? colors.primary : colors.textMuted}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <BreakBanner mode={mode} onSkip={handleSkipBreak} />
@@ -707,12 +788,30 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 12,
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   headerLabel: {
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 2,
     color: Colors.textMuted,
     textTransform: "uppercase",
+  },
+  focusWarning: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  focusWarningText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "600",
   },
   tasksToggle: { position: "relative", padding: 4 },
   badge: {

@@ -2,11 +2,17 @@ import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import type { Task } from "@/store/taskStore";
+import {
+  showSessionCompleteNotification as showWebSessionComplete,
+  showBreakReminderNotification as showWebBreakReminder,
+  showFocusSessionAlert as showWebFocusAlert,
+  requestNotificationPermission as requestWebPermission,
+} from "@/services/webNotificationService";
 
 let handlerConfigured = false;
 
 function shouldEnableExpoNotifications() {
-  // Disable notifications on web as expo-notifications has limited web support
+  // Use web notifications on web platform
   if (Platform.OS === "web") return false;
   return Constants.executionEnvironment !== "storeClient";
 }
@@ -17,6 +23,11 @@ function getNotifications() {
 }
 
 export async function initializeNotifications() {
+  // Use web notifications on web platform
+  if (Platform.OS === "web") {
+    return await requestWebPermission();
+  }
+
   const notifications = getNotifications();
   if (!notifications) return;
   await notifications.requestPermissionsAsync();
@@ -82,6 +93,14 @@ export async function scheduleSessionCompletionNotification(params: {
   taskTitle: string;
   durationSeconds: number;
 }) {
+  // Use web notifications on web platform
+  if (Platform.OS === "web") {
+    return showWebSessionComplete({
+      taskTitle: params.taskTitle,
+      durationSeconds: params.durationSeconds,
+    });
+  }
+
   const notifications = getNotifications();
   if (!notifications) return null;
 
@@ -104,6 +123,16 @@ export async function scheduleSessionCompletionNotification(params: {
 }
 
 export async function scheduleTaskAddedNotification(taskTitle: string) {
+  // Use web notifications on web platform
+  if (Platform.OS === "web") {
+    const { webNotificationService } = await import("@/services/webNotificationService");
+    return webNotificationService.showNotification({
+      title: "Task Added",
+      body: `New task: ${taskTitle}`,
+      tag: "task-added",
+    });
+  }
+
   const notifications = getNotifications();
   if (!notifications) return null;
 
