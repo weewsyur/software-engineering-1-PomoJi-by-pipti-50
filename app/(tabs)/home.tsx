@@ -27,6 +27,7 @@ import { useStreakListener } from "@/utils/useStreakListener";
 import { getUserStore } from "@/store/userStore";
 import { useReminders } from "@/hooks/useReminders";
 import { useSocialActivities, SocialActivity } from "@/hooks/useSocialActivities";
+import { initializeStreakData } from "@/utils/activityTracker";
 import { useProfile } from "@/hooks/useProfile";
 import { useNotifications } from "@/hooks/useNotifications";
 import { NotificationsModal } from "@/app/components/NotificationsModal";
@@ -77,6 +78,16 @@ export default function HomeScreen() {
 
   // Real-time streak listener
   const { streakData, loading, error } = useStreakListener(db, userId, "UTC");
+
+  // Initialize streak data if it doesn't exist
+  useEffect(() => {
+    if (userId && !loading && !error && !streakData) {
+      // Initialize streak data for new users
+      initializeStreakData(userId, 'UTC').catch((err) => {
+        console.error('Failed to initialize streak data:', err);
+      });
+    }
+  }, [userId, loading, error, streakData]);
 
   // Memoize expensive calculations
   const initials = useMemo(() => {

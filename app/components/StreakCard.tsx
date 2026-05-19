@@ -1,11 +1,12 @@
 import React, { useMemo, memo } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { Flame } from "lucide-react";
-import { Colors } from "@/constants/colors";
+import { Colors, useColors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
 import { StreakData } from "@/utils/streakCalculator";
 import { Activity } from "@/hooks/useActivities";
 import { calculateWeeklyStreak, groupSessionsByDay } from "@/utils/sessionFilters";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface StreakCardProps {
   streakCount?: number;
@@ -28,6 +29,9 @@ export const StreakCard = memo<StreakCardProps>(({
   activities = [],
   useWeeklyStreak = false,
 }) => {
+  const { isDarkMode } = useTheme();
+  const colors = useColors(isDarkMode);
+
   // Calculate the current date and day of the week
   const today = new Date();
   const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ...
@@ -88,21 +92,21 @@ export const StreakCard = memo<StreakCardProps>(({
   }, [useWeeklyStreak, streakUnit]);
 
   return (
-    <View style={StyleSheet.flatten([SharedStyles.card, styles.card])}>
-      <Text style={styles.title}>{useWeeklyStreak ? "This Week's Streak" : "Your Streak"}</Text>
+    <View style={StyleSheet.flatten([SharedStyles.card, styles.card, { backgroundColor: colors.surface, borderColor: colors.border }])}>
+      <Text style={[styles.title, { color: colors.text }]}>{useWeeklyStreak ? "This Week's Streak" : "Your Streak"}</Text>
 
       {/* Loading State */}
       {loading && (
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="small" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading...</Text>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textMuted }]}>Loading...</Text>
         </View>
       )}
 
       {/* Error State */}
       {error && !loading && (
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>⚠️ Unable to load streak</Text>
+          <Text style={[styles.errorText, { color: colors.primary }]}>⚠️ Unable to load streak</Text>
         </View>
       )}
 
@@ -111,11 +115,11 @@ export const StreakCard = memo<StreakCardProps>(({
         <View style={styles.body}>
           {/* Flame + count */}
           <View style={styles.flameBlock}>
-            <View style={styles.flameBadge}>
-              <Flame size={22} color={Colors.surface} strokeWidth={2.5} fill={Colors.surface} />
+            <View style={[styles.flameBadge, { backgroundColor: colors.primary }]}>
+              <Flame size={22} color={colors.surface} strokeWidth={2.5} fill={colors.surface} />
               <Text style={styles.flameCount}>{displayCount}</Text>
             </View>
-            <Text style={styles.streakUnit}>{displayUnit}</Text>
+            <Text style={[styles.streakUnit, { color: colors.textMuted }]}>{displayUnit}</Text>
           </View>
 
           {/* Days row */}
@@ -130,7 +134,7 @@ export const StreakCard = memo<StreakCardProps>(({
               return (
                 <View key={i} style={styles.dayColumn}>
                   <Text
-                    style={StyleSheet.flatten([styles.dayLabel, isActive && styles.dayLabelActive])}
+                    style={StyleSheet.flatten([styles.dayLabel, { color: colors.textMuted }, isActive && { color: colors.primary, fontWeight: '700' }])}
                   >
                     {day}
                   </Text>
@@ -138,16 +142,16 @@ export const StreakCard = memo<StreakCardProps>(({
                     style={StyleSheet.flatten([
                       styles.dayCircle,
                       useWeeklyStreak
-                        ? (hasSession ? styles.dayCircleActive : styles.dayCircleInactive)
-                        : (hasSession ? styles.dayCircleActive : (isCurrentDay ? styles.dayCircleActive : styles.dayCircleInactive)),
+                        ? (hasSession ? { backgroundColor: colors.primary } : { backgroundColor: 'transparent' })
+                        : (hasSession ? { backgroundColor: colors.primary } : (isCurrentDay ? { backgroundColor: colors.primary } : { backgroundColor: 'transparent' })),
                     ])}
                   >
                     <Text
                       style={StyleSheet.flatten([
                         styles.dayNumber,
                         useWeeklyStreak
-                          ? (hasSession ? styles.dayNumberActive : styles.dayNumberInactive)
-                          : (hasSession ? styles.dayNumberActive : (isCurrentDay ? styles.dayNumberActive : styles.dayNumberInactive)),
+                          ? (hasSession ? { color: colors.surface } : { color: colors.textMuted })
+                          : (hasSession ? { color: colors.surface } : (isCurrentDay ? { color: colors.surface } : { color: colors.textMuted })),
                       ])}
                     >
                       {useWeeklyStreak ? daySessionCount : currentDate.getDate()}
@@ -175,7 +179,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 14,
     fontWeight: "600",
-    color: Colors.text,
     marginBottom: 14,
     letterSpacing: 0.1,
   },
@@ -188,7 +191,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 12,
-    color: Colors.textMuted,
     fontWeight: "500",
   },
   errorContainer: {
@@ -197,7 +199,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
-    color: Colors.primary,
     fontWeight: "500",
   },
   body: {
@@ -213,7 +214,6 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 14,
-    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
@@ -226,7 +226,6 @@ const styles = StyleSheet.create({
   },
   streakUnit: {
     fontSize: 11,
-    color: Colors.textSecondary,
     fontWeight: "500",
   },
   daysRow: {
@@ -241,11 +240,6 @@ const styles = StyleSheet.create({
   dayLabel: {
     fontSize: 11,
     fontWeight: "500",
-    color: Colors.textMuted,
-  },
-  dayLabelActive: {
-    color: Colors.primary,
-    fontWeight: "700",
   },
   dayCircle: {
     width: 26,
@@ -254,20 +248,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  dayCircleActive: {
-    backgroundColor: Colors.primary,
-  },
-  dayCircleInactive: {
-    backgroundColor: "transparent",
-  },
   dayNumber: {
     fontSize: 11,
     fontWeight: "600",
-  },
-  dayNumberActive: {
-    color: Colors.surface,
-  },
-  dayNumberInactive: {
-    color: Colors.textSecondary,
   },
 });

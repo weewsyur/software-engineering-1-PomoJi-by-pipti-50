@@ -9,6 +9,7 @@ import {
   serverTimestamp,
   doc,
   setDoc,
+  getDoc,
   Timestamp,
   writeBatch,
 } from 'firebase/firestore';
@@ -36,7 +37,7 @@ export interface ActivityStats {
  *
  * WORKFLOW:
  * 1. Add activity to activities collection
- * 2. Update user's streak data (only if this is the first activity of the day)
+ * 2. Update user's streak data (calculate and store current streak)
  * 3. Update user's activity stats
  */
 export async function logActivity(
@@ -70,13 +71,61 @@ export async function logActivity(
       date: todayDate,
     });
 
-    // 2. Update streak data (this triggers recalculation in listener)
-    // Only update lastActiveDate if this is the first activity of the day
+    // 2. Update streak data (calculate and store current streak)
     const streakRef = doc(db, 'users', userId, 'streakData', 'current');
+
+    // Get current streak data to calculate new streak
+    const streakSnapshot = await getDoc(streakRef);
+    let currentStreak = 0;
+    let highestStreak = 0;
+    let lastActiveDate: Timestamp | null = null;
+
+    if (streakSnapshot.exists()) {
+      const data = streakSnapshot.data();
+      currentStreak = data.currentStreak || 0;
+      highestStreak = data.highestStreak || 0;
+      lastActiveDate = data.lastActiveDate || null;
+    }
+
+    // Calculate new streak based on last active date
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    let newStreak = currentStreak;
+
+    if (lastActiveDate) {
+      const lastDate = new Date(lastActiveDate.toMillis());
+      const lastDateStr = lastDate.toISOString().split('T')[0];
+      const todayStr = today.toISOString().split('T')[0];
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+      if (lastDateStr === todayStr) {
+        // Activity already logged today, maintain streak
+        newStreak = Math.max(currentStreak, 1);
+      } else if (lastDateStr === yesterdayStr) {
+        // Last activity was yesterday, increment streak
+        newStreak = currentStreak + 1;
+      } else {
+        // Gap > 1 day, reset to 1
+        newStreak = 1;
+      }
+    } else {
+      // First activity ever
+      newStreak = 1;
+    }
+
+    // Update highest streak if needed
+    if (newStreak > highestStreak) {
+      highestStreak = newStreak;
+    }
+
     batch.set(
       streakRef,
       {
         userId,
+        currentStreak: newStreak,
+        highestStreak,
         lastActiveDate: now,
         timezone,
         updatedAt: now,
@@ -98,7 +147,7 @@ export async function logActivity(
     );
 
     await batch.commit();
-    console.log(`✅ Activity logged for ${userId}: ${title} (${totalMinutes} minutes)`);
+    console.log(`✅ Activity logged for ${userId}: ${title} (${totalMinutes} minutes) - Streak: ${newStreak}`);
   } catch (error) {
     console.error('❌ Error logging activity:', error);
     throw error;
