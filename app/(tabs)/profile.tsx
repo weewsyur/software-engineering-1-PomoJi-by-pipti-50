@@ -192,6 +192,8 @@ export default function ProfileScreen() {
     useState<ConnectionModalType>("Following");
   const [connectionsList, setConnectionsList] = useState<UserListItem[]>([]);
   const [loadingConnections, setLoadingConnections] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const fileInputRef = useRef<any>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
@@ -359,6 +361,13 @@ export default function ProfileScreen() {
       return;
     }
 
+    if (isSavingProfile) {
+      return;
+    }
+
+    setIsSavingProfile(true);
+    setSaveError(null);
+
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) {
@@ -381,29 +390,21 @@ export default function ProfileScreen() {
           let contentType: string;
 
           if (Platform.OS === "web" && draftPhotoUri.startsWith("data:")) {
-            // Extract content type and base64 data from data URL
             const matches = draftPhotoUri.match(
               /^data:(image\/[a-zA-Z+]+);base64,(.+)$/,
             );
             if (!matches) {
-              Alert.alert("Error", "Invalid image format.");
-              return;
+              throw new Error("Invalid image format.");
             }
             contentType = matches[1];
             base64 = matches[2];
           } else {
-            // Mobile: Use FileSystem
             const fileInfo = await FileSystem.getInfoAsync(draftPhotoUri);
             if (!fileInfo.exists) {
-              Alert.alert("Error", "Photo file not found.");
-              return;
+              throw new Error("Photo file not found.");
             }
             if (fileInfo.size && fileInfo.size > 5 * 1024 * 1024) {
-              Alert.alert(
-                "Photo too large",
-                "Please upload an image under 5MB.",
-              );
-              return;
+              throw new Error("Photo must be under 5MB.");
             }
 
             const ext = draftPhotoUri.split(".").pop()?.toLowerCase() ?? "jpg";
@@ -415,11 +416,7 @@ export default function ProfileScreen() {
             };
             contentType = mimeMap[ext] ?? "image/jpeg";
             if (!Object.values(mimeMap).includes(contentType)) {
-              Alert.alert(
-                "Invalid photo type",
-                "Please upload a JPG, PNG, or WEBP.",
-              );
-              return;
+              throw new Error("Please upload a JPG, PNG, or WEBP image.");
             }
 
             base64 = await FileSystem.readAsStringAsync(draftPhotoUri, {
@@ -427,36 +424,9 @@ export default function ProfileScreen() {
             });
           }
 
-          try {
-            await uploadString(avatarRef, base64, "base64", { contentType });
-            nextPhotoUri = await getDownloadURL(avatarRef);
-            updates.photoUrl = nextPhotoUri;
-          } catch (storageError) {
-            const firebaseStorageError = storageError as {
-              code?: string;
-              message?: string;
-              serverResponse?: string;
-            };
-            console.error("Storage upload failed:", firebaseStorageError);
-            console.error(
-              "Storage error code:",
-              firebaseStorageError.code ?? "unknown",
-            );
-            console.error(
-              "Storage error message:",
-              firebaseStorageError.message ?? "Unknown Storage error",
-            );
-            console.error(
-              "Storage server response:",
-              firebaseStorageError.serverResponse ?? "No server response",
-            );
-            if (firebaseStorageError.code === "storage/unknown") {
-              console.error(
-                "Check Firebase Storage rules for authenticated writes to profileImages/{uid}, and verify bucket CORS policy for your app origin.",
-              );
-            }
-            throw storageError;
-          }
+          await uploadString(avatarRef, base64, "base64", { contentType });
+          nextPhotoUri = await getDownloadURL(avatarRef);
+          updates.photoUrl = nextPhotoUri;
         } else {
           nextPhotoUri = null;
           updates.photoUrl = null;
@@ -474,14 +444,19 @@ export default function ProfileScreen() {
         name: draftName.trim(),
         photoUri: nextPhotoUri,
       }));
+      setDraftPhotoUri(nextPhotoUri);
       setModalVisible(false);
+      Alert.alert("Saved", "Your profile has been updated.");
     } catch (error) {
       const firebaseError = error as { code?: string; message?: string };
-      console.log("FULL ERROR:", error);
-      console.log("ERROR CODE:", firebaseError.code ?? "unknown");
-      console.log("ERROR MESSAGE:", firebaseError.message ?? "Unknown error");
       console.error("Error updating profile:", error);
-      Alert.alert("Error", "Failed to update profile. Please try again.");
+      setSaveError(firebaseError.message || "Failed to update profile.");
+      Alert.alert(
+        "Error",
+        firebaseError.message || "Failed to update profile. Please try again.",
+      );
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -836,14 +811,16 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 onPress={handleSave}
                 activeOpacity={0.7}
+                disabled={isSavingProfile}
                 style={styles.modalNavBtn}
               >
-                <Text style={[styles.navSaveText, { color: colors.primary }]}>
-                  Save
-                </Text>
-              </TouchableOpacity>
-            </View>
-
+                {isSavingProfile ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Text style={[styles.navSaveText, { color: colors.primary }]}> 
+                    Save
+                  </Text>
+                )}
             <ScrollView
               contentContainerStyle={styles.modalContent}
               keyboardShouldPersistTaps="handled"
@@ -984,13 +961,20 @@ export default function ProfileScreen() {
 
               {/* CTA */}
               <TouchableOpacity
-                style={[styles.saveBtn, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.saveBtn,
+                  { backgroundColor: colors.primary },
+                  isSavingProfile && styles.saveBtnDisabled,
+                ]}
                 onPress={handleSave}
                 activeOpacity={0.85}
+                disabled={isSavingProfile}
               >
-                <Text style={[styles.saveBtnText, { color: colors.surface }]}>
-                  Save Changes
-                </Text>
+                {isSavingProfile ? (
+                  <ActivityIndicator size="small" color={colors.surface} />
+                ) : (
+                  <Text style={[styles.saveBtnText, { color: colors.surface }]}>Save Changes</Text>
+                )}
               </TouchableOpacity>
             </ScrollView>
           </SafeAreaView>
@@ -1406,6 +1390,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.28,
     shadowRadius: 10,
     elevation: 6,
+  },
+  saveBtnDisabled: {
+    opacity: 0.65,
   },
   saveBtnText: {
     fontSize: 15,

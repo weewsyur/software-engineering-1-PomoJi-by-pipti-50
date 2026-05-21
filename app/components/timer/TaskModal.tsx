@@ -103,71 +103,9 @@ export const TaskModal = ({
     setDueDate(formatted);
   };
 
-  const openWebDatePicker = () => {
-    const doc = (globalThis as { document?: Document }).document;
-    if (!doc) return;
-
-    const input = doc.createElement("input");
-    input.type = "date";
-    input.value = dueDate || formatDate(selectedDate ?? new Date());
-    // Position off-screen instead of hiding with opacity/pointer-events
-    input.style.position = "fixed";
-    input.style.left = "-9999px";
-    input.style.top = "-9999px";
-    input.style.zIndex = "9999";
-    input.style.visibility = "visible";
-
-    let isCleaningUp = false;
-
-    const cleanup = () => {
-      if (isCleaningUp) return;
-      isCleaningUp = true;
-      if (input.parentNode) {
-        input.parentNode.removeChild(input);
-      }
-    };
-
-    input.addEventListener("change", () => {
-      const value = input.value;
-      if (!value) {
-        cleanup();
-        return;
-      }
-      const parsed = parseDueDate(value);
-      setDueDate(value);
-      setSelectedDate(parsed);
-      // Delay cleanup to ensure state updates complete
-      setTimeout(cleanup, 100);
-    });
-
-    // Only cleanup on cancel/dismiss, not on blur during selection
-    input.addEventListener("cancel", cleanup);
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        cleanup();
-      }
-    });
-
-    doc.body.appendChild(input);
-
-    // Try showPicker() first if available (Chrome/Edge) - must be synchronous
-    const pickerInput = input as HTMLInputElement & { showPicker?: () => void };
-    if (pickerInput.showPicker) {
-      try {
-        pickerInput.showPicker();
-      } catch {
-        // Fallback to click() if showPicker fails
-        input.click();
-      }
-    } else {
-      // Fallback for browsers without showPicker support
-      input.click();
-    }
-  };
-
   const openDatePicker = () => {
     if (Platform.OS === "web") {
-      openWebDatePicker();
+      setShowDatePicker(true);
       return;
     }
 
@@ -282,13 +220,15 @@ export const TaskModal = ({
               </Text>
               <Calendar size={18} color={Colors.textMuted} strokeWidth={2.5} />
             </TouchableOpacity>
-            {Platform.OS === "ios" && showDatePicker && (
+            {showDatePicker && Platform.OS === "ios" && (
               <View style={modalStyles.datePickerContainer}>
                 <DateTimePicker
                   value={selectedDate ?? new Date()}
                   mode="date"
                   display="spinner"
-                  onChange={handleDateChange}
+                  onChange={(event, date) => {
+                    handleDateChange(event, date);
+                  }}
                 />
                 <TouchableOpacity
                   style={modalStyles.dateDoneBtn}
@@ -297,6 +237,31 @@ export const TaskModal = ({
                 >
                   <Text style={modalStyles.dateDoneText}>Done</Text>
                 </TouchableOpacity>
+              </View>
+            )}
+            {showDatePicker && Platform.OS === "web" && (
+              <View style={modalStyles.webDatePickerOverlay}>
+                <View style={modalStyles.webDatePickerPanel}>
+                  <DateTimePicker
+                    value={selectedDate ?? new Date()}
+                    mode="date"
+                    display="inline"
+                    onChange={(event, date) => {
+                      handleDateChange(event, date);
+                      if (date) {
+                        setShowDatePicker(false);
+                      }
+                    }}
+                    style={modalStyles.webDatePicker}
+                  />
+                  <TouchableOpacity
+                    style={modalStyles.dateDoneBtn}
+                    onPress={() => setShowDatePicker(false)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={modalStyles.dateDoneText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
             {Boolean(dueDate) && (
@@ -426,6 +391,26 @@ const modalStyles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingTop: 4,
     paddingBottom: 8,
+  },
+  webDatePickerOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    top: 0,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+  },
+  webDatePickerPanel: {
+    margin: 16,
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#EAD8D8",
+  },
+  webDatePicker: {
+    width: "100%",
   },
   dateDoneBtn: {
     alignSelf: "flex-end",

@@ -28,7 +28,11 @@ import { TaskModal } from "@/app/components/timer/TaskModal";
 import { TaskRow } from "@/app/components/timer/TaskRow";
 import { BreakBanner } from "@/app/components/timer/BreakBanner";
 import { TaskPicker } from "@/app/components/timer/TaskPicker";
-import { scheduleSessionCompletionNotification } from "@/services/notificationService";
+import {
+  initializeNotifications,
+  scheduleSessionCompletionNotification,
+} from "@/services/notificationService";
+import { showFocusSessionAlert } from "@/services/webNotificationService";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,6 +47,17 @@ const MODES: { key: TimerMode; label: string; duration: number }[] = [
 ];
 
 const SESSIONS_BEFORE_LONG_BREAK = 4;
+
+const MOTIVATIONAL_QUOTES = [
+  "Focus is your superpower — protect it from distractions.",
+  "Small, steady work beats bursts of chaos.",
+  "Every minute of intentional focus makes the next task easier.",
+  "Stay present. Your future self will thank you.",
+  "A focused session now builds momentum for the whole day.",
+];
+
+const getRandomQuote = () =>
+  MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -75,6 +90,9 @@ export default function TimerScreen() {
   const [hasStarted, setHasStarted] = useState(false);
   const [sessions, setSessions] = useState(0);
   const [streakCount, setStreakCount] = useState(0);
+  const [focusLockModalVisible, setFocusLockModalVisible] = useState(false);
+  const [focusLockQuote, setFocusLockQuote] = useState(getRandomQuote());
+  const [backgroundReminderSent, setBackgroundReminderSent] = useState(false);
 
   // ── Timer persistence ─────────────────────────────────────────────────────
   const {
@@ -95,6 +113,10 @@ export default function TimerScreen() {
       setStreakCount(timerState.streakCount);
     }
   }, [timerLoaded, timerState]);
+
+  useEffect(() => {
+    initializeNotifications().catch(() => null);
+  }, []);
 
   // Save timer state on changes
   useEffect(() => {
@@ -157,17 +179,53 @@ export default function TimerScreen() {
       ) {
         pauseStartedAtRef.current = Date.now();
       }
-      Alert.alert(
-        "Focus Session Interrupted",
-        "You left the app during your focus session. The timer has been paused.",
-        [{ text: "OK" }],
-      );
+      const warningMessage =
+        focusLockQuote ||
+        "You left the app during your focus session. The timer has been paused.";
+
+      Alert.alert("Focus Session Interrupted", warningMessage, [
+        {
+          text: "Resume",
+          onPress: () => setIsRunning(true),
+        },
+        {
+          text: "Stop",
+          style: "destructive",
+          onPress: () => setHasStarted(false),
+        },
+      ]);
     }
-  }, [hasStarted, isRunning, mode]);
+  }, [focusLockQuote, hasStarted, isRunning, mode]);
 
   useEffect(() => {
     onFocusInvalidated(handleFocusViolation);
   }, [onFocusInvalidated, handleFocusViolation]);
+
+  useEffect(() => {
+    if (
+      focusState.isActive &&
+      focusState.warningActive &&
+      mode === "focus" &&
+      isRunning &&
+      !backgroundReminderSent
+    ) {
+      showFocusSessionAlert({
+        taskTitle: activeTask?.title ?? "Focus session",
+      }).catch(() => null);
+      setBackgroundReminderSent(true);
+    }
+
+    if (!focusState.warningActive) {
+      setBackgroundReminderSent(false);
+    }
+  }, [
+    focusState.isActive,
+    focusState.warningActive,
+    mode,
+    isRunning,
+    activeTask,
+    backgroundReminderSent,
+  ]);
 
   // ── Task & Session state ───────────────────────────────────────────────
   const {
@@ -352,7 +410,9 @@ export default function TimerScreen() {
 
   // ── FR-04: Timer Controls ───────────────────────────────────────────────
 
-  const handleStart = useCallback(() => {
+  const confirmStartFocusSession = useCallback(() => {
+    setFocusLockModalVisible(false);
+    setFocusLockQuote(getRandomQuote());
     setCanRecordSession(false);
     if (mode === "focus") {
       sessionStartTimeRef.current = Date.now();
@@ -362,6 +422,16 @@ export default function TimerScreen() {
     setHasStarted(true);
     setIsRunning(true);
   }, [mode]);
+
+  const handleStart = useCallback(() => {
+    setFocusLockQuote(getRandomQuote());
+    if (mode === "focus") {
+      setFocusLockModalVisible(true);
+      return;
+    }
+
+    confirmStartFocusSession();
+  }, [confirmStartFocusSession, mode]);
 
   const handlePause = useCallback(() => {
     if (
@@ -845,6 +915,71 @@ export default function TimerScreen() {
           }}
         />
 
+        <Modal
+          visible={focusLockModalVisible}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setFocusLockModalVisible(false)}
+        >
+          <View style={styles.focusModalOverlay}>
+            <View
+              style={[
+                styles.focusModalCard,
+                { backgroundColor: colors.surface },
+              ]}
+            >
+              <Text style={[styles.focusModalTitle, { color: colors.text }]}>
+                Focus Lock Mode
+              </Text>
+              <Text
+                style={[styles.focusModalBody, { color: colors.textMuted }]}
+              >
+                PomoJI will warn you if you leave the app or switch tabs during
+                a focus session. True system-level device locking is not
+                possible in a browser or PWA, so this mode provides the
+                strongest distraction guard available here.
+              </Text>
+              <Text style={[styles.focusModalQuote, { color: colors.text }]}>
+                “{focusLockQuote}”
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.focusModalButton,
+                  { backgroundColor: colors.primary },
+                ]}
+                onPress={confirmStartFocusSession}
+                activeOpacity={0.85}
+              >
+                <Text
+                  style={[
+                    styles.focusModalButtonText,
+                    { color: colors.surface },
+                  ]}
+                >
+                  Start Focus Session
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.focusModalCancel,
+                  { borderColor: colors.border },
+                ]}
+                onPress={() => setFocusLockModalVisible(false)}
+                activeOpacity={0.85}
+              >
+                <Text
+                  style={[
+                    styles.focusModalCancelText,
+                    { color: colors.textMuted },
+                  ]}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
         {/* Session task picker */}
         <TaskPicker
           visible={taskPickerVisible}
@@ -922,6 +1057,62 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 11,
     fontWeight: "600",
+  },
+  focusModalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.35)",
+    padding: 16,
+  },
+  focusModalCard: {
+    width: "100%",
+    maxWidth: 430,
+    borderRadius: 22,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  focusModalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 12,
+  },
+  focusModalBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 18,
+  },
+  focusModalQuote: {
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 20,
+    color: "#9A7070",
+  },
+  focusModalButton: {
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  focusModalButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  focusModalCancel: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  focusModalCancelText: {
+    fontSize: 14,
+    fontWeight: "700",
   },
   tasksToggle: { position: "relative", padding: 4 },
   badge: {

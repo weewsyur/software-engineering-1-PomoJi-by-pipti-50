@@ -72,11 +72,14 @@ export function useStrictFocusMode(config: Partial<FocusModeConfig> = {}) {
   }, []);
 
   // Handle visibility change (Page Visibility API)
+  // Note: true OS-level app/device locking is impossible inside a normal browser/PWA.
+  // This hook implements the best available safeguard by detecting tab switches,
+  // browser hide events, blur/focus, and page lifecycle events.
   useEffect(() => {
     if (Platform.OS !== 'web' || !fullConfig.enabled) return;
 
     const handleVisibilityChange = () => {
-      const isHidden = document.hidden;
+      const isHidden = document.visibilityState !== 'visible';
       
       setState(prev => ({
         ...prev,
@@ -114,11 +117,15 @@ export function useStrictFocusMode(config: Partial<FocusModeConfig> = {}) {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleVisibilityChange);
     window.addEventListener('focus', handleVisibilityChange);
+    window.addEventListener('pagehide', handleVisibilityChange);
+    window.addEventListener('pageshow', handleVisibilityChange);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleVisibilityChange);
       window.removeEventListener('focus', handleVisibilityChange);
+      window.removeEventListener('pagehide', handleVisibilityChange);
+      window.removeEventListener('pageshow', handleVisibilityChange);
       if (warningTimeoutRef.current) {
         clearTimeout(warningTimeoutRef.current);
       }
