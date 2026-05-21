@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
-import { RefreshCw, Check } from 'lucide-react-native';
-import { offlineManager } from '@/web/offline-manager';
+import React, { useEffect, useState } from "react";
+import { Text, StyleSheet, Animated } from "react-native";
+import { RefreshCw } from "lucide-react-native";
+import { offlineManager } from "@/web/offline-manager";
 
 export const SyncStatus: React.FC = () => {
   const [hasPendingOps, setHasPendingOps] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const isSyncing = false;
   const rotateAnim = React.useRef(new Animated.Value(0)).current;
   const scaleAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -33,7 +33,7 @@ export const SyncStatus: React.FC = () => {
           toValue: 1,
           duration: 1000,
           useNativeDriver: true,
-        })
+        }),
       ).start();
 
       Animated.spring(scaleAnim, {
@@ -55,7 +55,7 @@ export const SyncStatus: React.FC = () => {
 
   const rotation = rotateAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
+    outputRange: ["0deg", "360deg"],
   });
 
   return (
@@ -83,7 +83,7 @@ export const SyncStatus: React.FC = () => {
       </Animated.View>
 
       <Text style={styles.text}>
-        {isSyncing ? 'Syncing...' : `${hasPendingOps ? 'Queued' : 'Synced'}`}
+        {isSyncing ? "Syncing..." : `${hasPendingOps ? "Queued" : "Synced"}`}
       </Text>
     </Animated.View>
   );
@@ -91,18 +91,18 @@ export const SyncStatus: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute' as any,
+    position: "absolute" as any,
     bottom: 20,
     left: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     zIndex: 50,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -111,12 +111,12 @@ const styles = StyleSheet.create({
   badge: {
     width: 24,
     height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   text: {
     fontSize: 12,
-    fontWeight: '500',
-    color: '#4b5563',
+    fontWeight: "500",
+    color: "#4b5563",
   },
 });

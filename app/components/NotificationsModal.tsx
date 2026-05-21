@@ -1,6 +1,14 @@
 import React from "react";
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from "react-native";
-import { X, User } from "lucide-react";
+import {
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ActivityIndicator,
+} from "react-native";
+import { X, User } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
 import { Notification } from "@/hooks/useNotifications";
 import { useRouter } from "expo-router";
@@ -42,9 +50,12 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
 
   const handleNotificationPress = async (notification: Notification) => {
     await onMarkAsRead(notification.id);
-    
+
     if (notification.type === "follow") {
-      router.push({ pathname: "/profile/[uid]" as never, params: { uid: notification.fromUid } });
+      router.push({
+        pathname: "/profile/[uid]" as never,
+        params: { uid: notification.fromUid },
+      });
       onClose();
     }
   };
@@ -52,14 +63,22 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="fade"
+      transparent
+      onRequestClose={onClose}
+    >
       <View style={styles.overlay}>
         <View style={styles.container}>
           <View style={styles.header}>
             <Text style={styles.title}>Notifications</Text>
             <View style={styles.headerActions}>
               {unreadCount > 0 && (
-                <TouchableOpacity onPress={onMarkAllAsRead} style={styles.markAllBtn}>
+                <TouchableOpacity
+                  onPress={onMarkAllAsRead}
+                  style={styles.markAllBtn}
+                >
                   <Text style={styles.markAllText}>Mark all read</Text>
                 </TouchableOpacity>
               )}
@@ -69,7 +88,10 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             </View>
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.content}
+            showsVerticalScrollIndicator={false}
+          >
             {loading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator color={Colors.primary} />
@@ -82,7 +104,10 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
               notifications.map((notification) => (
                 <TouchableOpacity
                   key={notification.id}
-                  style={[styles.notificationItem, !notification.read && styles.unread]}
+                  style={[
+                    styles.notificationItem,
+                    !notification.read && styles.unread,
+                  ]}
                   onPress={() => handleNotificationPress(notification)}
                   activeOpacity={0.7}
                 >
@@ -91,9 +116,14 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   </View>
                   <View style={styles.notificationContent}>
                     <Text style={styles.notificationText}>
-                      <Text style={styles.username}>{notification.fromUsername}</Text> started following you
+                      <Text style={styles.username}>
+                        {notification.fromUsername}
+                      </Text>{" "}
+                      started following you
                     </Text>
-                    <Text style={styles.timestamp}>{fmtDate(notification.createdAt)}</Text>
+                    <Text style={styles.timestamp}>
+                      {fmtDate(notification.createdAt)}
+                    </Text>
                   </View>
                   {!notification.read && <View style={styles.unreadDot} />}
                 </TouchableOpacity>

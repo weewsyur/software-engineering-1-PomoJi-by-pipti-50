@@ -69,19 +69,19 @@ class OfflineManager {
     });
   }
 
-  async queueOperation(operation: Omit<OfflineOperation, 'id' | 'timestamp' | 'retries'>): Promise<string> {
+  async queueOperation(operation: Omit<OfflineOperation, 'id' | 'timestamp' | 'retries' | 'maxRetries'>): Promise<string> {
     if (!this.db) {
       throw new Error('Offline manager not initialized');
     }
 
     const id = `${operation.collection}-${operation.docId}-${Date.now()}`;
-    const fullOperation: OfflineOperation = {
+    const fullOperation = {
       id,
       timestamp: Date.now(),
       retries: 0,
       maxRetries: 3,
       ...operation,
-    };
+    } as OfflineOperation;
 
     try {
       await this.db.add('operations', fullOperation);

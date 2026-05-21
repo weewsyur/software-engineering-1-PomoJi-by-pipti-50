@@ -1,141 +1,27 @@
-import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precache';
-import { registerRoute, NavigationRoute, Router } from 'workbox-routing';
-import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
-import { ExpirationPlugin } from 'workbox-expiration';
-import { CacheableResponsePlugin } from 'workbox-cacheable-response';
-
-declare const self: ServiceWorkerGlobalScope;
-
 const CACHE_NAME = 'pomoji-v1';
 const OFFLINE_PAGE = '/offline.html';
 
-cleanupOutdatedCaches();
+// Files to cache on install
+const CACHE_URLS = [
+  '/',
+  '/index.html',
+  '/offline.html',
+  '/manifest.json',
+  '/icon-192x192.png',
+  '/icon-512x512.png',
+];
 
-// Precache static assets
-precacheAndRoute(self.__WB_MANIFEST || []);
-
-// HTML/Navigation - Network First (SPA)
-registerRoute(
-  new NavigationRoute(
-    new NetworkFirst({
-      cacheName: `${CACHE_NAME}-html`,
-      plugins: [
-        new CacheableResponsePlugin({
-          statuses: [0, 200],
-        }),
-      ],
-    }),
-    {
-      denylist: [/^\/api\//],
-    }
-  )
-);
-
-// API calls - Network First with fallback
-registerRoute(
-  ({ url }) => url.origin === self.location.origin && url.pathname.startsWith('/api'),
-  new NetworkFirst({
-    cacheName: `${CACHE_NAME}-api`,
-    networkTimeoutSeconds: 3,
-    plugins: [
-      new CacheableResponsePlugin({
-        statuses: [0, 200],
-      }),
-      new ExpirationPlugin({
-        maxEntries: 50,
-        maxAgeSeconds: 5 * 60, // 5 minutes
-      }),
-    ],
-  })
-);
-
-// Firebase Firestore - Network First
-registerRoute(
-  ({ url }) =>
-    url.hostname.includes('firestore.googleapis.com') ||
-    url.hostname.includes('firebase.googleapis.com'),
-  new NetworkFirst({
-    cacheName: `${CACHE_NAME}-firebase`,
-    networkTimeoutSeconds: 2,
-    plugins: [
-      new CacheableResponsePlugin({
-        statuses: [0, 200],
-      }),
-    ],
-  })
-);
-
-// Images - Cache First with expiration
-registerRoute(
-  ({ request }) => request.destination === 'image',
-  new CacheFirst({
-    cacheName: `${CACHE_NAME}-images`,
-    plugins: [
-      new ExpirationPlugin({
-        maxEntries: 100,
-        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-      }),
-      new CacheableResponsePlugin({
-        statuses: [0, 200],
-      }),
-    ],
-  })
-);
-
-// Fonts - Cache First with long expiration
-registerRoute(
-  ({ url }) =>
-    url.pathname.endsWith('.woff2') ||
-    url.pathname.endsWith('.woff') ||
-    url.pathname.endsWith('.ttf'),
-  new CacheFirst({
-    cacheName: `${CACHE_NAME}-fonts`,
-    plugins: [
-      new ExpirationPlugin({
-        maxAgeSeconds: 365 * 24 * 60 * 60, // 1 year
-      }),
-    ],
-  })
-);
-
-// JavaScript/CSS - Stale While Revalidate
-registerRoute(
-  ({ request }) =>
-    request.destination === 'script' || request.destination === 'style',
-  new StaleWhileRevalidate({
-    cacheName: `${CACHE_NAME}-static`,
-    plugins: [
-      new CacheableResponsePlugin({
-        statuses: [0, 200],
-      }),
-    ],
-  })
-);
-
-// Handle offline navigation - show offline page
-self.addEventListener('fetch', (event) => {
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches
-          .match(OFFLINE_PAGE)
-          .then(
-            (response) =>
-              response ||
-              new Response('Offline - please check your connection', {
-                status: 503,
-                statusText: 'Service Unavailable',
-                headers: new Headers({
-                  'Content-Type': 'text/plain',
-                }),
-              })
-          );
-      })
-    );
-  }
+// Install event - cache static assets
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(CACHE_URLS);
+    })
+  );
+  self.skipWaiting();
 });
 
-// Activate: Clean up old caches
+// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -148,9 +34,133 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
+  self.clients.claim();
 });
 
-// Message handler for cache clearing on logout
+// Fetch event - handle caching strategies
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Skip cross-origin requests
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // HTML/Navigation - Network First (for SPA)
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Cache successful responses
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, clone);
+          });
+          return response;
+        })
+        .catch(() => {
+          // Network failed, try cache
+          return caches.match(request).then((cached) => {
+            return cached || caches.match(OFFLINE_PAGE).then((offline) => {
+              return offline || new Response('Offline - please check your connection', {
+                status: 503,
+                statusText: 'Service Unavailable',
+                headers: new Headers({
+                  'Content-Type': 'text/plain',
+                }),
+              });
+            });
+          });
+        })
+    );
+    return;
+  }
+
+  // Images - Cache First
+  if (request.destination === 'image') {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        return cached || fetch(request).then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, clone);
+          });
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // Fonts - Cache First
+  if (url.pathname.endsWith('.woff2') || url.pathname.endsWith('.woff') || url.pathname.endsWith('.ttf')) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        return cached || fetch(request).then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, clone);
+          });
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // JavaScript/CSS - Stale While Revalidate
+  if (request.destination === 'script' || request.destination === 'style') {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        const fetchPromise = fetch(request).then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, clone);
+          });
+          return response;
+        });
+        return cached || fetchPromise;
+      })
+    );
+    return;
+  }
+
+  // API calls - Network First
+  if (url.pathname.startsWith('/api')) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(`${CACHE_NAME}-api`).then((cache) => {
+            cache.put(request, clone);
+          });
+          return response;
+        })
+        .catch(() => {
+          return caches.match(request);
+        })
+    );
+    return;
+  }
+
+  // Default - Network First
+  event.respondWith(
+    fetch(request)
+      .then((response) => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(request, clone);
+        });
+        return response;
+      })
+      .catch(() => {
+        return caches.match(request);
+      })
+  );
+});
+
+// Message handler for cache clearing
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();

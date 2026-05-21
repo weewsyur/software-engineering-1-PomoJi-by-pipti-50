@@ -10,7 +10,7 @@ import {
   Image,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { X, Images } from "lucide-react";
+import { X, Images } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
 
 interface PostActivityModalProps {

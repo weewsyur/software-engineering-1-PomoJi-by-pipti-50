@@ -101,7 +101,11 @@ export default function SignIn() {
     }
     try {
       setLoading(true);
-      const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const credential = await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password,
+      );
       setFirebaseUser(credential.user);
       await setUserStore({
         userId: credential.user.uid,
@@ -179,14 +183,17 @@ export default function SignIn() {
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          <PrimaryButton title={loading ? "SIGNING IN..." : "SIGN IN"} onPress={handleSignIn} />
+          <PrimaryButton
+            title={loading ? "SIGNING IN..." : "SIGN IN"}
+            onPress={handleSignIn}
+          />
 
           <TouchableOpacity
             style={styles.switchWrapper}
             onPress={() => router.push("/(auth)/sign-up")}
           >
             <Text style={styles.switchText}>
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Text style={styles.switchLink}>Sign up</Text>
             </Text>
           </TouchableOpacity>

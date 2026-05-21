@@ -1,6 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Tabs } from "expo-router";
-import { StyleSheet, View, Platform, Animated, Easing, Text } from "react-native";
+import {
+  StyleSheet,
+  View,
+  Platform,
+  Animated,
+  Easing,
+  Text,
+} from "react-native";
 import { Colors } from "@/constants/colors";
 import { LucideIcon } from "@/app/components/LucideIcon";
 
@@ -48,13 +55,13 @@ const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
       console.error(error);
       setHasError(true);
     };
-    window.addEventListener('error', errorHandler);
-    return () => window.removeEventListener('error', errorHandler);
+    window.addEventListener("error", errorHandler);
+    return () => window.removeEventListener("error", errorHandler);
   }, []);
 
   if (hasError) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <Text>Something went wrong.</Text>
       </View>
     );
@@ -152,17 +159,14 @@ const AnimatedIconWrapper = React.memo(
           }),
         ]).start();
       }
-    }, [focused]);
+    }, [focused, dotSlideAnim, dotWidthAnim, scaleAnim, translateYAnim]);
 
     return (
       <View style={styles.iconWrapper}>
         {/* Animated Icon: pop scale + upward nudge */}
         <Animated.View
           style={{
-            transform: [
-              { scale: scaleAnim },
-              { translateY: translateYAnim },
-            ],
+            transform: [{ scale: scaleAnim }, { translateY: translateYAnim }],
           }}
         >
           <LucideIcon
@@ -222,7 +226,11 @@ export const TabLayout: React.FC = () => {
             options={{
               title: tab.title,
               tabBarIcon: ({ focused, color }) => (
-                <AnimatedIconWrapper focused={focused} color={color} tab={tab} />
+                <AnimatedIconWrapper
+                  focused={focused}
+                  color={color}
+                  tab={tab}
+                />
               ),
             }}
           />

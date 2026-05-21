@@ -7,7 +7,7 @@ import { useTimerPersistence } from "@/hooks/useTimerPersistence";
 import { useStrictFocusMode } from "@/hooks/useStrictFocusMode";
 import { LucideIcon } from "@/app/components/LucideIcon";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Plus, Square, Play, Pause, Clipboard, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { getLocalISODateTime } from "@/utils/dateHelpers";
@@ -77,7 +77,11 @@ export default function TimerScreen() {
   const [streakCount, setStreakCount] = useState(0);
 
   // ── Timer persistence ─────────────────────────────────────────────────────
-  const { timerState, isLoaded: timerLoaded, updateTimerState, resetTimerState } = useTimerPersistence();
+  const {
+    timerState,
+    isLoaded: timerLoaded,
+    updateTimerState,
+  } = useTimerPersistence();
 
   // Load persisted timer state
   useEffect(() => {
@@ -107,10 +111,24 @@ export default function TimerScreen() {
         pausedAccumulated: pausedAccumulatedMsRef.current,
       });
     }
-  }, [mode, timeLeft, isRunning, hasStarted, sessions, streakCount, timerLoaded, updateTimerState]);
+  }, [
+    mode,
+    timeLeft,
+    isRunning,
+    hasStarted,
+    sessions,
+    streakCount,
+    timerLoaded,
+    updateTimerState,
+  ]);
 
   // ── Strict focus mode ─────────────────────────────────────────────────────
-  const { state: focusState, startFocusMode, stopFocusMode, onFocusInvalidated } = useStrictFocusMode({
+  const {
+    state: focusState,
+    startFocusMode,
+    stopFocusMode,
+    onFocusInvalidated,
+  } = useStrictFocusMode({
     enabled: true,
     invalidateOnTabSwitch: true,
     invalidateOnMinimize: true,
@@ -132,13 +150,17 @@ export default function TimerScreen() {
     if (hasStarted && isRunning && mode === "focus") {
       // Pause timer on focus violation
       setIsRunning(false);
-      if (mode === "focus" && sessionStartTimeRef.current && !pauseStartedAtRef.current) {
+      if (
+        mode === "focus" &&
+        sessionStartTimeRef.current &&
+        !pauseStartedAtRef.current
+      ) {
         pauseStartedAtRef.current = Date.now();
       }
       Alert.alert(
         "Focus Session Interrupted",
         "You left the app during your focus session. The timer has been paused.",
-        [{ text: "OK" }]
+        [{ text: "OK" }],
       );
     }
   }, [hasStarted, isRunning, mode]);
@@ -146,12 +168,6 @@ export default function TimerScreen() {
   useEffect(() => {
     onFocusInvalidated(handleFocusViolation);
   }, [onFocusInvalidated, handleFocusViolation]);
-
-  // Memoize timer duration calculations
-  const currentModeDuration = useMemo(() => {
-    const modeConfig = MODES.find((m) => m.key === mode);
-    return modeConfig?.duration || 25 * 60;
-  }, [mode]);
 
   // ── Task & Session state ───────────────────────────────────────────────
   const {
@@ -222,24 +238,24 @@ export default function TimerScreen() {
               // ── Record the completed session ──────────────────────────
               const durationMinutes = sessionStartTimeRef.current
                 ? Math.round(
-                  Math.max(
-                    60000,
-                    Date.now() -
-                    sessionStartTimeRef.current -
-                    pausedAccumulatedMsRef.current,
-                  ) / 60000,
-                )
+                    Math.max(
+                      60000,
+                      Date.now() -
+                        sessionStartTimeRef.current -
+                        pausedAccumulatedMsRef.current,
+                    ) / 60000,
+                  )
                 : 25;
               const durationSeconds = sessionStartTimeRef.current
                 ? Math.max(
-                  60,
-                  Math.round(
-                    (Date.now() -
-                      sessionStartTimeRef.current -
-                      pausedAccumulatedMsRef.current) /
-                    1000,
-                  ),
-                )
+                    60,
+                    Math.round(
+                      (Date.now() -
+                        sessionStartTimeRef.current -
+                        pausedAccumulatedMsRef.current) /
+                        1000,
+                    ),
+                  )
                 : 25 * 60;
 
               createSession({
@@ -332,7 +348,7 @@ export default function TimerScreen() {
     } else {
       glowRef.setValue(0);
     }
-  }, [isRunning]);
+  }, [isRunning, glowRef]);
 
   // ── FR-04: Timer Controls ───────────────────────────────────────────────
 
@@ -375,7 +391,7 @@ export default function TimerScreen() {
           (Date.now() -
             sessionStartTimeRef.current -
             pausedAccumulatedMsRef.current) /
-          1000,
+            1000,
         ),
       );
       setPostActivityDraft({
@@ -414,58 +430,67 @@ export default function TimerScreen() {
 
   // ── FR-03: Task Management (FIXED – uses hook methods, not setTasks) ───
 
-  const handleSaveTask = useCallback(async (task: Task) => {
-    try {
-      const exists = tasks.find((t) => t.id === task.id);
-      if (exists) {
-        await updateTask(task.id, {
-          title: task.title,
-          description: task.description,
-          dueDate: task.dueDate,
-          category: task.category,
-          completed: task.completed,
-          reminderEnabled: Boolean(task.dueDate?.trim()),
-          totalTime: task.totalTime,
-        });
-      } else {
-        // New task: let Firestore generate ID, pass empty string as placeholder
-        await createTaskRaw({
-          ...task,
-          id: "", // Firestore will generate the ID
-          reminderEnabled: Boolean(task.dueDate?.trim()),
-        });
+  const handleSaveTask = useCallback(
+    async (task: Task) => {
+      try {
+        const exists = tasks.find((t) => t.id === task.id);
+        if (exists) {
+          await updateTask(task.id, {
+            title: task.title,
+            description: task.description,
+            dueDate: task.dueDate,
+            category: task.category,
+            completed: task.completed,
+            reminderEnabled: Boolean(task.dueDate?.trim()),
+            totalTime: task.totalTime,
+          });
+        } else {
+          // New task: let Firestore generate ID, pass empty string as placeholder
+          await createTaskRaw({
+            ...task,
+            id: "", // Firestore will generate the ID
+            reminderEnabled: Boolean(task.dueDate?.trim()),
+          });
+        }
+        setTaskModalVisible(false);
+        setEditingTask(null);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to save task. Please try again.";
+        Alert.alert("Error", message);
       }
-      setTaskModalVisible(false);
-      setEditingTask(null);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Failed to save task. Please try again.";
-      Alert.alert("Error", message);
-    }
-  }, [tasks, updateTask, createTaskRaw]);
+    },
+    [tasks, updateTask, createTaskRaw],
+  );
 
-  const handleToggleTask = useCallback(async (id: string) => {
-    try {
-      const task = tasks.find((t) => t.id === id);
-      if (task) await completeTask(id, !task.completed);
-    } catch {
-      Alert.alert("Error", "Failed to update task. Please try again.");
-    }
-  }, [tasks, completeTask]);
-
-  const handleDeleteTask = useCallback(async (id: string) => {
-    try {
-      await deleteTask(id);
-      // Clear active task if it was deleted
-      if (activeTask?.id === id) {
-        setActiveTask(null);
+  const handleToggleTask = useCallback(
+    async (id: string) => {
+      try {
+        const task = tasks.find((t) => t.id === id);
+        if (task) await completeTask(id, !task.completed);
+      } catch {
+        Alert.alert("Error", "Failed to update task. Please try again.");
       }
-    } catch {
-      Alert.alert("Error", "Failed to delete task. Please try again.");
-    }
-  }, [deleteTask, activeTask?.id]);
+    },
+    [tasks, completeTask],
+  );
+
+  const handleDeleteTask = useCallback(
+    async (id: string) => {
+      try {
+        await deleteTask(id);
+        // Clear active task if it was deleted
+        if (activeTask?.id === id) {
+          setActiveTask(null);
+        }
+      } catch {
+        Alert.alert("Error", "Failed to delete task. Please try again.");
+      }
+    },
+    [deleteTask, activeTask?.id],
+  );
 
   const openNewTask = useCallback(() => {
     setEditingTask(null);
@@ -479,12 +504,19 @@ export default function TimerScreen() {
 
   // ── Derived ──────────────────────────────────────────────────────────────
   const SIZE = 240;
-  const pendingTasks = useMemo(() => tasks.filter((t) => !t.completed).length, [tasks]);
+  const pendingTasks = useMemo(
+    () => tasks.filter((t) => !t.completed).length,
+    [tasks],
+  );
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <SafeAreaView
-      style={StyleSheet.flatten([SharedStyles.screen, styles.safe, { backgroundColor: colors.background }])}
+      style={StyleSheet.flatten([
+        SharedStyles.screen,
+        styles.safe,
+        { backgroundColor: colors.background },
+      ])}
     >
       <ScrollView
         contentContainerStyle={{ paddingBottom: 32 }}
@@ -498,10 +530,14 @@ export default function TimerScreen() {
 
         {/* Header */}
         <View style={[styles.header, { backgroundColor: colors.background }]}>
-          <Text style={[styles.headerLabel, { color: colors.textMuted }]}>TIMER</Text>
+          <Text style={[styles.headerLabel, { color: colors.textMuted }]}>
+            TIMER
+          </Text>
           <View style={styles.headerActions}>
             {focusState.warningActive && (
-              <View style={[styles.focusWarning, { backgroundColor: "#f59e0b" }]}>
+              <View
+                style={[styles.focusWarning, { backgroundColor: "#f59e0b" }]}
+              >
                 <AlertTriangle size={16} color="#fff" />
                 <Text style={styles.focusWarningText}>Return to app!</Text>
               </View>
@@ -511,8 +547,12 @@ export default function TimerScreen() {
               onPress={() => setShowTasks((v) => !v)}
             >
               {pendingTasks > 0 && (
-                <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-                  <Text style={[styles.badgeText, { color: colors.surface }]}>{pendingTasks}</Text>
+                <View
+                  style={[styles.badge, { backgroundColor: colors.primary }]}
+                >
+                  <Text style={[styles.badgeText, { color: colors.surface }]}>
+                    {pendingTasks}
+                  </Text>
                 </View>
               )}
               <LucideIcon
@@ -595,17 +635,24 @@ export default function TimerScreen() {
               { backgroundColor: colors.surface, borderColor: colors.border },
             ])}
           >
-            <Text style={[styles.activeTaskLabel, { color: colors.textMuted }]}>Active Task</Text>
+            <Text style={[styles.activeTaskLabel, { color: colors.textMuted }]}>
+              Active Task
+            </Text>
             <TouchableOpacity
               style={styles.activeTaskButton}
               onPress={() => setTaskPickerVisible(true)}
               disabled={hasStarted}
             >
               <View style={styles.activeTaskTextWrap}>
-                <Text style={[styles.activeTaskTitle, { color: colors.text }]} numberOfLines={1}>
+                <Text
+                  style={[styles.activeTaskTitle, { color: colors.text }]}
+                  numberOfLines={1}
+                >
                   {activeTask?.title ?? "Unassigned Session"}
                 </Text>
-                <Text style={[styles.activeTaskHint, { color: colors.textMuted }]}>
+                <Text
+                  style={[styles.activeTaskHint, { color: colors.textMuted }]}
+                >
                   {hasStarted
                     ? "Locked during this session"
                     : "Tap to choose task"}
@@ -631,55 +678,101 @@ export default function TimerScreen() {
           )}
 
           {!hasStarted ? (
-            <TouchableOpacity style={[styles.playBtn, { backgroundColor: colors.primary }]} onPress={handleStart}>
+            <TouchableOpacity
+              style={[styles.playBtn, { backgroundColor: colors.primary }]}
+              onPress={handleStart}
+            >
               <LucideIcon name="play" size={28} color={colors.surface} />
             </TouchableOpacity>
           ) : isRunning ? (
-            <TouchableOpacity style={[styles.playBtn, { backgroundColor: colors.primary }]} onPress={handlePause}>
+            <TouchableOpacity
+              style={[styles.playBtn, { backgroundColor: colors.primary }]}
+              onPress={handlePause}
+            >
               <LucideIcon name="pause" size={28} color={colors.surface} />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={StyleSheet.flatten([styles.playBtn, styles.resumeBtn, { backgroundColor: colors.primary }])}
+              style={StyleSheet.flatten([
+                styles.playBtn,
+                styles.resumeBtn,
+                { backgroundColor: colors.primary },
+              ])}
               onPress={handleResume}
             >
               <LucideIcon name="play" size={28} color={colors.surface} />
             </TouchableOpacity>
           )}
 
-          <View style={[styles.sessionBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.sessionCount, { color: colors.text }]}>{sessions}</Text>
-            <Text style={[styles.sessionLabel, { color: colors.textMuted }]}>done</Text>
+          <View
+            style={[
+              styles.sessionBadge,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.sessionCount, { color: colors.text }]}>
+              {sessions}
+            </Text>
+            <Text style={[styles.sessionLabel, { color: colors.textMuted }]}>
+              done
+            </Text>
           </View>
         </View>
 
         {hasStarted && !isRunning && canRecordSession && (
           <TouchableOpacity
-            style={[styles.recordSessionBtn, { backgroundColor: colors.primary }]}
+            style={[
+              styles.recordSessionBtn,
+              { backgroundColor: colors.primary },
+            ]}
             onPress={() => setPostActivityVisible(true)}
           >
-            <Text style={[styles.recordSessionBtnText, { color: colors.surface }]}>Record Session</Text>
+            <Text
+              style={[styles.recordSessionBtnText, { color: colors.surface }]}
+            >
+              Record Session
+            </Text>
           </TouchableOpacity>
         )}
 
         {/* Session info card */}
-        <View style={StyleSheet.flatten([SharedStyles.card, styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.border }])}>
+        <View
+          style={StyleSheet.flatten([
+            SharedStyles.card,
+            styles.infoCard,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ])}
+        >
           <View style={styles.infoRow}>
             <View style={styles.infoBlock}>
-              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Sessions Today</Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>{sessions}</Text>
+              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
+                Sessions Today
+              </Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                {sessions}
+              </Text>
             </View>
-            <View style={[styles.infoDivider, { backgroundColor: colors.border }]} />
+            <View
+              style={[styles.infoDivider, { backgroundColor: colors.border }]}
+            />
             <View style={styles.infoBlock}>
-              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Focus Time</Text>
+              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
+                Focus Time
+              </Text>
               <Text style={[styles.infoValue, { color: colors.text }]}>
                 {Math.floor((sessions * 25) / 60)}h {(sessions * 25) % 60}m
               </Text>
             </View>
-            <View style={[styles.infoDivider, { backgroundColor: colors.border }]} />
+            <View
+              style={[styles.infoDivider, { backgroundColor: colors.border }]}
+            />
             <View style={styles.infoBlock}>
-              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Tasks Left</Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>{pendingTasks}</Text>
+              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
+                Tasks Left
+              </Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                {pendingTasks}
+              </Text>
             </View>
           </View>
         </View>
@@ -687,20 +780,37 @@ export default function TimerScreen() {
         {/* Task list panel */}
         {showTasks && (
           <View
-            style={StyleSheet.flatten([SharedStyles.card, styles.taskCard, { backgroundColor: colors.surface, borderColor: colors.border }])}
+            style={StyleSheet.flatten([
+              SharedStyles.card,
+              styles.taskCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ])}
           >
             <View style={styles.taskHeader}>
-              <Text style={[styles.taskTitle, { color: colors.text }]}>Tasks</Text>
-              <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]} onPress={openNewTask}>
+              <Text style={[styles.taskTitle, { color: colors.text }]}>
+                Tasks
+              </Text>
+              <TouchableOpacity
+                style={[styles.addBtn, { backgroundColor: colors.primary }]}
+                onPress={openNewTask}
+              >
                 <LucideIcon name="add" size={18} color={colors.surface} />
-                <Text style={[styles.addBtnText, { color: colors.surface }]}>Add Task</Text>
+                <Text style={[styles.addBtnText, { color: colors.surface }]}>
+                  Add Task
+                </Text>
               </TouchableOpacity>
             </View>
 
             {tasks.length === 0 ? (
               <View style={styles.emptyState}>
-                <LucideIcon name="clipboard-outline" size={32} color={colors.textMuted} />
-                <Text style={[styles.emptyText, { color: colors.textMuted }]}>No tasks yet. Add one!</Text>
+                <LucideIcon
+                  name="clipboard-outline"
+                  size={32}
+                  color={colors.textMuted}
+                />
+                <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                  No tasks yet. Add one!
+                </Text>
               </View>
             ) : (
               <FlatList

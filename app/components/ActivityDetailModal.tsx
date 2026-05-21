@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { ChevronLeft, X } from "lucide-react";
+import { ChevronLeft, X } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
 import { Activity } from "@/hooks/useActivities";
 import { useState, useEffect } from "react";
@@ -62,7 +62,7 @@ export const ActivityDetailModal = ({
             const freshUrl = await getFreshDownloadURL(uri);
             urls.push(freshUrl);
           } catch (error) {
-            console.error('Failed to get download URL for:', uri, error);
+            console.error("Failed to get download URL for:", uri, error);
             urls.push(uri); // Fallback to original
           }
         } else {
@@ -104,7 +104,10 @@ export const ActivityDetailModal = ({
           <TouchableOpacity onPress={onClose}>
             <ChevronLeft size={24} color={Colors.text} strokeWidth={2.5} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleDeletePress} style={styles.deleteButton}>
+          <TouchableOpacity
+            onPress={handleDeletePress}
+            style={styles.deleteButton}
+          >
             <Text style={styles.deleteButtonText}>Delete</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={onClose}>
@@ -177,12 +180,15 @@ export const ActivityDetailModal = ({
           <View style={deleteModalStyles.container}>
             <View style={deleteModalStyles.header}>
               <Text style={deleteModalStyles.title}>Delete Activity</Text>
-              <TouchableOpacity onPress={handleDeleteCancel} style={deleteModalStyles.closeBtn}>
+              <TouchableOpacity
+                onPress={handleDeleteCancel}
+                style={deleteModalStyles.closeBtn}
+              >
                 <X size={20} color="#9A7070" strokeWidth={2.5} />
               </TouchableOpacity>
             </View>
             <Text style={deleteModalStyles.message}>
-              Are you sure you want to delete "{activity.title}"? This action cannot be undone.
+              {`Are you sure you want to delete "${activity?.title ?? ""}"? This action cannot be undone.`}
             </Text>
             <View style={deleteModalStyles.buttons}>
               <TouchableOpacity

@@ -1,4 +1,4 @@
-import { X, Calendar } from "lucide-react";
+import { X, Calendar } from "lucide-react-native";
 import { useState, useEffect } from "react";
 import DateTimePicker, {
   DateTimePickerEvent,
@@ -155,7 +155,7 @@ export const TaskModal = ({
     if (pickerInput.showPicker) {
       try {
         pickerInput.showPicker();
-      } catch (e) {
+      } catch {
         // Fallback to click() if showPicker fails
         input.click();
       }

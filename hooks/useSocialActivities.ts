@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { auth, db } from "@/services/firebase";
 import { collection, onSnapshot, orderBy, query, getDocs, doc, getDoc, limit } from "firebase/firestore";
-import { getFollowedUsers } from "@/services/social";
+import { getMutuallyConnectedUsers } from "@/services/social";
 import { Activity, normalizeActivity } from "./useActivities";
 
 export interface SocialActivity extends Activity {

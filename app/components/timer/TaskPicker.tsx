@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { X } from "lucide-react-native";
 import {
   Modal,
   ScrollView,

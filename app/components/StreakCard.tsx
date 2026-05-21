@@ -1,11 +1,14 @@
 import React, { useMemo, memo } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
-import { Flame } from "lucide-react";
+import { Flame } from "lucide-react-native";
 import { Colors, useColors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
 import { StreakData } from "@/utils/streakCalculator";
 import { Activity } from "@/hooks/useActivities";
-import { calculateWeeklyStreak, groupSessionsByDay } from "@/utils/sessionFilters";
+import {
+  calculateWeeklyStreak,
+  groupSessionsByDay,
+} from "@/utils/sessionFilters";
 import { useTheme } from "@/contexts/ThemeContext";
 
 interface StreakCardProps {
@@ -20,154 +23,204 @@ interface StreakCardProps {
 
 const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
 
-export const StreakCard = memo<StreakCardProps>(({
-  streakCount,
-  streakUnit = "Days",
-  streakData,
-  loading = false,
-  error = null,
-  activities = [],
-  useWeeklyStreak = false,
-}) => {
-  const { isDarkMode } = useTheme();
-  const colors = useColors(isDarkMode);
+export const StreakCard = memo<StreakCardProps>(
+  ({
+    streakCount,
+    streakUnit = "Days",
+    streakData,
+    loading = false,
+    error = null,
+    activities = [],
+    useWeeklyStreak = false,
+  }) => {
+    const { isDarkMode } = useTheme();
+    const colors = useColors(isDarkMode);
 
-  // Calculate the current date and day of the week
-  const today = new Date();
-  const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ...
+    // Calculate the current date and day of the week once per render
+    const today = useMemo(() => new Date(), []);
+    const dayOfWeek = useMemo(() => today.getDay(), [today]);
 
-  // Convert to 0 = Monday format (subtract 1, and handle Sunday as 6)
-  const mondayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    // Convert to 0 = Monday format (subtract 1, and handle Sunday as 6)
+    const mondayIndex = useMemo(
+      () => (dayOfWeek === 0 ? 6 : dayOfWeek - 1),
+      [dayOfWeek],
+    );
 
-  // Calculate the start of the current week (Monday)
-  const daysFromMonday = mondayIndex;
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - daysFromMonday);
-  startOfWeek.setHours(0, 0, 0, 0);
+    // Calculate the start of the current week (Monday)
+    const startOfWeek = useMemo(() => {
+      const date = new Date(today);
+      date.setDate(today.getDate() - mondayIndex);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }, [today, mondayIndex]);
 
-  // Generate all week dates properly (handles month boundaries)
-  const weekDates = useMemo(() => {
-    const dates = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(startOfWeek);
-      date.setDate(startOfWeek.getDate() + i);
-      dates.push(date);
-    }
-    return dates;
-  }, [startOfWeek]);
+    // Generate all week dates properly (handles month boundaries)
+    const weekDates = useMemo(() => {
+      const dates = [];
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(startOfWeek);
+        date.setDate(startOfWeek.getDate() + i);
+        dates.push(date);
+      }
+      return dates;
+    }, [startOfWeek]);
 
-  // Calculate weekly streak if enabled
-  const weeklyStreak = useMemo(() => {
-    if (useWeeklyStreak && activities.length > 0) {
-      return calculateWeeklyStreak(activities, today);
-    }
-    return 0;
-  }, [useWeeklyStreak, activities, today]);
+    // Calculate weekly streak if enabled
+    const weeklyStreak = useMemo(() => {
+      if (useWeeklyStreak && activities.length > 0) {
+        return calculateWeeklyStreak(activities, today);
+      }
+      return 0;
+    }, [useWeeklyStreak, activities, today]);
 
-  // Get daily session counts for progress indicator (always calculate for activity marking)
-  const dailySessions = useMemo(() => {
-    if (activities.length > 0) {
-      return groupSessionsByDay(activities, today);
-    }
-    return [];
-  }, [activities, today]);
+    // Get daily session counts for progress indicator (always calculate for activity marking)
+    const dailySessions = useMemo(() => {
+      if (activities.length > 0) {
+        return groupSessionsByDay(activities, today);
+      }
+      return [];
+    }, [activities, today]);
 
-  // Use streakData if provided (real-time), otherwise fall back to streakCount or weeklyStreak
-  const displayCount = useMemo(() => {
-    if (useWeeklyStreak) {
-      return weeklyStreak;
-    }
-    if (streakData) {
-      return streakData.currentStreak;
-    }
-    return streakCount || 0;
-  }, [useWeeklyStreak, weeklyStreak, streakData, streakCount]);
+    // Use streakData if provided (real-time), otherwise fall back to streakCount or weeklyStreak
+    const displayCount = useMemo(() => {
+      if (useWeeklyStreak) {
+        return weeklyStreak;
+      }
+      if (streakData) {
+        return streakData.currentStreak;
+      }
+      return streakCount || 0;
+    }, [useWeeklyStreak, weeklyStreak, streakData, streakCount]);
 
-  // Update streak unit for weekly mode
-  const displayUnit = useMemo(() => {
-    if (useWeeklyStreak) {
-      return "sessions";
-    }
-    return streakUnit;
-  }, [useWeeklyStreak, streakUnit]);
+    // Update streak unit for weekly mode
+    const displayUnit = useMemo(() => {
+      if (useWeeklyStreak) {
+        return "sessions";
+      }
+      return streakUnit;
+    }, [useWeeklyStreak, streakUnit]);
 
-  return (
-    <View style={StyleSheet.flatten([SharedStyles.card, styles.card, { backgroundColor: colors.surface, borderColor: colors.border }])}>
-      <Text style={[styles.title, { color: colors.text }]}>{useWeeklyStreak ? "This Week's Streak" : "Your Streak"}</Text>
+    return (
+      <View
+        style={StyleSheet.flatten([
+          SharedStyles.card,
+          styles.card,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ])}
+      >
+        <Text style={[styles.title, { color: colors.text }]}>
+          {useWeeklyStreak ? "This Week's Streak" : "Your Streak"}
+        </Text>
 
-      {/* Loading State */}
-      {loading && (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="small" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.textMuted }]}>Loading...</Text>
-        </View>
-      )}
-
-      {/* Error State */}
-      {error && !loading && (
-        <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: colors.primary }]}>⚠️ Unable to load streak</Text>
-        </View>
-      )}
-
-      {/* Normal State */}
-      {!loading && !error && (
-        <View style={styles.body}>
-          {/* Flame + count */}
-          <View style={styles.flameBlock}>
-            <View style={[styles.flameBadge, { backgroundColor: colors.primary }]}>
-              <Flame size={22} color={colors.surface} strokeWidth={2.5} fill={colors.surface} />
-              <Text style={styles.flameCount}>{displayCount}</Text>
-            </View>
-            <Text style={[styles.streakUnit, { color: colors.textMuted }]}>{displayUnit}</Text>
+        {/* Loading State */}
+        {loading && (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textMuted }]}>
+              Loading...
+            </Text>
           </View>
+        )}
 
-          {/* Days row */}
-          <View style={styles.daysRow}>
-            {DAYS.map((day, i) => {
-              const isActive = i === mondayIndex;
-              const currentDate = weekDates[i];
-              const isCurrentDay = currentDate.toDateString() === today.toDateString();
-              const daySessionCount = dailySessions[i]?.totalSessions || 0;
-              const hasSession = daySessionCount > 0;
+        {/* Error State */}
+        {error && !loading && (
+          <View style={styles.errorContainer}>
+            <Text style={[styles.errorText, { color: colors.primary }]}>
+              ⚠️ Unable to load streak
+            </Text>
+          </View>
+        )}
 
-              return (
-                <View key={i} style={styles.dayColumn}>
-                  <Text
-                    style={StyleSheet.flatten([styles.dayLabel, { color: colors.textMuted }, isActive && { color: colors.primary, fontWeight: '700' }])}
-                  >
-                    {day}
-                  </Text>
-                  <View
-                    style={StyleSheet.flatten([
-                      styles.dayCircle,
-                      useWeeklyStreak
-                        ? (hasSession ? { backgroundColor: colors.primary } : { backgroundColor: 'transparent' })
-                        : (hasSession ? { backgroundColor: colors.primary } : (isCurrentDay ? { backgroundColor: colors.primary } : { backgroundColor: 'transparent' })),
-                    ])}
-                  >
+        {/* Normal State */}
+        {!loading && !error && (
+          <View style={styles.body}>
+            {/* Flame + count */}
+            <View style={styles.flameBlock}>
+              <View
+                style={[styles.flameBadge, { backgroundColor: colors.primary }]}
+              >
+                <Flame
+                  size={22}
+                  color={colors.surface}
+                  strokeWidth={2.5}
+                  fill={colors.surface}
+                />
+                <Text style={styles.flameCount}>{displayCount}</Text>
+              </View>
+              <Text style={[styles.streakUnit, { color: colors.textMuted }]}>
+                {displayUnit}
+              </Text>
+            </View>
+
+            {/* Days row */}
+            <View style={styles.daysRow}>
+              {DAYS.map((day, i) => {
+                const isActive = i === mondayIndex;
+                const currentDate = weekDates[i];
+                const isCurrentDay =
+                  currentDate.toDateString() === today.toDateString();
+                const daySessionCount = dailySessions[i]?.totalSessions || 0;
+                const hasSession = daySessionCount > 0;
+
+                return (
+                  <View key={i} style={styles.dayColumn}>
                     <Text
                       style={StyleSheet.flatten([
-                        styles.dayNumber,
-                        useWeeklyStreak
-                          ? (hasSession ? { color: colors.surface } : { color: colors.textMuted })
-                          : (hasSession ? { color: colors.surface } : (isCurrentDay ? { color: colors.surface } : { color: colors.textMuted })),
+                        styles.dayLabel,
+                        { color: colors.textMuted },
+                        isActive && {
+                          color: colors.primary,
+                          fontWeight: "700",
+                        },
                       ])}
                     >
-                      {useWeeklyStreak ? daySessionCount : currentDate.getDate()}
+                      {day}
                     </Text>
+                    <View
+                      style={StyleSheet.flatten([
+                        styles.dayCircle,
+                        useWeeklyStreak
+                          ? hasSession
+                            ? { backgroundColor: colors.primary }
+                            : { backgroundColor: "transparent" }
+                          : hasSession
+                            ? { backgroundColor: colors.primary }
+                            : isCurrentDay
+                              ? { backgroundColor: colors.primary }
+                              : { backgroundColor: "transparent" },
+                      ])}
+                    >
+                      <Text
+                        style={StyleSheet.flatten([
+                          styles.dayNumber,
+                          useWeeklyStreak
+                            ? hasSession
+                              ? { color: colors.surface }
+                              : { color: colors.textMuted }
+                            : hasSession
+                              ? { color: colors.surface }
+                              : isCurrentDay
+                                ? { color: colors.surface }
+                                : { color: colors.textMuted },
+                        ])}
+                      >
+                        {useWeeklyStreak
+                          ? daySessionCount
+                          : currentDate.getDate()}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              );
-            })}
+                );
+              })}
+            </View>
           </View>
-        </View>
-      )}
-    </View>
-  );
-});
+        )}
+      </View>
+    );
+  },
+);
 
-StreakCard.displayName = 'StreakCard';
+StreakCard.displayName = "StreakCard";
 
 export default StreakCard;
 

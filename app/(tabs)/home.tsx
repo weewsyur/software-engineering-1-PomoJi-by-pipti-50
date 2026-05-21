@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+} from "react";
 import {
   Alert,
   View,
@@ -26,7 +32,7 @@ import { useRouter } from "expo-router";
 import { useStreakListener } from "@/utils/useStreakListener";
 import { getUserStore } from "@/store/userStore";
 import { useReminders } from "@/hooks/useReminders";
-import { useSocialActivities, SocialActivity } from "@/hooks/useSocialActivities";
+import { useSocialActivities } from "@/hooks/useSocialActivities";
 import { initializeStreakData } from "@/utils/activityTracker";
 import { useProfile } from "@/hooks/useProfile";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -70,11 +76,19 @@ export default function HomeScreen() {
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [followingUid, setFollowingUid] = useState<string | null>(null);
-  const [followStatusMap, setFollowStatusMap] = useState<Record<string, FollowStatus>>({});
+  const [followStatusMap, setFollowStatusMap] = useState<
+    Record<string, FollowStatus>
+  >({});
   const { reminders, pendingCount } = useReminders();
   const { activities } = useSocialActivities();
   const { profile } = useProfile();
-  const { notifications, unreadCount: notificationCount, loading: notificationsLoading, markAsRead, markAllAsRead } = useNotifications();
+  const {
+    notifications,
+    unreadCount: notificationCount,
+    loading: notificationsLoading,
+    markAsRead,
+    markAllAsRead,
+  } = useNotifications();
 
   // Real-time streak listener
   const { streakData, loading, error } = useStreakListener(db, userId, "UTC");
@@ -83,8 +97,8 @@ export default function HomeScreen() {
   useEffect(() => {
     if (userId && !loading && !error && !streakData) {
       // Initialize streak data for new users
-      initializeStreakData(userId, 'UTC').catch((err) => {
-        console.error('Failed to initialize streak data:', err);
+      initializeStreakData(userId, "UTC").catch((err) => {
+        console.error("Failed to initialize streak data:", err);
       });
     }
   }, [userId, loading, error, streakData]);
@@ -112,12 +126,14 @@ export default function HomeScreen() {
 
       if (!mounted) return;
 
-      sub = Notifications.addNotificationResponseReceivedListener((response) => {
-        const taskId = response.notification.request.content.data?.taskId;
-        if (typeof taskId === "string") {
-          router.push({ pathname: "/(tabs)/timer", params: { taskId } });
-        }
-      });
+      sub = Notifications.addNotificationResponseReceivedListener(
+        (response) => {
+          const taskId = response.notification.request.content.data?.taskId;
+          if (typeof taskId === "string") {
+            router.push({ pathname: "/(tabs)/timer", params: { taskId } });
+          }
+        },
+      );
     })();
 
     return () => {
@@ -178,23 +194,48 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={StyleSheet.flatten([SharedStyles.screen, styles.safe, { backgroundColor: colors.background }])}>
-      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.background} />
+    <SafeAreaView
+      style={StyleSheet.flatten([
+        SharedStyles.screen,
+        styles.safe,
+        { backgroundColor: colors.background },
+      ])}
+    >
+      <StatusBar
+        barStyle={isDarkMode ? "light-content" : "dark-content"}
+        backgroundColor={colors.background}
+      />
 
       {/* Top header */}
       <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <Text style={[styles.headerLabel, { color: colors.textMuted }]}>HOME</Text>
+        <Text style={[styles.headerLabel, { color: colors.textMuted }]}>
+          HOME
+        </Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => setShowSearch(true)}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => setShowSearch(true)}
+          >
             <LucideIcon name="search-outline" size={20} color={colors.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.bellBtn} onPress={() => setShowNotifications(true)}>
+          <TouchableOpacity
+            style={styles.bellBtn}
+            onPress={() => setShowNotifications(true)}
+          >
             {(pendingCount > 0 || notificationCount > 0) && (
               <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-                <Text style={[styles.badgeText, { color: colors.surface }]}>{(pendingCount + notificationCount) > 9 ? "9+" : (pendingCount + notificationCount)}</Text>
+                <Text style={[styles.badgeText, { color: colors.surface }]}>
+                  {pendingCount + notificationCount > 9
+                    ? "9+"
+                    : pendingCount + notificationCount}
+                </Text>
               </View>
             )}
-            <LucideIcon name="notifications-outline" size={20} color={colors.text} />
+            <LucideIcon
+              name="notifications-outline"
+              size={20}
+              color={colors.text}
+            />
           </TouchableOpacity>
         </View>
       </View>
@@ -214,8 +255,16 @@ export default function HomeScreen() {
 
         {/* Activity Feed */}
         {activities.length === 0 ? (
-          <View style={StyleSheet.flatten([SharedStyles.card, styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }])}>
-            <Text style={[styles.emptyText, { color: colors.textMuted }]}>No activities yet. Complete a focus session to add one.</Text>
+          <View
+            style={StyleSheet.flatten([
+              SharedStyles.card,
+              styles.emptyCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ])}
+          >
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+              No activities yet. Complete a focus session to add one.
+            </Text>
           </View>
         ) : (
           activities.map((activity) => (
@@ -237,17 +286,33 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      <Modal visible={showReminders} animationType="fade" transparent onRequestClose={() => setShowReminders(false)}>
-        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-          <View style={[styles.reminderSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <Modal
+        visible={showReminders}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowReminders(false)}
+      >
+        <View
+          style={[styles.modalOverlay, { backgroundColor: "rgba(0,0,0,0.5)" }]}
+        >
+          <View
+            style={[
+              styles.reminderSheet,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <View style={styles.reminderHeader}>
-              <Text style={[styles.reminderTitle, { color: colors.text }]}>Reminders</Text>
+              <Text style={[styles.reminderTitle, { color: colors.text }]}>
+                Reminders
+              </Text>
               <TouchableOpacity onPress={() => setShowReminders(false)}>
                 <LucideIcon name="close" size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
             {reminders.length === 0 ? (
-              <Text style={[styles.reminderEmpty, { color: colors.textMuted }]}>No pending reminders.</Text>
+              <Text style={[styles.reminderEmpty, { color: colors.textMuted }]}>
+                No pending reminders.
+              </Text>
             ) : (
               reminders.map((item) => (
                 <TouchableOpacity
@@ -255,17 +320,33 @@ export default function HomeScreen() {
                   style={styles.reminderRow}
                   onPress={() => {
                     setShowReminders(false);
-                    router.push({ pathname: "/(tabs)/timer", params: { taskId: item.taskId } });
+                    router.push({
+                      pathname: "/(tabs)/timer",
+                      params: { taskId: item.taskId },
+                    });
                   }}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.reminderRowTitle, { color: colors.text }]}>{item.title}</Text>
-                    <Text style={[styles.reminderRowDate, { color: colors.textMuted }]}>{fmtDate(item.dueDate)}</Text>
+                    <Text
+                      style={[styles.reminderRowTitle, { color: colors.text }]}
+                    >
+                      {item.title}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.reminderRowDate,
+                        { color: colors.textMuted },
+                      ]}
+                    >
+                      {fmtDate(item.dueDate)}
+                    </Text>
                   </View>
                   <Text
                     style={StyleSheet.flatten([
                       styles.reminderStatus,
-                      item.status === "overdue" ? styles.overdue : styles.upcoming,
+                      item.status === "overdue"
+                        ? styles.overdue
+                        : styles.upcoming,
                     ])}
                   >
                     {item.status}
@@ -286,14 +367,26 @@ export default function HomeScreen() {
         onMarkAllAsRead={markAllAsRead}
       />
 
-      <Modal visible={showSearch} animationType="slide" transparent onRequestClose={() => setShowSearch(false)}>
+      <Modal
+        visible={showSearch}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowSearch(false)}
+      >
         <KeyboardAvoidingView
           style={styles.searchOverlay}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <View style={[styles.searchSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View
+            style={[
+              styles.searchSheet,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <View style={styles.searchHeader}>
-              <Text style={[styles.searchTitle, { color: colors.text }]}>Find Friends</Text>
+              <Text style={[styles.searchTitle, { color: colors.text }]}>
+                Find Friends
+              </Text>
               <TouchableOpacity onPress={() => setShowSearch(false)}>
                 <LucideIcon name="close" size={20} color={colors.textMuted} />
               </TouchableOpacity>
@@ -305,59 +398,106 @@ export default function HomeScreen() {
                 onChangeText={setSearchQuery}
                 placeholder="Search username"
                 placeholderTextColor={colors.textMuted}
-                style={[styles.searchInput, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]}
+                style={[
+                  styles.searchInput,
+                  {
+                    color: colors.text,
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                  },
+                ]}
                 autoCapitalize="none"
                 autoCorrect={false}
                 onSubmitEditing={runUserSearch}
                 returnKeyType="search"
               />
-              <TouchableOpacity style={[styles.searchSubmitBtn, { backgroundColor: colors.primary }]} onPress={runUserSearch}>
+              <TouchableOpacity
+                style={[
+                  styles.searchSubmitBtn,
+                  { backgroundColor: colors.primary },
+                ]}
+                onPress={runUserSearch}
+              >
                 <LucideIcon name="search" size={16} color={colors.surface} />
               </TouchableOpacity>
             </View>
 
             {searching ? (
-              <Text style={[styles.searchHint, { color: colors.textMuted }]}>Searching...</Text>
+              <Text style={[styles.searchHint, { color: colors.textMuted }]}>
+                Searching...
+              </Text>
             ) : (
               <FlatList
                 data={searchResults}
                 keyExtractor={(item) => item.id}
                 keyboardShouldPersistTaps="handled"
                 ListEmptyComponent={
-                  <Text style={[styles.searchHint, { color: colors.textMuted }]}>
-                    {searchQuery.trim() ? "No users found." : "Search by username to find users."}
+                  <Text
+                    style={[styles.searchHint, { color: colors.textMuted }]}
+                  >
+                    {searchQuery.trim()
+                      ? "No users found."
+                      : "Search by username to find users."}
                   </Text>
                 }
                 renderItem={({ item }) => (
-                  <View style={[styles.resultRow, { borderBottomColor: colors.border }]}>
+                  <View
+                    style={[
+                      styles.resultRow,
+                      { borderBottomColor: colors.border },
+                    ]}
+                  >
                     <TouchableOpacity
-                      style={[styles.avatarCircle, { backgroundColor: colors.primary }]}
+                      style={[
+                        styles.avatarCircle,
+                        { backgroundColor: colors.primary },
+                      ]}
                       onPress={() =>
-                        router.push({ pathname: "/profile/[uid]" as never, params: { uid: item.id } })
+                        router.push({
+                          pathname: "/profile/[uid]" as never,
+                          params: { uid: item.id },
+                        })
                       }
                     >
-                      <Text style={[styles.avatarText, { color: colors.surface }]}>{item.username.slice(0, 2).toUpperCase()}</Text>
+                      <Text
+                        style={[styles.avatarText, { color: colors.surface }]}
+                      >
+                        {item.username.slice(0, 2).toUpperCase()}
+                      </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={{ flex: 1 }}
                       onPress={() =>
-                        router.push({ pathname: "/profile/[uid]" as never, params: { uid: item.id } })
+                        router.push({
+                          pathname: "/profile/[uid]" as never,
+                          params: { uid: item.id },
+                        })
                       }
                     >
-                      <Text style={[styles.resultName, { color: colors.text }]}>{item.username}</Text>
+                      <Text style={[styles.resultName, { color: colors.text }]}>
+                        {item.username}
+                      </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={StyleSheet.flatten([
                         styles.addBtn,
                         { backgroundColor: colors.primary },
-                        followStatusMap[item.id] === "following" && { backgroundColor: colors.textMuted },
-                        (followingUid === item.id || followStatusMap[item.id] === "following") &&
-                        styles.addBtnDisabled,
+                        followStatusMap[item.id] === "following" && {
+                          backgroundColor: colors.textMuted,
+                        },
+                        (followingUid === item.id ||
+                          followStatusMap[item.id] === "following") &&
+                          styles.addBtnDisabled,
                       ])}
-                      disabled={followingUid === item.id || followStatusMap[item.id] === "following"}
+                      disabled={
+                        followingUid === item.id ||
+                        followStatusMap[item.id] === "following"
+                      }
                       onPress={() => handleFollow(item)}
                     >
-                      <Text style={[styles.addBtnText, { color: colors.surface }]}>
+                      <Text
+                        style={[styles.addBtnText, { color: colors.surface }]}
+                      >
                         {followingUid === item.id
                           ? "Following..."
                           : followStatusMap[item.id] === "following"
@@ -444,7 +584,12 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     padding: 12,
   },
-  reminderHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+  reminderHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
   reminderTitle: { fontSize: 14, fontWeight: "800", color: Colors.text },
   reminderEmpty: { fontSize: 12, color: Colors.textMuted, paddingVertical: 10 },
   reminderRow: {
@@ -457,7 +602,11 @@ const styles = StyleSheet.create({
   },
   reminderRowTitle: { fontSize: 13, fontWeight: "700", color: Colors.text },
   reminderRowDate: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
-  reminderStatus: { fontSize: 10, fontWeight: "800", textTransform: "uppercase" },
+  reminderStatus: {
+    fontSize: 10,
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
   upcoming: { color: "#4C7AC9" },
   overdue: { color: "#C94C3C" },
   searchOverlay: {

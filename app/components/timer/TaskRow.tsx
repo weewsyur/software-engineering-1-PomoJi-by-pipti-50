@@ -1,10 +1,12 @@
 import React, { useState } from "react";
-import { CheckCircle2, Circle, Edit, Trash2, X } from "lucide-react";
-import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { CheckCircle2, Circle, Edit, Trash2, X } from "lucide-react-native";
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Task } from "@/hooks/usePomodoro";
 import { CategoryPill } from "./CategoryPill";
 
-const isTaskCategory = (value: unknown): value is "work" | "study" | "personal" | "health" | "other" =>
+const isTaskCategory = (
+  value: unknown,
+): value is "work" | "study" | "personal" | "health" | "other" =>
   value === "work" ||
   value === "study" ||
   value === "personal" ||
@@ -40,7 +42,12 @@ interface DeleteConfirmModalProps {
   onCancel: () => void;
 }
 
-function DeleteConfirmModal({ visible, taskTitle, onConfirm, onCancel }: DeleteConfirmModalProps) {
+function DeleteConfirmModal({
+  visible,
+  taskTitle,
+  onConfirm,
+  onCancel,
+}: DeleteConfirmModalProps) {
   return (
     <Modal
       visible={visible}
@@ -57,7 +64,7 @@ function DeleteConfirmModal({ visible, taskTitle, onConfirm, onCancel }: DeleteC
             </TouchableOpacity>
           </View>
           <Text style={modalStyles.message}>
-            Are you sure you want to delete "{taskTitle}"? This action cannot be undone.
+            {`Are you sure you want to delete "${taskTitle}"? This action cannot be undone.`}
           </Text>
           <View style={modalStyles.buttons}>
             <TouchableOpacity
@@ -81,72 +88,77 @@ function DeleteConfirmModal({ visible, taskTitle, onConfirm, onCancel }: DeleteC
   );
 }
 
-export const TaskRow = React.memo(({ task, onToggle, onEdit, onDelete }: TaskRowProps) => {
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+export const TaskRow = React.memo(
+  ({ task, onToggle, onEdit, onDelete }: TaskRowProps) => {
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  const handleDeletePress = () => {
-    setShowDeleteModal(true);
-  };
+    const handleDeletePress = () => {
+      setShowDeleteModal(true);
+    };
 
-  const handleDeleteConfirm = () => {
-    setShowDeleteModal(false);
-    onDelete(task.id);
-  };
+    const handleDeleteConfirm = () => {
+      setShowDeleteModal(false);
+      onDelete(task.id);
+    };
 
-  const handleDeleteCancel = () => {
-    setShowDeleteModal(false);
-  };
+    const handleDeleteCancel = () => {
+      setShowDeleteModal(false);
+    };
 
-  return (
-    <>
-      <View style={taskRowStyles.row}>
-        <TouchableOpacity
-          style={taskRowStyles.check}
-          onPress={() => onToggle(task.id)}
-        >
-          {task.completed ? (
-            <CheckCircle2 size={22} color="#C94C3C" strokeWidth={2.5} />
-          ) : (
-            <Circle size={22} color="#C4A8A8" strokeWidth={2.5} />
-          )}
-        </TouchableOpacity>
-        <View style={taskRowStyles.body}>
-          <Text
-            style={StyleSheet.flatten([
-              taskRowStyles.title,
-              task.completed ? taskRowStyles.done : undefined,
-            ])}
+    return (
+      <>
+        <View style={taskRowStyles.row}>
+          <TouchableOpacity
+            style={taskRowStyles.check}
+            onPress={() => onToggle(task.id)}
           >
-            {getTaskTitle(task)}
-          </Text>
-          <View style={taskRowStyles.meta}>
-            <CategoryPill cat={getTaskCategory(task)} />
-            {!!getTaskDueDate(task) && (
-              <Text style={taskRowStyles.due}>📅 {getTaskDueDate(task)}</Text>
+            {task.completed ? (
+              <CheckCircle2 size={22} color="#C94C3C" strokeWidth={2.5} />
+            ) : (
+              <Circle size={22} color="#C4A8A8" strokeWidth={2.5} />
             )}
+          </TouchableOpacity>
+          <View style={taskRowStyles.body}>
+            <Text
+              style={StyleSheet.flatten([
+                taskRowStyles.title,
+                task.completed ? taskRowStyles.done : undefined,
+              ])}
+            >
+              {getTaskTitle(task)}
+            </Text>
+            <View style={taskRowStyles.meta}>
+              <CategoryPill cat={getTaskCategory(task)} />
+              {!!getTaskDueDate(task) && (
+                <Text style={taskRowStyles.due}>📅 {getTaskDueDate(task)}</Text>
+              )}
+            </View>
           </View>
+          <TouchableOpacity
+            style={taskRowStyles.icon}
+            onPress={() => onEdit(task)}
+          >
+            <Edit size={16} color="#9A7070" strokeWidth={2.5} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={taskRowStyles.icon}
+            onPress={handleDeletePress}
+          >
+            <Trash2 size={16} color="#C94C3C" strokeWidth={2.5} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={taskRowStyles.icon} onPress={() => onEdit(task)}>
-          <Edit size={16} color="#9A7070" strokeWidth={2.5} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={taskRowStyles.icon}
-          onPress={handleDeletePress}
-        >
-          <Trash2 size={16} color="#C94C3C" strokeWidth={2.5} />
-        </TouchableOpacity>
-      </View>
-      <DeleteConfirmModal
-        visible={showDeleteModal}
-        taskTitle={getTaskTitle(task)}
-        onConfirm={handleDeleteConfirm}
-        onCancel={handleDeleteCancel}
-      />
-    </>
-  );
-});
+        <DeleteConfirmModal
+          visible={showDeleteModal}
+          taskTitle={getTaskTitle(task)}
+          onConfirm={handleDeleteConfirm}
+          onCancel={handleDeleteCancel}
+        />
+      </>
+    );
+  },
+);
 
-TaskRow.displayName = 'TaskRow';
+TaskRow.displayName = "TaskRow";
 
 export default TaskRow;
 

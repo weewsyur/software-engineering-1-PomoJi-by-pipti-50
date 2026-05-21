@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from "react";
 import {
   Alert,
   View,
@@ -14,21 +14,28 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
   FlatList,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { Colors, useColors } from '@/constants/colors';
-import { SharedStyles } from '@/constants/styles';
-import { signOut } from '@/services/auth';
-import { LucideIcon } from '@/app/components/LucideIcon';
-import { useTheme } from '@/contexts/ThemeContext';
-import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { Colors, useColors } from "@/constants/colors";
+import { SharedStyles } from "@/constants/styles";
+import { signOut } from "@/services/auth";
+import { LucideIcon } from "@/app/components/LucideIcon";
+import { useTheme } from "@/contexts/ThemeContext";
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
 import { getDownloadURL, ref, uploadString } from "firebase/storage";
 import { updateProfile } from "firebase/auth";
-import { auth, db, storage } from '@/services/firebase';
-import { doc, getDoc, getDocs, collection, query, where, updateDoc } from 'firebase/firestore';
+import { auth, db, storage } from "@/services/firebase";
+import {
+  doc,
+  getDoc,
+  getDocs,
+  collection,
+  query,
+  where,
+  updateDoc,
+} from "firebase/firestore";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface UserProfile {
@@ -40,17 +47,25 @@ type UserListItem = { id: string; username: string };
 type ConnectionModalType = "Following" | "Followers";
 
 // ─── Toggle Switch Component ─────────────────────────────────────────────────────
-function ToggleSwitch({ value, onValueChange }: { value: boolean; onValueChange: (value: boolean) => void }) {
+function ToggleSwitch({
+  value,
+  onValueChange,
+}: {
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+}) {
   return (
     <TouchableOpacity
       onPress={() => onValueChange(!value)}
       activeOpacity={0.7}
-      style={[
-        styles.toggle,
-        value ? styles.toggleOn : styles.toggleOff,
-      ]}
+      style={[styles.toggle, value ? styles.toggleOn : styles.toggleOff]}
     >
-      <View style={[styles.toggleKnob, value ? styles.toggleKnobOn : styles.toggleKnobOff]} />
+      <View
+        style={[
+          styles.toggleKnob,
+          value ? styles.toggleKnobOn : styles.toggleKnobOff,
+        ]}
+      />
     </TouchableOpacity>
   );
 }
@@ -96,7 +111,12 @@ function ProfileAvatar({
             { width: size, height: size, borderRadius: size / 2 },
           ])}
         >
-          <Text style={StyleSheet.flatten([styles.avatarInitials, { fontSize: size * 0.32 }])}>
+          <Text
+            style={StyleSheet.flatten([
+              styles.avatarInitials,
+              { fontSize: size * 0.32 },
+            ])}
+          >
             {initials}
           </Text>
         </View>
@@ -124,7 +144,12 @@ const SETTINGS = [
     label: "Default Duration",
     value: "25 min",
   },
-  { icon: "moon-outline" as const, label: "Dark Mode", value: "", toggle: true },
+  {
+    icon: "moon-outline" as const,
+    label: "Dark Mode",
+    value: "",
+    toggle: true,
+  },
   { icon: "shield-checkmark-outline" as const, label: "Privacy", value: "" },
   {
     icon: "log-out-outline" as const,
@@ -163,7 +188,8 @@ export default function ProfileScreen() {
   ]);
   const [loadingStats, setLoadingStats] = useState(true);
   const [connectionsModalVisible, setConnectionsModalVisible] = useState(false);
-  const [connectionsModalType, setConnectionsModalType] = useState<ConnectionModalType>("Following");
+  const [connectionsModalType, setConnectionsModalType] =
+    useState<ConnectionModalType>("Following");
   const [connectionsList, setConnectionsList] = useState<UserListItem[]>([]);
   const [loadingConnections, setLoadingConnections] = useState(false);
   const fileInputRef = useRef<any>(null);
@@ -175,7 +201,9 @@ export default function ProfileScreen() {
       try {
         const userId = auth.currentUser?.uid;
         if (!userId) {
-          console.warn("ProfileScreen: auth.currentUser is null; skipping profile fetch.");
+          console.warn(
+            "ProfileScreen: auth.currentUser is null; skipping profile fetch.",
+          );
           return;
         }
         const userRef = doc(db, "users", userId);
@@ -184,7 +212,10 @@ export default function ProfileScreen() {
         const userData = userSnap.data();
         const nextProfile: UserProfile = {
           name: (userData.username as string) || "Your Name",
-          email: (userData.email as string) || auth.currentUser?.email || "your@email.com",
+          email:
+            (userData.email as string) ||
+            auth.currentUser?.email ||
+            "your@email.com",
           photoUri: (userData.photoUrl as string) || null,
         };
         setProfile(nextProfile);
@@ -206,7 +237,9 @@ export default function ProfileScreen() {
       try {
         const userId = auth.currentUser?.uid;
         if (!userId) {
-          console.warn("ProfileScreen: auth.currentUser is null; skipping stats fetch.");
+          console.warn(
+            "ProfileScreen: auth.currentUser is null; skipping stats fetch.",
+          );
           setLoadingStats(false);
           return;
         }
@@ -214,7 +247,7 @@ export default function ProfileScreen() {
         // Query sessions for this user
         const sessionsQuery = query(
           collection(db, "users", userId, "sessions"),
-          where("mode", "==", "focus")
+          where("mode", "==", "focus"),
         );
         const sessionsSnapshot = await getDocs(sessionsQuery);
 
@@ -262,14 +295,15 @@ export default function ProfileScreen() {
   // ── Sign out handler ────────────────────────────────────────────────────────
   const handleSignOut = async () => {
     if (Platform.OS === "web") {
-      const confirmed = typeof window !== "undefined"
-        ? window.confirm("Are you sure you want to sign out?")
-        : true;
+      const confirmed =
+        typeof window !== "undefined"
+          ? window.confirm("Are you sure you want to sign out?")
+          : true;
       if (!confirmed) return;
       try {
         await signOut();
         router.replace("/welcome");
-      } catch (error) {
+      } catch {
         Alert.alert("Error", "Failed to sign out. Please try again.");
       }
       return;
@@ -348,7 +382,9 @@ export default function ProfileScreen() {
 
           if (Platform.OS === "web" && draftPhotoUri.startsWith("data:")) {
             // Extract content type and base64 data from data URL
-            const matches = draftPhotoUri.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+            const matches = draftPhotoUri.match(
+              /^data:(image\/[a-zA-Z+]+);base64,(.+)$/,
+            );
             if (!matches) {
               Alert.alert("Error", "Invalid image format.");
               return;
@@ -363,7 +399,10 @@ export default function ProfileScreen() {
               return;
             }
             if (fileInfo.size && fileInfo.size > 5 * 1024 * 1024) {
-              Alert.alert("Photo too large", "Please upload an image under 5MB.");
+              Alert.alert(
+                "Photo too large",
+                "Please upload an image under 5MB.",
+              );
               return;
             }
 
@@ -376,7 +415,10 @@ export default function ProfileScreen() {
             };
             contentType = mimeMap[ext] ?? "image/jpeg";
             if (!Object.values(mimeMap).includes(contentType)) {
-              Alert.alert("Invalid photo type", "Please upload a JPG, PNG, or WEBP.");
+              Alert.alert(
+                "Invalid photo type",
+                "Please upload a JPG, PNG, or WEBP.",
+              );
               return;
             }
 
@@ -396,12 +438,21 @@ export default function ProfileScreen() {
               serverResponse?: string;
             };
             console.error("Storage upload failed:", firebaseStorageError);
-            console.error("Storage error code:", firebaseStorageError.code ?? "unknown");
-            console.error("Storage error message:", firebaseStorageError.message ?? "Unknown Storage error");
-            console.error("Storage server response:", firebaseStorageError.serverResponse ?? "No server response");
+            console.error(
+              "Storage error code:",
+              firebaseStorageError.code ?? "unknown",
+            );
+            console.error(
+              "Storage error message:",
+              firebaseStorageError.message ?? "Unknown Storage error",
+            );
+            console.error(
+              "Storage server response:",
+              firebaseStorageError.serverResponse ?? "No server response",
+            );
             if (firebaseStorageError.code === "storage/unknown") {
               console.error(
-                "Check Firebase Storage rules for authenticated writes to profileImages/{uid}, and verify bucket CORS policy for your app origin."
+                "Check Firebase Storage rules for authenticated writes to profileImages/{uid}, and verify bucket CORS policy for your app origin.",
               );
             }
             throw storageError;
@@ -438,7 +489,8 @@ export default function ProfileScreen() {
   const pickFromLibrary = async () => {
     // On web, no permission request needed
     if (Platform.OS !== "web") {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
         Alert.alert("Permission needed", "Please allow photo library access.");
         return;
@@ -457,7 +509,10 @@ export default function ProfileScreen() {
 
   const takePhoto = async () => {
     if (Platform.OS === "web") {
-      Alert.alert("Not supported", "Camera is not available on web. Please choose from library.");
+      Alert.alert(
+        "Not supported",
+        "Camera is not available on web. Please choose from library.",
+      );
       return;
     }
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -482,7 +537,11 @@ export default function ProfileScreen() {
       return;
     }
 
-    const options: Array<{ text: string; onPress: () => void | Promise<void>; style?: "destructive" | "cancel" }> = [
+    const options: {
+      text: string;
+      onPress: () => void | Promise<void>;
+      style?: "destructive" | "cancel";
+    }[] = [
       { text: "Choose from Library", onPress: pickFromLibrary },
       { text: "Take Photo", onPress: takePhoto },
     ];
@@ -495,7 +554,7 @@ export default function ProfileScreen() {
       });
     }
 
-    options.push({ text: "Cancel", style: "cancel", onPress: () => { } });
+    options.push({ text: "Cancel", style: "cancel", onPress: () => {} });
 
     Alert.alert("Profile Photo", "Choose an option", options);
   };
@@ -516,7 +575,9 @@ export default function ProfileScreen() {
   const openConnectionsModal = async (type: ConnectionModalType) => {
     const userId = auth.currentUser?.uid;
     if (!userId) {
-      console.warn("ProfileScreen: auth.currentUser is null; skipping connections fetch.");
+      console.warn(
+        "ProfileScreen: auth.currentUser is null; skipping connections fetch.",
+      );
       return;
     }
     setConnectionsModalType(type);
@@ -541,20 +602,31 @@ export default function ProfileScreen() {
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <SafeAreaView
-      style={StyleSheet.flatten([SharedStyles.screen, styles.safe, { backgroundColor: colors.background }])}
+      style={StyleSheet.flatten([
+        SharedStyles.screen,
+        styles.safe,
+        { backgroundColor: colors.background },
+      ])}
     >
-      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.background} />
+      <StatusBar
+        barStyle={isDarkMode ? "light-content" : "dark-content"}
+        backgroundColor={colors.background}
+      />
 
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <Text style={[styles.headerLabel, { color: colors.textMuted }]}>PROFILE</Text>
+        <Text style={[styles.headerLabel, { color: colors.textMuted }]}>
+          PROFILE
+        </Text>
         <TouchableOpacity
           style={[styles.editChip, { backgroundColor: colors.primaryMuted }]}
           onPress={openModal}
           activeOpacity={0.7}
         >
           <LucideIcon name="pencil" size={12} color={colors.primary} />
-          <Text style={[styles.editChipText, { color: colors.primary }]}>Edit</Text>
+          <Text style={[styles.editChipText, { color: colors.primary }]}>
+            Edit
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -563,12 +635,22 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Profile hero */}
-        <View style={StyleSheet.flatten([SharedStyles.card, styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border }])}>
+        <View
+          style={StyleSheet.flatten([
+            SharedStyles.card,
+            styles.profileCard,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ])}
+        >
           <ProfileAvatar profile={profile} size={80} onPress={openModal} />
           {/* Username displayed as the profile name */}
-          <Text style={[styles.profileName, { color: colors.text }]}>{profile.name}</Text>
+          <Text style={[styles.profileName, { color: colors.text }]}>
+            {profile.name}
+          </Text>
           {/* Email from sign-up */}
-          <Text style={[styles.profileEmail, { color: colors.textMuted }]}>{profile.email}</Text>
+          <Text style={[styles.profileEmail, { color: colors.textMuted }]}>
+            {profile.email}
+          </Text>
           {loadingProfile ? (
             <ActivityIndicator size="small" color={colors.primary} />
           ) : null}
@@ -576,19 +658,40 @@ export default function ProfileScreen() {
           <View style={[styles.statsRow, { borderTopColor: colors.border }]}>
             {stats.map((stat: { label: string; value: string }, i: number) => (
               <React.Fragment key={stat.label}>
-                {i > 0 && <View style={[styles.statDivider, { backgroundColor: colors.border }]} />}
+                {i > 0 && (
+                  <View
+                    style={[
+                      styles.statDivider,
+                      { backgroundColor: colors.border },
+                    ]}
+                  />
+                )}
                 {stat.label === "Following" || stat.label === "Followers" ? (
                   <TouchableOpacity
                     style={styles.statBlock}
-                    onPress={() => openConnectionsModal(stat.label as ConnectionModalType)}
+                    onPress={() =>
+                      openConnectionsModal(stat.label as ConnectionModalType)
+                    }
                   >
-                    <Text style={[styles.statValue, { color: colors.text }]}>{loadingStats ? "..." : stat.value}</Text>
-                    <Text style={[styles.statLabel, { color: colors.textMuted }]}>{stat.label}</Text>
+                    <Text style={[styles.statValue, { color: colors.text }]}>
+                      {loadingStats ? "..." : stat.value}
+                    </Text>
+                    <Text
+                      style={[styles.statLabel, { color: colors.textMuted }]}
+                    >
+                      {stat.label}
+                    </Text>
                   </TouchableOpacity>
                 ) : (
                   <View style={styles.statBlock}>
-                    <Text style={[styles.statValue, { color: colors.text }]}>{loadingStats ? "..." : stat.value}</Text>
-                    <Text style={[styles.statLabel, { color: colors.textMuted }]}>{stat.label}</Text>
+                    <Text style={[styles.statValue, { color: colors.text }]}>
+                      {loadingStats ? "..." : stat.value}
+                    </Text>
+                    <Text
+                      style={[styles.statLabel, { color: colors.textMuted }]}
+                    >
+                      {stat.label}
+                    </Text>
                   </View>
                 )}
               </React.Fragment>
@@ -606,21 +709,33 @@ export default function ProfileScreen() {
           Settings
         </Text>
 
-        <View style={[SharedStyles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View
+          style={[
+            SharedStyles.card,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
           {SETTINGS.map((item, i) => {
             const settingStyle = StyleSheet.flatten([
               styles.settingRow,
               i < SETTINGS.length - 1 && styles.settingBorder,
             ]);
             const isToggle = item.toggle;
-            const toggleValue = item.label === "Notifications" ? notificationsEnabled : isDarkMode;
+            const toggleValue =
+              item.label === "Notifications"
+                ? notificationsEnabled
+                : isDarkMode;
 
             return (
               <TouchableOpacity
                 key={item.label}
                 style={settingStyle}
                 activeOpacity={0.7}
-                onPress={() => isToggle ? handleToggleChange(item.label, !toggleValue) : handleSettingPress(item.label)}
+                onPress={() =>
+                  isToggle
+                    ? handleToggleChange(item.label, !toggleValue)
+                    : handleSettingPress(item.label)
+                }
               >
                 <View style={styles.settingLeft}>
                   <View
@@ -650,9 +765,18 @@ export default function ProfileScreen() {
                 </View>
                 <View style={styles.settingRight}>
                   {isToggle ? (
-                    <ToggleSwitch value={toggleValue} onValueChange={(value) => handleToggleChange(item.label, value)} />
+                    <ToggleSwitch
+                      value={toggleValue}
+                      onValueChange={(value) =>
+                        handleToggleChange(item.label, value)
+                      }
+                    />
                   ) : item.value ? (
-                    <Text style={[styles.settingValue, { color: colors.textMuted }]}>{item.value}</Text>
+                    <Text
+                      style={[styles.settingValue, { color: colors.textMuted }]}
+                    >
+                      {item.value}
+                    </Text>
                   ) : (
                     <LucideIcon
                       name="chevron-forward"
@@ -666,7 +790,9 @@ export default function ProfileScreen() {
           })}
         </View>
 
-        <Text style={[styles.version, { color: colors.textMuted }]}>PomoJI v1.0.0</Text>
+        <Text style={[styles.version, { color: colors.textMuted }]}>
+          PomoJI v1.0.0
+        </Text>
       </ScrollView>
 
       {/* ── Edit Profile Modal ──────────────────────────────────────────────── */}
@@ -680,23 +806,41 @@ export default function ProfileScreen() {
           style={{ flex: 1, backgroundColor: colors.background }}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <SafeAreaView style={[styles.modalSafe, { backgroundColor: colors.background }]}>
+          <SafeAreaView
+            style={[styles.modalSafe, { backgroundColor: colors.background }]}
+          >
             {/* Modal nav */}
-            <View style={[styles.modalNav, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+            <View
+              style={[
+                styles.modalNav,
+                {
+                  backgroundColor: colors.surface,
+                  borderBottomColor: colors.border,
+                },
+              ]}
+            >
               <TouchableOpacity
                 onPress={() => setModalVisible(false)}
                 activeOpacity={0.7}
                 style={styles.modalNavBtn}
               >
-                <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
+                <Text
+                  style={[styles.cancelText, { color: colors.textSecondary }]}
+                >
+                  Cancel
+                </Text>
               </TouchableOpacity>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Profile</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Edit Profile
+              </Text>
               <TouchableOpacity
                 onPress={handleSave}
                 activeOpacity={0.7}
                 style={styles.modalNavBtn}
               >
-                <Text style={[styles.navSaveText, { color: colors.primary }]}>Save</Text>
+                <Text style={[styles.navSaveText, { color: colors.primary }]}>
+                  Save
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -718,7 +862,9 @@ export default function ProfileScreen() {
                   onPress={showPhotoSheet}
                 />
                 <TouchableOpacity onPress={showPhotoSheet} activeOpacity={0.7}>
-                  <Text style={[styles.changePhotoText, { color: colors.primary }]}>
+                  <Text
+                    style={[styles.changePhotoText, { color: colors.primary }]}
+                  >
                     Change Profile Photo
                   </Text>
                 </TouchableOpacity>
@@ -728,7 +874,12 @@ export default function ProfileScreen() {
                     activeOpacity={0.7}
                     style={{ marginTop: 8 }}
                   >
-                    <Text style={[styles.changePhotoText, { color: colors.primary }]}>
+                    <Text
+                      style={[
+                        styles.changePhotoText,
+                        { color: colors.primary },
+                      ]}
+                    >
                       Remove Photo
                     </Text>
                   </TouchableOpacity>
@@ -739,15 +890,22 @@ export default function ProfileScreen() {
                     type="file"
                     accept="image/*"
                     onChange={handleWebFileChange}
-                    style={{ display: 'none' }}
+                    style={{ display: "none" }}
                   />
                 )}
               </View>
 
-              <View style={[styles.sectionDivider, { backgroundColor: colors.border }]} />
+              <View
+                style={[
+                  styles.sectionDivider,
+                  { backgroundColor: colors.border },
+                ]}
+              />
 
               {/* Username / Display Name input */}
-              <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>USERNAME</Text>
+              <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>
+                USERNAME
+              </Text>
               <View style={styles.inputCard}>
                 <View style={styles.inputRow}>
                   <View style={styles.inputIcon}>
@@ -801,8 +959,17 @@ export default function ProfileScreen() {
                       color={colors.textSecondary}
                     />
                   </View>
-                  <Text style={[styles.readOnlyText, { color: colors.textMuted }]}>{profile.email}</Text>
-                  <View style={[styles.lockedBadge, { backgroundColor: colors.background }]}>
+                  <Text
+                    style={[styles.readOnlyText, { color: colors.textMuted }]}
+                  >
+                    {profile.email}
+                  </Text>
+                  <View
+                    style={[
+                      styles.lockedBadge,
+                      { backgroundColor: colors.background },
+                    ]}
+                  >
                     <LucideIcon
                       name="lock-closed"
                       size={10}
@@ -821,7 +988,9 @@ export default function ProfileScreen() {
                 onPress={handleSave}
                 activeOpacity={0.85}
               >
-                <Text style={[styles.saveBtnText, { color: colors.surface }]}>Save Changes</Text>
+                <Text style={[styles.saveBtnText, { color: colors.surface }]}>
+                  Save Changes
+                </Text>
               </TouchableOpacity>
             </ScrollView>
           </SafeAreaView>
@@ -834,33 +1003,68 @@ export default function ProfileScreen() {
         transparent
         onRequestClose={() => setConnectionsModalVisible(false)}
       >
-        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-          <View style={[styles.reminderSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View
+          style={[styles.modalOverlay, { backgroundColor: "rgba(0,0,0,0.5)" }]}
+        >
+          <View
+            style={[
+              styles.reminderSheet,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <View style={styles.reminderHeader}>
-              <Text style={[styles.reminderTitle, { color: colors.text }]}>{connectionsModalType}</Text>
-              <TouchableOpacity onPress={() => setConnectionsModalVisible(false)}>
+              <Text style={[styles.reminderTitle, { color: colors.text }]}>
+                {connectionsModalType}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setConnectionsModalVisible(false)}
+              >
                 <LucideIcon name="close" size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
             {loadingConnections ? (
-              <Text style={[styles.reminderEmpty, { color: colors.textMuted }]}>Loading...</Text>
+              <Text style={[styles.reminderEmpty, { color: colors.textMuted }]}>
+                Loading...
+              </Text>
             ) : (
               <FlatList
                 data={connectionsList}
                 keyExtractor={(item) => item.id}
-                ListEmptyComponent={<Text style={[styles.reminderEmpty, { color: colors.textMuted }]}>No users yet.</Text>}
+                ListEmptyComponent={
+                  <Text
+                    style={[styles.reminderEmpty, { color: colors.textMuted }]}
+                  >
+                    No users yet.
+                  </Text>
+                }
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     style={styles.reminderRow}
                     onPress={() => {
                       setConnectionsModalVisible(false);
-                      router.push({ pathname: "/profile/[uid]" as never, params: { uid: item.id } });
+                      router.push({
+                        pathname: "/profile/[uid]" as never,
+                        params: { uid: item.id },
+                      });
                     }}
                   >
-                    <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
-                      <Text style={[styles.avatarText, { color: colors.surface }]}>{getInitials(item.username)}</Text>
+                    <View
+                      style={[
+                        styles.avatarCircle,
+                        { backgroundColor: colors.primary },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.avatarText, { color: colors.surface }]}
+                      >
+                        {getInitials(item.username)}
+                      </Text>
                     </View>
-                    <Text style={[styles.reminderRowTitle, { color: colors.text }]}>{item.username}</Text>
+                    <Text
+                      style={[styles.reminderRowTitle, { color: colors.text }]}
+                    >
+                      {item.username}
+                    </Text>
                   </TouchableOpacity>
                 )}
               />
@@ -999,9 +1203,19 @@ const styles = StyleSheet.create({
     padding: 12,
     maxHeight: "70%",
   },
-  reminderHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+  reminderHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
   reminderTitle: { fontSize: 14, fontWeight: "800", color: Colors.text },
-  reminderEmpty: { fontSize: 12, color: Colors.textMuted, paddingVertical: 10, textAlign: "center" },
+  reminderEmpty: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    paddingVertical: 10,
+    textAlign: "center",
+  },
   reminderRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1010,7 +1224,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
-  reminderRowTitle: { fontSize: 13, fontWeight: "700", color: Colors.text, flex: 1 },
+  reminderRowTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.text,
+    flex: 1,
+  },
   avatarCircle: {
     width: 30,
     height: 30,
