@@ -20,9 +20,9 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/POMOJI.png",
+        "backgroundImage": "./assets/images/POMOJI.png",
+        "monochromeImage": "./assets/images/POMOJI.png"
       },
       "package": "com.pomoji.app"
     },

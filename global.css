@@ -2,6 +2,43 @@
  * For Expo + React Native with NativeWind
  */
 
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap');
+
+/* Apply Open Sans for web (PWA) */
+body, html {
+  font-family: 'Open Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  font-family: OpenSans, 'Open Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+}
+
+/* Local font-face fallbacks. Place local files in assets/fonts/ named:
+   OpenSans-Regular.ttf, OpenSans-SemiBold.ttf, OpenSans-Bold.ttf
+   (and optional .woff2 variants for web) */
+@font-face {
+  font-family: 'OpenSans';
+  src: url('/assets/fonts/OpenSans-Regular.woff2') format('woff2'), url('/assets/fonts/OpenSans-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'OpenSans';
+  src: url('/assets/fonts/OpenSans-SemiBold.woff2') format('woff2'), url('/assets/fonts/OpenSans-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'OpenSans';
+  src: url('/assets/fonts/OpenSans-Bold.woff2') format('woff2'), url('/assets/fonts/OpenSans-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Prefer the local "OpenSans" face if available */
+html, body {
+  font-family: OpenSans, 'Open Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
