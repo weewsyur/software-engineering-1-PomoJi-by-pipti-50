@@ -14,8 +14,8 @@ import { onAuthStateChanged } from "firebase/auth";
 import {
   cancelTaskReminder,
   upsertTaskReminder,
-  scheduleTaskAddedNotification,
 } from "@/services/notificationService";
+import { createTaskReminderNotification } from "@/services/notificationPersistence";
 import { getLocalISODateTime } from "@/utils/dateHelpers";
 
 export type TaskCategory = "work" | "study" | "personal" | "health" | "other";
@@ -127,8 +127,17 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       normalized,
       normalized.reminderNotificationId,
     );
-    // Schedule notification for task added
-    await scheduleTaskAddedNotification(normalized.title);
+    // Create persistent reminder notification if due date is set
+    if (normalized.reminderEnabled && normalized.dueDate.trim()) {
+      const dueDate = new Date(normalized.dueDate);
+      const reminderStatus = dueDate.getTime() < Date.now() ? "overdue" : "upcoming";
+      await createTaskReminderNotification({
+        taskId: normalized.id,
+        taskTitle: normalized.title,
+        dueDate: normalized.dueDate,
+        reminderStatus,
+      }).catch(() => null);
+    }
     // Optimistic update: add task to local state immediately
     const tempId = `temp-${Date.now()}`;
     const optimisticTask = { ...normalized, id: tempId, reminderNotificationId };
@@ -173,6 +182,18 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         merged,
         existing.reminderNotificationId,
       );
+      // Create persistent reminder notification if due date changed
+      if (merged.reminderEnabled && merged.dueDate.trim() &&
+          merged.dueDate !== existing.dueDate) {
+        const dueDate = new Date(merged.dueDate);
+        const reminderStatus = dueDate.getTime() < Date.now() ? "overdue" : "upcoming";
+        await createTaskReminderNotification({
+          taskId: merged.id,
+          taskTitle: merged.title,
+          dueDate: merged.dueDate,
+          reminderStatus,
+        }).catch(() => null);
+      }
       await updateDoc(doc(db, "users", currentUid, "tasks", id), {
         ...patch,
         category: merged.category,

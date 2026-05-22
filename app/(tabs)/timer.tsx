@@ -7,7 +7,7 @@ import { useTimerPersistence } from "@/hooks/useTimerPersistence";
 import { useStrictFocusMode } from "@/hooks/useStrictFocusMode";
 import { LucideIcon } from "@/app/components/LucideIcon";
 import { useTheme } from "@/contexts/ThemeContext";
-import { AlertTriangle } from "lucide-react-native";
+import { AlertTriangle, Sparkles } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { getLocalISODateTime } from "@/utils/dateHelpers";
@@ -31,8 +31,8 @@ import { BreakBanner } from "@/app/components/timer/BreakBanner";
 import { TaskPicker } from "@/app/components/timer/TaskPicker";
 import {
   initializeNotifications,
-  scheduleSessionCompletionNotification,
 } from "@/services/notificationService";
+import { createSessionCompleteNotification } from "@/services/notificationPersistence";
 import { showFocusSessionAlert } from "@/services/webNotificationService";
 import { soundService } from "@/services/soundService";
 
@@ -118,18 +118,19 @@ export default function TimerScreen() {
     updateTimerState,
   } = useTimerPersistence();
 
-  // Load persisted timer state
+  // Load persisted timer state on mount
   useEffect(() => {
-    if (timerLoaded && timerState.startTime === null) {
-      // Only load if timer wasn't running (to avoid conflicts)
-      setMode(timerState.mode);
-      setTimeLeft(timerState.timeLeft);
-      setIsRunning(timerState.isRunning);
-      setHasStarted(timerState.hasStarted);
-      setSessions(timerState.sessions);
-      setStreakCount(timerState.streakCount);
-    }
-  }, [timerLoaded, timerState]);
+    if (!timerLoaded) return;
+    if (timerState.startTime !== null) return; // Don't load if timer was running
+    if (hasStarted) return; // Don't overwrite if already started
+
+    setMode(timerState.mode);
+    setTimeLeft(timerState.timeLeft);
+    setIsRunning(timerState.isRunning);
+    setHasStarted(timerState.hasStarted);
+    setSessions(timerState.sessions);
+    setStreakCount(timerState.streakCount);
+  }, [timerLoaded]);
 
   useEffect(() => {
     initializeNotifications().catch(() => null);
@@ -374,10 +375,11 @@ export default function TimerScreen() {
                 activeTaskRef.current?.title ?? "Unassigned Session";
               const durationText = `${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}s`;
 
-              scheduleSessionCompletionNotification({
+              createSessionCompleteNotification({
                 taskId: activeTaskRef.current?.id ?? null,
                 taskTitle: taskName,
                 durationSeconds,
+                sessionsCompleted: newSessions,
               }).catch(() => null);
 
               Alert.alert(
@@ -728,12 +730,16 @@ export default function TimerScreen() {
         {!hasStarted && (
           <View
             style={StyleSheet.flatten([
-              SharedStyles.card,
               styles.quoteCard,
               { backgroundColor: colors.surface, borderColor: colors.border },
             ])}
           >
-            <Text style={[styles.quoteIcon]}>✨</Text>
+            <Sparkles
+              size={24}
+              color={colors.textMuted}
+              strokeWidth={1.5}
+              style={styles.quoteIconContainer}
+            />
             <Text style={[styles.quoteText, { color: colors.text }]}>
               {focusLockQuote}
             </Text>
@@ -1163,24 +1169,27 @@ const styles = StyleSheet.create({
   },
   quoteCard: {
     marginHorizontal: 0,
-    marginVertical: 12,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: "#FF6B9D",
+    marginVertical: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    borderWidth: 1,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  quoteIcon: {
-    fontSize: 32,
-    marginBottom: 8,
+  quoteIconContainer: {
+    marginBottom: 12,
   },
   quoteText: {
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "500",
     lineHeight: 22,
     textAlign: "center",
-    fontStyle: "italic",
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   tasksToggle: { position: "relative", padding: 4 },
   badge: {

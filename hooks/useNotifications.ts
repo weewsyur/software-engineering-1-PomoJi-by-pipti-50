@@ -4,11 +4,17 @@ import { collection, onSnapshot, orderBy, query, doc, getDoc, updateDoc } from "
 
 export interface Notification {
   id: string;
-  type: "follow";
-  fromUid: string;
-  fromUsername: string;
+  type: "follow" | "task_reminder" | "session_complete";
   read: boolean;
   createdAt: any;
+  fromUid?: string;
+  fromUsername?: string;
+  taskId?: string;
+  taskTitle?: string;
+  dueDate?: string;
+  reminderStatus?: "upcoming" | "overdue";
+  durationSeconds?: number;
+  sessionsCompleted?: number;
 }
 
 export function useNotifications() {

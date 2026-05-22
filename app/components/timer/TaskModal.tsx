@@ -1,9 +1,6 @@
-import { X, Calendar } from "lucide-react-native";
+import { X, ChevronDown } from "lucide-react-native";
 import { useState, useEffect } from "react";
-import DateTimePicker, {
-  DateTimePickerEvent,
-  DateTimePickerAndroid,
-} from "@react-native-community/datetimepicker";
+import DateTimePicker from "@/components/DateTimePicker";
 import {
   ActivityIndicator,
   Alert,
@@ -94,7 +91,7 @@ export const TaskModal = ({
     setShowDatePicker(false);
   }, [initial, visible]);
 
-  const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
+  const handleDateChange = (event: any, date?: Date) => {
     if (event.type === "dismissed" || !date) {
       return;
     }
@@ -104,20 +101,6 @@ export const TaskModal = ({
   };
 
   const openDatePicker = () => {
-    if (Platform.OS === "web") {
-      setShowDatePicker(true);
-      return;
-    }
-
-    if (Platform.OS === "android") {
-      DateTimePickerAndroid.open({
-        value: selectedDate ?? new Date(),
-        mode: "date",
-        onChange: handleDateChange,
-      });
-      return;
-    }
-
     setShowDatePicker(true);
   };
 
@@ -209,7 +192,7 @@ export const TaskModal = ({
             <TouchableOpacity
               style={modalStyles.dateInput}
               onPress={openDatePicker}
-              activeOpacity={0.8}
+              activeOpacity={0.7}
             >
               <Text
                 style={
@@ -218,39 +201,44 @@ export const TaskModal = ({
               >
                 {dueDate || "Select due date"}
               </Text>
-              <Calendar size={18} color={Colors.textMuted} strokeWidth={2.5} />
+              <ChevronDown
+                size={20}
+                color={Colors.textMuted}
+                strokeWidth={2.5}
+              />
             </TouchableOpacity>
-            {showDatePicker && Platform.OS === "ios" && (
-              <View style={modalStyles.datePickerContainer}>
-                <DateTimePicker
-                  value={selectedDate ?? new Date()}
-                  mode="date"
-                  display="spinner"
-                  onChange={(event, date) => {
-                    handleDateChange(event, date);
-                  }}
-                />
-                <TouchableOpacity
-                  style={modalStyles.dateDoneBtn}
-                  onPress={() => setShowDatePicker(false)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={modalStyles.dateDoneText}>Done</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            {showDatePicker &&
+              (Platform.OS === "ios" || Platform.OS === "android") && (
+                <View style={modalStyles.datePickerContainer}>
+                  <DateTimePicker
+                    value={selectedDate ?? new Date()}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "spinner" : "spinner"}
+                    onChange={(event, date) => {
+                      handleDateChange(event, date);
+                    }}
+                  />
+                  <TouchableOpacity
+                    style={modalStyles.dateDoneBtn}
+                    onPress={() => setShowDatePicker(false)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={modalStyles.dateDoneText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             {showDatePicker && Platform.OS === "web" && (
               <View style={modalStyles.webDatePickerOverlay}>
                 <View style={modalStyles.webDatePickerPanel}>
+                  <Text style={modalStyles.webDatePickerTitle}>
+                    Select Date
+                  </Text>
                   <DateTimePicker
                     value={selectedDate ?? new Date()}
                     mode="date"
                     display="inline"
                     onChange={(event, date) => {
                       handleDateChange(event, date);
-                      if (date) {
-                        setShowDatePicker(false);
-                      }
                     }}
                     style={modalStyles.webDatePicker}
                   />
@@ -259,7 +247,7 @@ export const TaskModal = ({
                     onPress={() => setShowDatePicker(false)}
                     activeOpacity={0.8}
                   >
-                    <Text style={modalStyles.dateDoneText}>Done</Text>
+                    <Text style={modalStyles.dateDoneText}>Confirm</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -339,14 +327,21 @@ const modalStyles = StyleSheet.create({
     backgroundColor: "#F5F1E8",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 20,
-    maxHeight: "85%",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 0,
+    maxHeight: "90%",
+    display: "flex",
+    flexDirection: "column",
   },
   sheetHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E8DDD8",
   },
   sheetTitle: { fontSize: 17, fontWeight: "800", color: "#1A0808" },
   fieldLabel: {
@@ -355,8 +350,8 @@ const modalStyles = StyleSheet.create({
     color: "#9A7070",
     textTransform: "uppercase",
     letterSpacing: 1,
-    marginBottom: 6,
-    marginTop: 12,
+    marginBottom: 8,
+    marginTop: 14,
   },
   input: {
     backgroundColor: "#fff",
@@ -367,63 +362,71 @@ const modalStyles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
     color: "#1A0808",
+    marginBottom: 0,
   },
   dateInput: {
-    backgroundColor: "#fff",
+    backgroundColor: "#fafaf9",
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#EAD8D8",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    minHeight: 42,
+    borderWidth: 2,
+    borderColor: "#D8C8C8",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minHeight: 48,
+    height: 48,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    marginBottom: 2,
   },
-  dateText: { fontSize: 14, color: "#1A0808", fontWeight: "500" },
-  placeholderText: { fontSize: 14, color: "#C4A8A8" },
+  dateText: { fontSize: 14, color: "#1A0808", fontWeight: "500", flex: 1 },
+  placeholderText: { fontSize: 14, color: "#C4A8A8", flex: 1 },
   datePickerContainer: {
-    marginTop: 8,
+    marginTop: 12,
+    marginBottom: 12,
     backgroundColor: "#fff",
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#EAD8D8",
     paddingHorizontal: 8,
-    paddingTop: 4,
-    paddingBottom: 8,
+    paddingVertical: 10,
+    maxHeight: 250,
+    justifyContent: "center",
+    alignItems: "center",
   },
   webDatePickerOverlay: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    top: 0,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0, 0, 0, 0.35)",
-  },
-  webDatePickerPanel: {
-    margin: 16,
-    padding: 16,
-    borderRadius: 18,
+    marginTop: 12,
+    marginBottom: 12,
     backgroundColor: "#fff",
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: "#EAD8D8",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    width: "100%",
+  },
+  webDatePickerPanel: {
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
   },
   webDatePicker: {
     width: "100%",
+    maxWidth: 300,
   },
   dateDoneBtn: {
-    alignSelf: "flex-end",
-    marginTop: 6,
-    backgroundColor: "#EAD8D8",
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "#C94C3C",
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  dateDoneText: { fontSize: 12, fontWeight: "700", color: "#9A7070" },
+  dateDoneText: { fontSize: 13, fontWeight: "700", color: "#fff" },
   clearDateBtn: {
     alignSelf: "flex-start",
-    marginTop: 8,
+    marginTop: 6,
+    marginBottom: 8,
     paddingVertical: 4,
     paddingHorizontal: 2,
   },
@@ -433,22 +436,39 @@ const modalStyles = StyleSheet.create({
     color: "#9A7070",
     textDecorationLine: "underline",
   },
-  textArea: { minHeight: 72, textAlignVertical: "top" },
-  catRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  textArea: { minHeight: 72, textAlignVertical: "top", marginBottom: 0 },
+  catRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 8,
+  },
   catBtn: {
     borderWidth: 1.5,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
+    minHeight: 36,
+    justifyContent: "center",
+    alignItems: "center",
   },
   catBtnText: { fontSize: 12, fontWeight: "600" },
-  actions: { flexDirection: "row", gap: 10, marginTop: 20 },
+  actions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 16,
+    paddingHorizontal: 0,
+    paddingBottom: 20,
+    marginBottom: 0,
+  },
   cancelBtn: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
     backgroundColor: "#EAD8D8",
     alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
   },
   cancelText: { fontSize: 14, fontWeight: "700", color: "#9A7070" },
   saveBtn: {
@@ -457,7 +477,16 @@ const modalStyles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "#C94C3C",
     alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
   },
   saveBtnDisabled: { opacity: 0.7 },
   saveText: { fontSize: 14, fontWeight: "700", color: "#fff" },
+  webDatePickerTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#9A7070",
+    marginBottom: 10,
+    textAlign: "center",
+  },
 });

@@ -83,18 +83,43 @@ export async function uploadActivityImages(
 }
 
 /**
- * Get a fresh download URL from a storage path
+ * Get a fresh download URL from a storage path with retry logic
  * @param storagePath - Firebase Storage path (e.g., "activityImages/userId/image.jpg")
  * @returns Fresh download URL
  */
 export async function getFreshDownloadURL(storagePath: string): Promise<string> {
-  try {
-    const imageRef = ref(storage, storagePath);
-    return await getDownloadURL(imageRef);
-  } catch (error) {
-    console.error('Failed to get download URL for:', storagePath, error);
-    throw error;
+  const MAX_RETRIES = 2;
+  const TIMEOUT_MS = 5000;
+  
+  // Don't try to fetch if it's not a valid storage path
+  if (!isStoragePath(storagePath)) {
+    return storagePath;
   }
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const imageRef = ref(storage, storagePath);
+      
+      // Create a promise that rejects after timeout
+      const timeoutPromise = new Promise<string>((_, reject) =>
+        setTimeout(() => reject(new Error('Download URL request timeout')), TIMEOUT_MS)
+      );
+      
+      const urlPromise = getDownloadURL(imageRef);
+      
+      return await Promise.race([urlPromise, timeoutPromise]);
+    } catch (error) {
+      if (attempt === MAX_RETRIES) {
+        console.error('Failed to get download URL after retries:', storagePath, error);
+        // Fallback: Return the original path if download URL fetch fails
+        return storagePath;
+      }
+      // Wait before retrying with exponential backoff
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+    }
+  }
+  
+  return storagePath;
 }
 
 /**
@@ -110,10 +135,16 @@ export async function getFreshDownloadURLs(
 }
 
 /**
- * Check if a string is a Firebase Storage path (not a download URL)
+ * Check if a string is a Firebase Storage path (not a download URL or blob URL)
  * @param path - String to check
  * @returns True if it's a storage path
  */
 export function isStoragePath(path: string): boolean {
-  return !path.startsWith('http://') && !path.startsWith('https://') && !path.startsWith('file://');
+  // Return false if it's a URL or blob URL
+  return (
+    !path.startsWith('http://') &&
+    !path.startsWith('https://') &&
+    !path.startsWith('file://') &&
+    !path.startsWith('blob:')
+  );
 }

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Modal,
   ScrollView,
@@ -8,10 +8,19 @@ import {
   View,
   ActivityIndicator,
 } from "react-native";
-import { X, User } from "lucide-react-native";
+import {
+  X,
+  User,
+  Bell,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  UserPlus,
+} from "lucide-react-native";
 import { Colors } from "@/constants/colors";
 import { Notification } from "@/hooks/useNotifications";
 import { useRouter } from "expo-router";
+import { NotificationDetailModal } from "@/app/components/NotificationDetailModal";
 
 interface NotificationsModalProps {
   visible: boolean;
@@ -38,6 +47,45 @@ const fmtDate = (timestamp: any) => {
   return date.toLocaleDateString();
 };
 
+const getNotificationIcon = (type: string) => {
+  switch (type) {
+    case "task_reminder":
+      return Clock;
+    case "session_complete":
+      return CheckCircle2;
+    case "follow":
+      return UserPlus;
+    default:
+      return Bell;
+  }
+};
+
+const getNotificationTitle = (notification: Notification): string => {
+  switch (notification.type) {
+    case "task_reminder":
+      return notification.taskTitle || "Task Reminder";
+    case "session_complete":
+      return "Session Complete";
+    case "follow":
+      return `${notification.fromUsername} started following you`;
+    default:
+      return "Notification";
+  }
+};
+
+const getNotificationPreview = (notification: Notification): string => {
+  switch (notification.type) {
+    case "task_reminder":
+      return notification.reminderStatus === "overdue" ? "Overdue" : "Upcoming";
+    case "session_complete":
+      return `${Math.floor((notification.durationSeconds || 0) / 60)}m session`;
+    case "follow":
+      return `@${notification.fromUsername || "user"}`;
+    default:
+      return "";
+  }
+};
+
 export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   visible,
   onClose,
@@ -47,92 +95,160 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   onMarkAllAsRead,
 }) => {
   const router = useRouter();
+  const [selectedNotification, setSelectedNotification] =
+    useState<Notification | null>(null);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
 
-  const handleNotificationPress = async (notification: Notification) => {
-    await onMarkAsRead(notification.id);
+  const handleNotificationPress = (notification: Notification) => {
+    setSelectedNotification(notification);
+    setDetailModalVisible(true);
 
     if (notification.type === "follow") {
+      // Still support navigation for follow notifications
       router.push({
         pathname: "/profile/[uid]" as never,
         params: { uid: notification.fromUid },
       });
-      onClose();
     }
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <Modal
-      visible={visible}
-      animationType="fade"
-      transparent
-      onRequestClose={onClose}
-    >
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Notifications</Text>
-            <View style={styles.headerActions}>
-              {unreadCount > 0 && (
-                <TouchableOpacity
-                  onPress={onMarkAllAsRead}
-                  style={styles.markAllBtn}
-                >
-                  <Text style={styles.markAllText}>Mark all read</Text>
+    <>
+      <Modal
+        visible={visible}
+        animationType="fade"
+        transparent
+        onRequestClose={onClose}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.container}>
+            <View style={styles.header}>
+              <Text style={styles.title}>Notifications</Text>
+              <View style={styles.headerActions}>
+                {unreadCount > 0 && (
+                  <TouchableOpacity
+                    onPress={onMarkAllAsRead}
+                    style={styles.markAllBtn}
+                  >
+                    <Text style={styles.markAllText}>Mark all read</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                  <X size={20} color={Colors.text} strokeWidth={2.5} />
                 </TouchableOpacity>
-              )}
-              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                <X size={20} color={Colors.text} strokeWidth={2.5} />
-              </TouchableOpacity>
+              </View>
             </View>
-          </View>
 
-          <ScrollView
-            style={styles.content}
-            showsVerticalScrollIndicator={false}
-          >
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator color={Colors.primary} />
-              </View>
-            ) : notifications.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No notifications yet</Text>
-              </View>
-            ) : (
-              notifications.map((notification) => (
-                <TouchableOpacity
-                  key={notification.id}
-                  style={[
-                    styles.notificationItem,
-                    !notification.read && styles.unread,
-                  ]}
-                  onPress={() => handleNotificationPress(notification)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.iconContainer}>
-                    <User size={20} color={Colors.primary} strokeWidth={2} />
-                  </View>
-                  <View style={styles.notificationContent}>
-                    <Text style={styles.notificationText}>
-                      <Text style={styles.username}>
-                        {notification.fromUsername}
-                      </Text>{" "}
-                      started following you
-                    </Text>
-                    <Text style={styles.timestamp}>
-                      {fmtDate(notification.createdAt)}
-                    </Text>
-                  </View>
-                  {!notification.read && <View style={styles.unreadDot} />}
-                </TouchableOpacity>
-              ))
-            )}
-          </ScrollView>
+            <ScrollView
+              style={styles.content}
+              showsVerticalScrollIndicator={false}
+            >
+              {loading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator color={Colors.primary} />
+                </View>
+              ) : notifications.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Bell
+                    size={32}
+                    color={Colors.textMuted}
+                    style={styles.emptyIcon}
+                  />
+                  <Text style={styles.emptyText}>No notifications yet</Text>
+                </View>
+              ) : (
+                notifications.map((notification) => {
+                  const IconComponent = getNotificationIcon(notification.type);
+                  return (
+                    <TouchableOpacity
+                      key={notification.id}
+                      style={[
+                        styles.notificationItem,
+                        !notification.read && styles.unread,
+                      ]}
+                      onPress={() => handleNotificationPress(notification)}
+                      activeOpacity={0.7}
+                    >
+                      <View
+                        style={[
+                          styles.iconContainer,
+                          notification.type === "task_reminder" && {
+                            backgroundColor: "#4C7AC9" + "20",
+                          },
+                          notification.type === "session_complete" && {
+                            backgroundColor: "#10B981" + "20",
+                          },
+                          notification.type === "follow" && {
+                            backgroundColor: "#8B5CF6" + "20",
+                          },
+                        ]}
+                      >
+                        <IconComponent
+                          size={18}
+                          color={
+                            notification.type === "task_reminder"
+                              ? "#4C7AC9"
+                              : notification.type === "session_complete"
+                                ? "#10B981"
+                                : notification.type === "follow"
+                                  ? "#8B5CF6"
+                                  : Colors.primary
+                          }
+                          strokeWidth={2}
+                        />
+                      </View>
+                      <View style={styles.notificationContent}>
+                        <Text
+                          style={[
+                            styles.notificationText,
+                            { color: Colors.text },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {getNotificationTitle(notification)}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.notificationPreview,
+                            { color: Colors.textMuted },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {getNotificationPreview(notification)}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.timestamp,
+                            { color: Colors.textMuted },
+                          ]}
+                        >
+                          {fmtDate(notification.createdAt)}
+                        </Text>
+                      </View>
+                      {!notification.read && (
+                        <View style={styles.unreadDot} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
         </View>
-      </View>
-    </Modal>
+      </Modal>
+
+      <NotificationDetailModal
+        visible={detailModalVisible}
+        notification={selectedNotification}
+        onClose={() => {
+          setDetailModalVisible(false);
+          setSelectedNotification(null);
+        }}
+        onMarkAsRead={onMarkAsRead}
+      />
+    </>
   );
 };
 
@@ -191,6 +307,9 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
     alignItems: "center",
   },
+  emptyIcon: {
+    marginBottom: 8,
+  },
   emptyText: {
     fontSize: 14,
     color: Colors.textMuted,
@@ -201,6 +320,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     paddingVertical: 12,
+    paddingHorizontal: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
@@ -214,21 +334,25 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary + "20",
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
   },
   notificationContent: {
     flex: 1,
+    gap: 2,
   },
   notificationText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: Colors.text,
-    lineHeight: 20,
+    lineHeight: 18,
   },
-  username: {
-    fontWeight: "700",
+  notificationPreview: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    fontWeight: "500",
   },
   timestamp: {
-    fontSize: 12,
+    fontSize: 10,
     color: Colors.textMuted,
     marginTop: 2,
   },
@@ -237,5 +361,7 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: Colors.primary,
+    flexShrink: 0,
   },
 });
+
