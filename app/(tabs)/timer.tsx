@@ -16,6 +16,7 @@ import {
   Animated,
   Easing,
   FlatList,
+  Modal,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -33,6 +34,7 @@ import {
   scheduleSessionCompletionNotification,
 } from "@/services/notificationService";
 import { showFocusSessionAlert } from "@/services/webNotificationService";
+import { soundService } from "@/services/soundService";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,6 +56,21 @@ const MOTIVATIONAL_QUOTES = [
   "Every minute of intentional focus makes the next task easier.",
   "Stay present. Your future self will thank you.",
   "A focused session now builds momentum for the whole day.",
+  "Excellence is the result of caring more than others think is wise.",
+  "Your concentration is your competitive edge.",
+  "Deep work creates deep satisfaction.",
+  "Every distraction avoided is progress earned.",
+  "Consistency trumps intensity. Show up, focus, deliver.",
+  "The world rewards the focused mind.",
+  "You're building the future one session at a time.",
+  "Distraction is the enemy of greatness—stay locked in.",
+  "Your future self is watching. Make them proud.",
+  "Twenty-five minutes of pure focus > hours of scattered work.",
+  "Mastery lives in the margins of focused effort.",
+  "Every completed session is a building block of success.",
+  "Silence is the canvas for deep work.",
+  "You've got this. Lock in, crush it.",
+  "Progress over perfection. Focus on the process.",
 ];
 
 const getRandomQuote = () =>
@@ -170,6 +187,7 @@ export default function TimerScreen() {
   // Handle focus violation
   const handleFocusViolation = useCallback(() => {
     if (hasStarted && isRunning && mode === "focus") {
+      soundService.playFocusViolation();
       // Pause timer on focus violation
       setIsRunning(false);
       if (
@@ -183,10 +201,13 @@ export default function TimerScreen() {
         focusLockQuote ||
         "You left the app during your focus session. The timer has been paused.";
 
-      Alert.alert("Focus Session Interrupted", warningMessage, [
+      Alert.alert("🚨 Focus Session Interrupted", warningMessage, [
         {
           text: "Resume",
-          onPress: () => setIsRunning(true),
+          onPress: () => {
+            setIsRunning(true);
+            soundService.playSessionStart();
+          },
         },
         {
           text: "Stop",
@@ -196,6 +217,36 @@ export default function TimerScreen() {
       ]);
     }
   }, [focusLockQuote, hasStarted, isRunning, mode]);
+
+  // ── Task & Session state ───────────────────────────────────────────────
+  const {
+    tasks,
+    createTask: createTaskRaw,
+    updateTask,
+    deleteTask,
+    completeTask,
+    addTimeToTask,
+  } = useTasks();
+  const { createSession } = useSessions();
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [taskPickerVisible, setTaskPickerVisible] = useState(false);
+  const [taskModalVisible, setTaskModalVisible] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [showTasks, setShowTasks] = useState(false);
+  const [postActivityVisible, setPostActivityVisible] = useState(false);
+  const [postActivityDraft, setPostActivityDraft] = useState({
+    title: "Focus Session",
+    sessions: 0,
+    totalTimeSeconds: 0,
+  });
+  const [canRecordSession, setCanRecordSession] = useState(false);
+  const { createActivity } = useActivities();
+  const { taskId } = useLocalSearchParams<{ taskId?: string }>();
+
+  // Track when focus session started so we can record real elapsed time
+  const sessionStartTimeRef = useRef<number | null>(null);
+  const pauseStartedAtRef = useRef<number | null>(null);
+  const pausedAccumulatedMsRef = useRef(0);
 
   useEffect(() => {
     onFocusInvalidated(handleFocusViolation);
@@ -226,35 +277,6 @@ export default function TimerScreen() {
     activeTask,
     backgroundReminderSent,
   ]);
-
-  // ── Task & Session state ───────────────────────────────────────────────
-  const {
-    tasks,
-    createTask: createTaskRaw,
-    updateTask,
-    deleteTask,
-    completeTask,
-    addTimeToTask,
-  } = useTasks();
-  const { createSession } = useSessions();
-  const [activeTask, setActiveTask] = useState<Task | null>(null);
-  const [taskPickerVisible, setTaskPickerVisible] = useState(false);
-  const [taskModalVisible, setTaskModalVisible] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [showTasks, setShowTasks] = useState(false);
-  const [postActivityVisible, setPostActivityVisible] = useState(false);
-  const [postActivityDraft, setPostActivityDraft] = useState({
-    title: "Focus Session",
-    sessions: 0,
-    totalTimeSeconds: 0,
-  });
-  const [canRecordSession, setCanRecordSession] = useState(false);
-  // Track when focus session started so we can record real elapsed time
-  const sessionStartTimeRef = useRef<number | null>(null);
-  const pauseStartedAtRef = useRef<number | null>(null);
-  const pausedAccumulatedMsRef = useRef(0);
-  const { createActivity } = useActivities();
-  const { taskId } = useLocalSearchParams<{ taskId?: string }>();
 
   // ── Refs ─────────────────────────────────────────────────────────────────
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -293,6 +315,7 @@ export default function TimerScreen() {
             setIsRunning(false);
 
             if (mode === "focus") {
+              soundService.playSessionComplete();
               // ── Record the completed session ──────────────────────────
               const durationMinutes = sessionStartTimeRef.current
                 ? Math.round(
@@ -358,7 +381,7 @@ export default function TimerScreen() {
               }).catch(() => null);
 
               Alert.alert(
-                "Session Complete!",
+                "🎉 Session Complete!",
                 `Task: ${taskName}\nDuration: ${durationText}\nSessions completed: ${newSessions}`,
                 [
                   {
@@ -368,6 +391,7 @@ export default function TimerScreen() {
                 ],
               );
             } else {
+              soundService.playBreakOver();
               endBreak();
             }
             return 0;
@@ -418,13 +442,17 @@ export default function TimerScreen() {
       sessionStartTimeRef.current = Date.now();
       pauseStartedAtRef.current = null;
       pausedAccumulatedMsRef.current = 0;
+      soundService.playSessionStart();
+    } else {
+      soundService.playBreakStart();
     }
     setHasStarted(true);
     setIsRunning(true);
   }, [mode]);
 
   const handleStart = useCallback(() => {
-    setFocusLockQuote(getRandomQuote());
+    const quote = getRandomQuote();
+    setFocusLockQuote(quote);
     if (mode === "focus") {
       setFocusLockModalVisible(true);
       return;
@@ -695,6 +723,22 @@ export default function TimerScreen() {
             </View>
           </Animated.View>
         </View>
+
+        {/* Motivational Quote Display */}
+        {!hasStarted && (
+          <View
+            style={StyleSheet.flatten([
+              SharedStyles.card,
+              styles.quoteCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ])}
+          >
+            <Text style={[styles.quoteIcon]}>✨</Text>
+            <Text style={[styles.quoteText, { color: colors.text }]}>
+              {focusLockQuote}
+            </Text>
+          </View>
+        )}
 
         {/* Active task selector */}
         {mode === "focus" && (
@@ -1087,10 +1131,13 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   focusModalQuote: {
-    fontSize: 14,
-    fontWeight: "700",
+    fontSize: 18,
+    fontWeight: "900",
     marginBottom: 20,
-    color: "#9A7070",
+    color: "#FF6B9D",
+    fontStyle: "italic",
+    lineHeight: 26,
+    letterSpacing: 0.5,
   },
   focusModalButton: {
     borderRadius: 16,
@@ -1113,6 +1160,27 @@ const styles = StyleSheet.create({
   focusModalCancelText: {
     fontSize: 14,
     fontWeight: "700",
+  },
+  quoteCard: {
+    marginHorizontal: 0,
+    marginVertical: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: "#FF6B9D",
+    alignItems: "center",
+  },
+  quoteIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  quoteText: {
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 22,
+    textAlign: "center",
+    fontStyle: "italic",
+    letterSpacing: 0.3,
   },
   tasksToggle: { position: "relative", padding: 4 },
   badge: {

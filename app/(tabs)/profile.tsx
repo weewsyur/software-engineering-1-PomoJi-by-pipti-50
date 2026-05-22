@@ -817,10 +817,12 @@ export default function ProfileScreen() {
                 {isSavingProfile ? (
                   <ActivityIndicator size="small" color={colors.primary} />
                 ) : (
-                  <Text style={[styles.navSaveText, { color: colors.primary }]}> 
+                  <Text style={[styles.navSaveText, { color: colors.primary }]}>
                     Save
                   </Text>
                 )}
+              </TouchableOpacity>
+            </View>
             <ScrollView
               contentContainerStyle={styles.modalContent}
               keyboardShouldPersistTaps="handled"
@@ -973,7 +975,9 @@ export default function ProfileScreen() {
                 {isSavingProfile ? (
                   <ActivityIndicator size="small" color={colors.surface} />
                 ) : (
-                  <Text style={[styles.saveBtnText, { color: colors.surface }]}>Save Changes</Text>
+                  <Text style={[styles.saveBtnText, { color: colors.surface }]}>
+                    Save Changes
+                  </Text>
                 )}
               </TouchableOpacity>
             </ScrollView>

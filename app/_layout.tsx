@@ -1,17 +1,9 @@
 import { Stack } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider } from "@/contexts/ThemeContext";
-import { useEffect } from "react";
-import { Platform } from "react-native";
-import { Text } from "react-native";
+import { useEffect, useState } from "react";
+import { Platform, Text } from "react-native";
 import * as Font from "expo-font";
-import {
-  useFonts,
-  OpenSans_400Regular,
-  OpenSans_600SemiBold,
-  OpenSans_700Bold,
-} from "@expo-google-fonts/open-sans";
-import { useState } from "react";
 import { PWAInstallPrompt } from "@/app/components/PWAInstallPrompt";
 import { OfflineIndicator } from "@/app/components/OfflineIndicator";
 import { SyncingIndicator } from "@/app/components/SyncingIndicator";
@@ -65,11 +57,6 @@ function registerServiceWorker() {
 }
 
 export default function RootLayout() {
-  const [googleFontsLoaded] = useFonts({
-    OpenSans_400Regular,
-    OpenSans_600SemiBold,
-    OpenSans_700Bold,
-  });
   const [localFontsLoaded, setLocalFontsLoaded] = useState(false);
 
   useEffect(() => {
@@ -88,11 +75,13 @@ export default function RootLayout() {
         });
         if (mounted) setLocalFontsLoaded(true);
       } catch (e) {
-        // If local fonts aren't present, fall back to @expo-google-fonts
+        // If local fonts aren't present, fall back to system fonts
+        const errorMessage = e instanceof Error ? e.message : String(e);
         console.warn(
-          "Local Open Sans fonts not found or failed to load. Falling back to google fonts.",
-          e?.message || e,
+          "Local Open Sans fonts not found or failed to load. Using system fonts.",
+          errorMessage,
         );
+        if (mounted) setLocalFontsLoaded(false);
       }
     })();
     return () => {
@@ -100,24 +89,21 @@ export default function RootLayout() {
     };
   }, []);
 
-  const fontsReady = localFontsLoaded || googleFontsLoaded;
-
   // Apply a global default Text style to use Open Sans when fonts are loaded.
   useEffect(() => {
-    if (fontsReady) {
-      // Ensure defaultProps exists
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      Text.defaultProps = Text.defaultProps || {};
-      // Prefer local font family names if available
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      Text.defaultProps.style = {
-        ...(Text.defaultProps.style || {}),
-        fontFamily: localFontsLoaded
-          ? "OpenSans-Regular"
-          : "OpenSans_400Regular",
-      };
+    if (localFontsLoaded) {
+      try {
+        // Ensure defaultProps exists
+        const textComponent = Text as any;
+        textComponent.defaultProps = textComponent.defaultProps || {};
+        // Prefer local font family names if available
+        textComponent.defaultProps.style = {
+          ...(textComponent.defaultProps.style || {}),
+          fontFamily: "OpenSans-Regular",
+        };
+      } catch {
+        // Silently fail if can't set Text defaults
+      }
 
       // Also set a web body font-family for web platform to use the Open Sans face
       if (typeof document !== "undefined" && Platform.OS === "web") {
@@ -129,7 +115,7 @@ export default function RootLayout() {
         }
       }
     }
-  }, [fontsReady, localFontsLoaded, googleFontsLoaded]);
+  }, [localFontsLoaded]);
 
   return (
     <ThemeProvider>
