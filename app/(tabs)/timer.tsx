@@ -306,6 +306,16 @@ export default function TimerScreen() {
     setHasStarted(false);
   }, []);
 
+  // ── Quote rotation interval ─────────────────────────────────────────────
+  useEffect(() => {
+    if (hasStarted && isRunning) {
+      const quoteInterval = setInterval(() => {
+        setFocusLockQuote(getRandomQuote());
+      }, 5000);
+      return () => clearInterval(quoteInterval);
+    }
+  }, [hasStarted, isRunning]);
+
   // ── Countdown tick ───────────────────────────────────────────────────────
   useEffect(() => {
     if (isRunning) {
@@ -727,7 +737,7 @@ export default function TimerScreen() {
         </View>
 
         {/* Motivational Quote Display */}
-        {!hasStarted && (
+        {hasStarted && mode === "focus" && (
           <View
             style={StyleSheet.flatten([
               styles.quoteCard,
