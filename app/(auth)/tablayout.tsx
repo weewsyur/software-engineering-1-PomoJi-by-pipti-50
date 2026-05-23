@@ -51,6 +51,7 @@ const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
+    if (Platform.OS !== "web") return;
     const errorHandler = (error: ErrorEvent) => {
       console.error(error);
       setHasError(true);

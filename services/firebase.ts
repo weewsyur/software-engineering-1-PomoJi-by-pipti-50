@@ -2,6 +2,7 @@ import { getApp, getApps, initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { Platform } from "react-native";
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyAvJ3HwJe_TkNYYjfjAREhRve8oLa7v1Zs",
@@ -18,8 +19,8 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
-// Enable Firestore offline persistence for web platform
-if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+// Enable Firestore offline persistence for web platform only
+if (Platform.OS === "web" && typeof window !== 'undefined' && typeof navigator !== 'undefined') {
   enableIndexedDbPersistence(db).catch((err) => {
     if (err.code === 'failed-precondition') {
       console.warn('Multiple tabs open - offline persistence disabled');
