@@ -76,7 +76,7 @@ export interface StreakData {
 }
 
 /**
- * Calculate streak based on last activity date
+ * Shared streak transition rule used by the listener and the activity logger.
  *
  * LOGIC:
  * - If active TODAY → streak continues

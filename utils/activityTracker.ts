@@ -13,6 +13,7 @@ import {
   Timestamp,
   writeBatch,
 } from 'firebase/firestore';
+import { calculateStreak } from '@/utils/streakCalculator';
 
 export interface ActivityLog {
   userId: string;
@@ -87,38 +88,15 @@ export async function logActivity(
       lastActiveDate = data.lastActiveDate || null;
     }
 
-    // Calculate new streak based on last active date
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    // Reuse the shared streak transition helper so writes and reads stay in sync.
+    const calculated = calculateStreak(
+      lastActiveDate ? new Date(lastActiveDate.toMillis()) : null,
+      currentStreak,
+      timezone
+    );
 
-    let newStreak = currentStreak;
-
-    if (lastActiveDate) {
-      const lastDate = new Date(lastActiveDate.toMillis());
-      const lastDateStr = lastDate.toISOString().split('T')[0];
-      const todayStr = today.toISOString().split('T')[0];
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-      if (lastDateStr === todayStr) {
-        // Activity already logged today, maintain streak
-        newStreak = Math.max(currentStreak, 1);
-      } else if (lastDateStr === yesterdayStr) {
-        // Last activity was yesterday, increment streak
-        newStreak = currentStreak + 1;
-      } else {
-        // Gap > 1 day, reset to 1
-        newStreak = 1;
-      }
-    } else {
-      // First activity ever
-      newStreak = 1;
-    }
-
-    // Update highest streak if needed
-    if (newStreak > highestStreak) {
-      highestStreak = newStreak;
-    }
+    const newStreak = calculated.currentStreak || 1;
+    highestStreak = Math.max(highestStreak, calculated.highestStreak);
 
     batch.set(
       streakRef,
