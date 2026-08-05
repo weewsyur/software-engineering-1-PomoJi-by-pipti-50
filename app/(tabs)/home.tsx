@@ -18,6 +18,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   FlatList,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LucideIcon } from "@/app/components/LucideIcon";
@@ -63,6 +64,60 @@ const fmtDate = (iso: string) =>
     minute: "2-digit",
   });
 
+function AnimatedActivityCard({
+  activity,
+  initials,
+  profile,
+  fmtActivityDate,
+}: {
+  activity: any;
+  initials: string;
+  profile: { name: string; photoUri: string | null };
+  fmtActivityDate: string;
+}) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(10)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 260,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, slideAnim]);
+
+  return (
+    <Animated.View
+      style={{
+        opacity: fadeAnim,
+        transform: [{ translateY: slideAnim }],
+      }}
+    >
+      <View style={styles.activityCardWrap}>
+        <ActivityCard
+          initials={initials}
+          name={profile.name}
+          timestamp={fmtActivityDate}
+          title={activity.title}
+          sessions={activity.sessions}
+          totalHours={fmtTotalHours(activity.totalTime)}
+          images={activity.images.map((uri: string) => ({ uri }))}
+          photoUri={profile.photoUri}
+          userName={activity.userName}
+          userPhotoUri={activity.userPhotoUri}
+        />
+      </View>
+    </Animated.View>
+  );
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const { isDarkMode } = useTheme();
@@ -82,6 +137,10 @@ export default function HomeScreen() {
   const { reminders, pendingCount } = useReminders();
   const { activities } = useSocialActivities();
   const { profile } = useProfile();
+  const headerButtonScale = useRef(new Animated.Value(1)).current;
+  const iconButtonScale = useRef(new Animated.Value(1)).current;
+  const searchButtonScale = useRef(new Animated.Value(1)).current;
+  const followButtonScale = useRef(new Animated.Value(1)).current;
   const {
     notifications,
     unreadCount: notificationCount,
@@ -178,6 +237,18 @@ export default function HomeScreen() {
     };
   }, [searchQuery, runUserSearch]);
 
+  const animatePressScale = useCallback(
+    (anim: Animated.Value, pressed: boolean) => {
+      Animated.spring(anim, {
+        toValue: pressed ? 0.97 : 1,
+        friction: 6,
+        tension: 140,
+        useNativeDriver: true,
+      }).start();
+    },
+    [],
+  );
+
   const handleFollow = async (target: UserSearchResult) => {
     setFollowingUid(target.id);
     try {
@@ -212,31 +283,45 @@ export default function HomeScreen() {
           HOME
         </Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => setShowSearch(true)}
-          >
-            <LucideIcon name="search-outline" size={20} color={colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.bellBtn}
-            onPress={() => setShowNotifications(true)}
-          >
-            {(pendingCount > 0 || notificationCount > 0) && (
-              <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-                <Text style={[styles.badgeText, { color: colors.surface }]}>
-                  {pendingCount + notificationCount > 9
-                    ? "9+"
-                    : pendingCount + notificationCount}
-                </Text>
-              </View>
-            )}
-            <LucideIcon
-              name="notifications-outline"
-              size={20}
-              color={colors.text}
-            />
-          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: iconButtonScale }] }}>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => setShowSearch(true)}
+              onPressIn={() => animatePressScale(iconButtonScale, true)}
+              onPressOut={() => animatePressScale(iconButtonScale, false)}
+              accessibilityRole="button"
+              accessibilityHint="Open the friend search sheet"
+            >
+              <LucideIcon name="search-outline" size={20} color={colors.text} />
+            </TouchableOpacity>
+          </Animated.View>
+          <Animated.View style={{ transform: [{ scale: headerButtonScale }] }}>
+            <TouchableOpacity
+              style={styles.bellBtn}
+              onPress={() => setShowNotifications(true)}
+              onPressIn={() => animatePressScale(headerButtonScale, true)}
+              onPressOut={() => animatePressScale(headerButtonScale, false)}
+              accessibilityRole="button"
+              accessibilityHint="Open the notifications sheet"
+            >
+              {(pendingCount > 0 || notificationCount > 0) && (
+                <View
+                  style={[styles.badge, { backgroundColor: colors.primary }]}
+                >
+                  <Text style={[styles.badgeText, { color: colors.surface }]}>
+                    {pendingCount + notificationCount > 9
+                      ? "9+"
+                      : pendingCount + notificationCount}
+                  </Text>
+                </View>
+              )}
+              <LucideIcon
+                name="notifications-outline"
+                size={20}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </Animated.View>
         </View>
       </View>
 
@@ -268,20 +353,13 @@ export default function HomeScreen() {
           </View>
         ) : (
           activities.map((activity) => (
-            <View key={activity.id} style={styles.activityCardWrap}>
-              <ActivityCard
-                initials={initials}
-                name={profile.name}
-                timestamp={fmtDate(activity.createdAt)}
-                title={activity.title}
-                sessions={activity.sessions}
-                totalHours={fmtTotalHours(activity.totalTime)}
-                images={activity.images.map((uri) => ({ uri }))}
-                photoUri={profile.photoUri}
-                userName={activity.userName}
-                userPhotoUri={activity.userPhotoUri}
-              />
-            </View>
+            <AnimatedActivityCard
+              key={activity.id}
+              activity={activity}
+              initials={initials}
+              profile={profile}
+              fmtActivityDate={fmtDate(activity.createdAt)}
+            />
           ))
         )}
       </ScrollView>
@@ -290,6 +368,7 @@ export default function HomeScreen() {
         visible={showReminders}
         animationType="fade"
         transparent
+        statusBarTranslucent
         onRequestClose={() => setShowReminders(false)}
       >
         <View
@@ -371,6 +450,7 @@ export default function HomeScreen() {
         visible={showSearch}
         animationType="slide"
         transparent
+        statusBarTranslucent
         onRequestClose={() => setShowSearch(false)}
       >
         <KeyboardAvoidingView
@@ -411,15 +491,23 @@ export default function HomeScreen() {
                 onSubmitEditing={runUserSearch}
                 returnKeyType="search"
               />
-              <TouchableOpacity
-                style={[
-                  styles.searchSubmitBtn,
-                  { backgroundColor: colors.primary },
-                ]}
-                onPress={runUserSearch}
+              <Animated.View
+                style={{ transform: [{ scale: searchButtonScale }] }}
               >
-                <LucideIcon name="search" size={16} color={colors.surface} />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.searchSubmitBtn,
+                    { backgroundColor: colors.primary },
+                  ]}
+                  onPress={runUserSearch}
+                  onPressIn={() => animatePressScale(searchButtonScale, true)}
+                  onPressOut={() => animatePressScale(searchButtonScale, false)}
+                  accessibilityRole="button"
+                  accessibilityHint="Search for users"
+                >
+                  <LucideIcon name="search" size={16} color={colors.surface} />
+                </TouchableOpacity>
+              </Animated.View>
             </View>
 
             {searching ? (
@@ -478,35 +566,47 @@ export default function HomeScreen() {
                         {item.username}
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={StyleSheet.flatten([
-                        styles.addBtn,
-                        { backgroundColor: colors.primary },
-                        followStatusMap[item.id] === "following" && {
-                          backgroundColor: colors.textMuted,
-                        },
-                        (followingUid === item.id ||
-                          followStatusMap[item.id] === "following") &&
-                          styles.addBtnDisabled,
-                      ])}
-                      disabled={
-                        followingUid === item.id ||
-                        followStatusMap[item.id] === "following"
-                      }
-                      onPress={() => handleFollow(item)}
+                    <Animated.View
+                      style={{ transform: [{ scale: followButtonScale }] }}
                     >
-                      <Text
-                        style={[styles.addBtnText, { color: colors.surface }]}
+                      <TouchableOpacity
+                        style={StyleSheet.flatten([
+                          styles.addBtn,
+                          { backgroundColor: colors.primary },
+                          followStatusMap[item.id] === "following" && {
+                            backgroundColor: colors.textMuted,
+                          },
+                          (followingUid === item.id ||
+                            followStatusMap[item.id] === "following") &&
+                            styles.addBtnDisabled,
+                        ])}
+                        disabled={
+                          followingUid === item.id ||
+                          followStatusMap[item.id] === "following"
+                        }
+                        onPress={() => handleFollow(item)}
+                        onPressIn={() =>
+                          animatePressScale(followButtonScale, true)
+                        }
+                        onPressOut={() =>
+                          animatePressScale(followButtonScale, false)
+                        }
+                        accessibilityRole="button"
+                        accessibilityHint="Follow this user"
                       >
-                        {followingUid === item.id
-                          ? "Following..."
-                          : followStatusMap[item.id] === "following"
-                            ? "Following"
-                            : followStatusMap[item.id] === "followBack"
-                              ? "Follow Back"
-                              : "Follow"}
-                      </Text>
-                    </TouchableOpacity>
+                        <Text
+                          style={[styles.addBtnText, { color: colors.surface }]}
+                        >
+                          {followingUid === item.id
+                            ? "Following..."
+                            : followStatusMap[item.id] === "following"
+                              ? "Following"
+                              : followStatusMap[item.id] === "followBack"
+                                ? "Follow Back"
+                                : "Follow"}
+                        </Text>
+                      </TouchableOpacity>
+                    </Animated.View>
                   </View>
                 )}
               />

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Modal,
   ScrollView,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
+  Animated,
 } from "react-native";
 import {
   X,
@@ -86,6 +87,115 @@ const getNotificationPreview = (notification: Notification): string => {
   }
 };
 
+const AnimatedNotificationRow = ({
+  notification,
+  onPress,
+}: {
+  notification: Notification;
+  onPress: () => void;
+}) => {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(8)).current;
+  const pressAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 260,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, slideAnim]);
+
+  const IconComponent = getNotificationIcon(notification.type);
+
+  return (
+    <Animated.View
+      style={{
+        opacity: fadeAnim,
+        transform: [{ translateY: slideAnim }],
+      }}
+    >
+      <Animated.View style={{ transform: [{ scale: pressAnim }] }}>
+        <TouchableOpacity
+          style={[styles.notificationItem, !notification.read && styles.unread]}
+          onPress={onPress}
+          activeOpacity={0.7}
+          onPressIn={() => {
+            Animated.spring(pressAnim, {
+              toValue: 0.98,
+              friction: 6,
+              tension: 140,
+              useNativeDriver: true,
+            }).start();
+          }}
+          onPressOut={() => {
+            Animated.spring(pressAnim, {
+              toValue: 1,
+              friction: 6,
+              tension: 140,
+              useNativeDriver: true,
+            }).start();
+          }}
+        >
+          <View
+            style={[
+              styles.iconContainer,
+              notification.type === "task_reminder" && {
+                backgroundColor: "#4C7AC9" + "20",
+              },
+              notification.type === "session_complete" && {
+                backgroundColor: "#10B981" + "20",
+              },
+              notification.type === "follow" && {
+                backgroundColor: "#8B5CF6" + "20",
+              },
+            ]}
+          >
+            <IconComponent
+              size={18}
+              color={
+                notification.type === "task_reminder"
+                  ? "#4C7AC9"
+                  : notification.type === "session_complete"
+                    ? "#10B981"
+                    : notification.type === "follow"
+                      ? "#8B5CF6"
+                      : Colors.primary
+              }
+              strokeWidth={2}
+            />
+          </View>
+          <View style={styles.notificationContent}>
+            <Text
+              style={[styles.notificationText, { color: Colors.text }]}
+              numberOfLines={1}
+            >
+              {getNotificationTitle(notification)}
+            </Text>
+            <Text
+              style={[styles.notificationPreview, { color: Colors.textMuted }]}
+              numberOfLines={1}
+            >
+              {getNotificationPreview(notification)}
+            </Text>
+            <Text style={[styles.timestamp, { color: Colors.textMuted }]}>
+              {fmtDate(notification.createdAt)}
+            </Text>
+          </View>
+          {!notification.read && <View style={styles.unreadDot} />}
+        </TouchableOpacity>
+      </Animated.View>
+    </Animated.View>
+  );
+};
+
 export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   visible,
   onClose,
@@ -120,6 +230,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         visible={visible}
         animationType="fade"
         transparent
+        statusBarTranslucent
         onRequestClose={onClose}
       >
         <View style={styles.overlay}>
@@ -159,80 +270,13 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   <Text style={styles.emptyText}>No notifications yet</Text>
                 </View>
               ) : (
-                notifications.map((notification) => {
-                  const IconComponent = getNotificationIcon(notification.type);
-                  return (
-                    <TouchableOpacity
-                      key={notification.id}
-                      style={[
-                        styles.notificationItem,
-                        !notification.read && styles.unread,
-                      ]}
-                      onPress={() => handleNotificationPress(notification)}
-                      activeOpacity={0.7}
-                    >
-                      <View
-                        style={[
-                          styles.iconContainer,
-                          notification.type === "task_reminder" && {
-                            backgroundColor: "#4C7AC9" + "20",
-                          },
-                          notification.type === "session_complete" && {
-                            backgroundColor: "#10B981" + "20",
-                          },
-                          notification.type === "follow" && {
-                            backgroundColor: "#8B5CF6" + "20",
-                          },
-                        ]}
-                      >
-                        <IconComponent
-                          size={18}
-                          color={
-                            notification.type === "task_reminder"
-                              ? "#4C7AC9"
-                              : notification.type === "session_complete"
-                                ? "#10B981"
-                                : notification.type === "follow"
-                                  ? "#8B5CF6"
-                                  : Colors.primary
-                          }
-                          strokeWidth={2}
-                        />
-                      </View>
-                      <View style={styles.notificationContent}>
-                        <Text
-                          style={[
-                            styles.notificationText,
-                            { color: Colors.text },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {getNotificationTitle(notification)}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.notificationPreview,
-                            { color: Colors.textMuted },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {getNotificationPreview(notification)}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.timestamp,
-                            { color: Colors.textMuted },
-                          ]}
-                        >
-                          {fmtDate(notification.createdAt)}
-                        </Text>
-                      </View>
-                      {!notification.read && (
-                        <View style={styles.unreadDot} />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })
+                notifications.map((notification) => (
+                  <AnimatedNotificationRow
+                    key={notification.id}
+                    notification={notification}
+                    onPress={() => handleNotificationPress(notification)}
+                  />
+                ))
               )}
             </ScrollView>
           </View>
@@ -364,4 +408,3 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
 });
-

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Modal,
   View,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Animated,
 } from "react-native";
 import {
   X,
@@ -92,12 +93,13 @@ const getNotificationMessage = (notification: Notification): string => {
   }
 };
 
-export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = ({
-  visible,
-  notification,
-  onClose,
-  onMarkAsRead,
-}) => {
+export const NotificationDetailModal: React.FC<
+  NotificationDetailModalProps
+> = ({ visible, notification, onClose, onMarkAsRead }) => {
+  const revealOpacity = useRef(new Animated.Value(0)).current;
+  const revealY = useRef(new Animated.Value(10)).current;
+  const actionScale = useRef(new Animated.Value(1)).current;
+
   useEffect(() => {
     if (visible && notification && !notification.read) {
       markNotificationAsRead(notification.id).then(() => {
@@ -107,6 +109,28 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
       });
     }
   }, [visible, notification]);
+
+  useEffect(() => {
+    if (!visible) {
+      revealOpacity.setValue(0);
+      revealY.setValue(10);
+      actionScale.setValue(1);
+      return;
+    }
+
+    Animated.parallel([
+      Animated.timing(revealOpacity, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(revealY, {
+        toValue: 0,
+        duration: 260,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [visible, revealOpacity, revealY, actionScale]);
 
   if (!notification) return null;
 
@@ -120,10 +144,17 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
       visible={visible}
       animationType="fade"
       transparent
+      statusBarTranslucent
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={[styles.container, { backgroundColor: Colors.surface }]}>
+        <Animated.View
+          style={[
+            styles.container,
+            { backgroundColor: Colors.surface, opacity: revealOpacity },
+            { transform: [{ translateY: revealY }] },
+          ]}
+        >
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View
@@ -153,7 +184,9 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
             {notification.type === "task_reminder" && (
               <View style={styles.detailsSection}>
                 <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: Colors.textMuted }]}>
+                  <Text
+                    style={[styles.detailLabel, { color: Colors.textMuted }]}
+                  >
                     Task
                   </Text>
                   <Text style={[styles.detailValue, { color: Colors.text }]}>
@@ -255,15 +288,33 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
             </Text>
           </ScrollView>
 
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: Colors.primary }]}
-            onPress={onClose}
-          >
-            <Text style={[styles.actionBtnText, { color: Colors.surface }]}>
-              Done
-            </Text>
-          </TouchableOpacity>
-        </View>
+          <Animated.View style={{ transform: [{ scale: actionScale }] }}>
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: Colors.primary }]}
+              onPress={onClose}
+              onPressIn={() => {
+                Animated.spring(actionScale, {
+                  toValue: 0.98,
+                  friction: 6,
+                  tension: 140,
+                  useNativeDriver: true,
+                }).start();
+              }}
+              onPressOut={() => {
+                Animated.spring(actionScale, {
+                  toValue: 1,
+                  friction: 6,
+                  tension: 140,
+                  useNativeDriver: true,
+                }).start();
+              }}
+            >
+              <Text style={[styles.actionBtnText, { color: Colors.surface }]}>
+                Done
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
       </View>
     </Modal>
   );

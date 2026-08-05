@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
   FlatList,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -196,6 +197,10 @@ export default function ProfileScreen() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const fileInputRef = useRef<any>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const profileRevealOpacity = useRef(new Animated.Value(0)).current;
+  const profileRevealY = useRef(new Animated.Value(8)).current;
+  const editButtonScale = useRef(new Animated.Value(1)).current;
+  const saveButtonScale = useRef(new Animated.Value(1)).current;
 
   // ── Fetch profile from Firestore ────────────────────────────────────────────
   useEffect(() => {
@@ -232,6 +237,32 @@ export default function ProfileScreen() {
 
     fetchProfile();
   }, []);
+
+  const animatePressScale = (anim: Animated.Value, pressed: boolean) => {
+    Animated.spring(anim, {
+      toValue: pressed ? 0.97 : 1,
+      friction: 6,
+      tension: 140,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  useEffect(() => {
+    if (loadingProfile || loadingStats) return;
+
+    Animated.parallel([
+      Animated.timing(profileRevealOpacity, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(profileRevealY, {
+        toValue: 0,
+        duration: 260,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [loadingProfile, loadingStats, profileRevealOpacity, profileRevealY]);
 
   // ── Fetch stats from Firestore ───────────────────────────────────────────────
   useEffect(() => {
@@ -593,16 +624,22 @@ export default function ProfileScreen() {
         <Text style={[styles.headerLabel, { color: colors.textMuted }]}>
           PROFILE
         </Text>
-        <TouchableOpacity
-          style={[styles.editChip, { backgroundColor: colors.primaryMuted }]}
-          onPress={openModal}
-          activeOpacity={0.7}
-        >
-          <LucideIcon name="pencil" size={12} color={colors.primary} />
-          <Text style={[styles.editChipText, { color: colors.primary }]}>
-            Edit
-          </Text>
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: editButtonScale }] }}>
+          <TouchableOpacity
+            style={[styles.editChip, { backgroundColor: colors.primaryMuted }]}
+            onPress={openModal}
+            activeOpacity={0.7}
+            onPressIn={() => animatePressScale(editButtonScale, true)}
+            onPressOut={() => animatePressScale(editButtonScale, false)}
+            accessibilityRole="button"
+            accessibilityHint="Open the profile editor"
+          >
+            <LucideIcon name="pencil" size={12} color={colors.primary} />
+            <Text style={[styles.editChipText, { color: colors.primary }]}>
+              Edit
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
 
       <ScrollView
@@ -610,11 +647,16 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Profile hero */}
-        <View
+        <Animated.View
           style={StyleSheet.flatten([
             SharedStyles.card,
             styles.profileCard,
-            { backgroundColor: colors.surface, borderColor: colors.border },
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              opacity: profileRevealOpacity,
+              transform: [{ translateY: profileRevealY }],
+            },
           ])}
         >
           <ProfileAvatar profile={profile} size={80} onPress={openModal} />
@@ -672,7 +714,7 @@ export default function ProfileScreen() {
               </React.Fragment>
             ))}
           </View>
-        </View>
+        </Animated.View>
 
         {/* Settings */}
         <Text
@@ -775,6 +817,7 @@ export default function ProfileScreen() {
         visible={modalVisible}
         animationType="slide"
         presentationStyle="pageSheet"
+        statusBarTranslucent
         onRequestClose={() => setModalVisible(false)}
       >
         <KeyboardAvoidingView
@@ -962,24 +1005,34 @@ export default function ProfileScreen() {
               </Text>
 
               {/* CTA */}
-              <TouchableOpacity
-                style={[
-                  styles.saveBtn,
-                  { backgroundColor: colors.primary },
-                  isSavingProfile && styles.saveBtnDisabled,
-                ]}
-                onPress={handleSave}
-                activeOpacity={0.85}
-                disabled={isSavingProfile}
+              <Animated.View
+                style={{ transform: [{ scale: saveButtonScale }] }}
               >
-                {isSavingProfile ? (
-                  <ActivityIndicator size="small" color={colors.surface} />
-                ) : (
-                  <Text style={[styles.saveBtnText, { color: colors.surface }]}>
-                    Save Changes
-                  </Text>
-                )}
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.saveBtn,
+                    { backgroundColor: colors.primary },
+                    isSavingProfile && styles.saveBtnDisabled,
+                  ]}
+                  onPress={handleSave}
+                  activeOpacity={0.85}
+                  disabled={isSavingProfile}
+                  onPressIn={() => animatePressScale(saveButtonScale, true)}
+                  onPressOut={() => animatePressScale(saveButtonScale, false)}
+                  accessibilityRole="button"
+                  accessibilityHint="Save profile changes"
+                >
+                  {isSavingProfile ? (
+                    <ActivityIndicator size="small" color={colors.surface} />
+                  ) : (
+                    <Text
+                      style={[styles.saveBtnText, { color: colors.surface }]}
+                    >
+                      Save Changes
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </Animated.View>
             </ScrollView>
           </SafeAreaView>
         </KeyboardAvoidingView>
@@ -989,6 +1042,7 @@ export default function ProfileScreen() {
         visible={connectionsModalVisible}
         animationType="fade"
         transparent
+        statusBarTranslucent
         onRequestClose={() => setConnectionsModalVisible(false)}
       >
         <View

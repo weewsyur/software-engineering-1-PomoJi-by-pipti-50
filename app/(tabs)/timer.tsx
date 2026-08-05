@@ -29,9 +29,7 @@ import { TaskModal } from "@/app/components/timer/TaskModal";
 import { TaskRow } from "@/app/components/timer/TaskRow";
 import { BreakBanner } from "@/app/components/timer/BreakBanner";
 import { TaskPicker } from "@/app/components/timer/TaskPicker";
-import {
-  initializeNotifications,
-} from "@/services/notificationService";
+import { initializeNotifications } from "@/services/notificationService";
 import { createSessionCompleteNotification } from "@/services/notificationPersistence";
 import { showFocusSessionAlert } from "@/services/webNotificationService";
 import { soundService } from "@/services/soundService";
@@ -282,6 +280,9 @@ export default function TimerScreen() {
   // ── Refs ─────────────────────────────────────────────────────────────────
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const glowRef = useRef(new Animated.Value(0)).current;
+  const timerButtonScale = useRef(new Animated.Value(1)).current;
+  const stopButtonScale = useRef(new Animated.Value(1)).current;
+  const taskButtonScale = useRef(new Animated.Value(1)).current;
   // Keep latest activeTask accessible inside interval closure
   const activeTaskRef = useRef<Task | null>(null);
   useEffect(() => {
@@ -298,6 +299,18 @@ export default function TimerScreen() {
   }, [taskId, tasks]);
 
   const currentMode = MODES.find((m) => m.key === mode)!;
+
+  const animatePressScale = useCallback(
+    (anim: Animated.Value, pressed: boolean) => {
+      Animated.spring(anim, {
+        toValue: pressed ? 0.97 : 1,
+        friction: 6,
+        tension: 140,
+        useNativeDriver: true,
+      }).start();
+    },
+    [],
+  );
 
   const endBreak = useCallback(() => {
     setMode("focus");
@@ -652,25 +665,31 @@ export default function TimerScreen() {
                 <Text style={styles.focusWarningText}>Return to app!</Text>
               </View>
             )}
-            <TouchableOpacity
-              style={styles.tasksToggle}
-              onPress={() => setShowTasks((v) => !v)}
-            >
-              {pendingTasks > 0 && (
-                <View
-                  style={[styles.badge, { backgroundColor: colors.primary }]}
-                >
-                  <Text style={[styles.badgeText, { color: colors.surface }]}>
-                    {pendingTasks}
-                  </Text>
-                </View>
-              )}
-              <LucideIcon
-                name={showTasks ? "list" : "list-outline"}
-                size={20}
-                color={showTasks ? colors.primary : colors.textMuted}
-              />
-            </TouchableOpacity>
+            <Animated.View style={{ transform: [{ scale: taskButtonScale }] }}>
+              <TouchableOpacity
+                style={styles.tasksToggle}
+                onPress={() => setShowTasks((v) => !v)}
+                onPressIn={() => animatePressScale(taskButtonScale, true)}
+                onPressOut={() => animatePressScale(taskButtonScale, false)}
+                accessibilityRole="button"
+                accessibilityHint="Toggle the task list panel"
+              >
+                {pendingTasks > 0 && (
+                  <View
+                    style={[styles.badge, { backgroundColor: colors.primary }]}
+                  >
+                    <Text style={[styles.badgeText, { color: colors.surface }]}>
+                      {pendingTasks}
+                    </Text>
+                  </View>
+                )}
+                <LucideIcon
+                  name={showTasks ? "list" : "list-outline"}
+                  size={20}
+                  color={showTasks ? colors.primary : colors.textMuted}
+                />
+              </TouchableOpacity>
+            </Animated.View>
           </View>
         </View>
 
@@ -768,70 +787,103 @@ export default function TimerScreen() {
             <Text style={[styles.activeTaskLabel, { color: colors.textMuted }]}>
               Active Task
             </Text>
-            <TouchableOpacity
-              style={styles.activeTaskButton}
-              onPress={() => setTaskPickerVisible(true)}
-              disabled={hasStarted}
-            >
-              <View style={styles.activeTaskTextWrap}>
-                <Text
-                  style={[styles.activeTaskTitle, { color: colors.text }]}
-                  numberOfLines={1}
-                >
-                  {activeTask?.title ?? "Unassigned Session"}
-                </Text>
-                <Text
-                  style={[styles.activeTaskHint, { color: colors.textMuted }]}
-                >
-                  {hasStarted
-                    ? "Locked during this session"
-                    : "Tap to choose task"}
-                </Text>
-              </View>
-              <LucideIcon
-                name="chevron-down"
-                size={18}
-                color={colors.textMuted}
-              />
-            </TouchableOpacity>
+            <Animated.View style={{ transform: [{ scale: taskButtonScale }] }}>
+              <TouchableOpacity
+                style={styles.activeTaskButton}
+                onPress={() => setTaskPickerVisible(true)}
+                disabled={hasStarted}
+                onPressIn={() => animatePressScale(taskButtonScale, true)}
+                onPressOut={() => animatePressScale(taskButtonScale, false)}
+                accessibilityRole="button"
+                accessibilityHint="Choose the active task for the timer"
+              >
+                <View style={styles.activeTaskTextWrap}>
+                  <Text
+                    style={[styles.activeTaskTitle, { color: colors.text }]}
+                    numberOfLines={1}
+                  >
+                    {activeTask?.title ?? "Unassigned Session"}
+                  </Text>
+                  <Text
+                    style={[styles.activeTaskHint, { color: colors.textMuted }]}
+                  >
+                    {hasStarted
+                      ? "Locked during this session"
+                      : "Tap to choose task"}
+                  </Text>
+                </View>
+                <LucideIcon
+                  name="chevron-down"
+                  size={18}
+                  color={colors.textMuted}
+                />
+              </TouchableOpacity>
+            </Animated.View>
           </View>
         )}
 
         {/* Controls */}
         <View style={styles.controls}>
           {hasStarted ? (
-            <TouchableOpacity style={styles.resetBtn} onPress={handleStop}>
-              <LucideIcon name="stop" size={20} color={colors.textMuted} />
-            </TouchableOpacity>
+            <Animated.View style={{ transform: [{ scale: stopButtonScale }] }}>
+              <TouchableOpacity
+                style={styles.resetBtn}
+                onPress={handleStop}
+                onPressIn={() => animatePressScale(stopButtonScale, true)}
+                onPressOut={() => animatePressScale(stopButtonScale, false)}
+                accessibilityRole="button"
+                accessibilityHint="Stop the current timer session"
+              >
+                <LucideIcon name="stop" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+            </Animated.View>
           ) : (
             <View style={styles.resetBtn} />
           )}
 
           {!hasStarted ? (
-            <TouchableOpacity
-              style={[styles.playBtn, { backgroundColor: colors.primary }]}
-              onPress={handleStart}
-            >
-              <LucideIcon name="play" size={28} color={colors.surface} />
-            </TouchableOpacity>
+            <Animated.View style={{ transform: [{ scale: timerButtonScale }] }}>
+              <TouchableOpacity
+                style={[styles.playBtn, { backgroundColor: colors.primary }]}
+                onPress={handleStart}
+                onPressIn={() => animatePressScale(timerButtonScale, true)}
+                onPressOut={() => animatePressScale(timerButtonScale, false)}
+                accessibilityRole="button"
+                accessibilityHint="Start the selected timer mode"
+              >
+                <LucideIcon name="play" size={28} color={colors.surface} />
+              </TouchableOpacity>
+            </Animated.View>
           ) : isRunning ? (
-            <TouchableOpacity
-              style={[styles.playBtn, { backgroundColor: colors.primary }]}
-              onPress={handlePause}
-            >
-              <LucideIcon name="pause" size={28} color={colors.surface} />
-            </TouchableOpacity>
+            <Animated.View style={{ transform: [{ scale: timerButtonScale }] }}>
+              <TouchableOpacity
+                style={[styles.playBtn, { backgroundColor: colors.primary }]}
+                onPress={handlePause}
+                onPressIn={() => animatePressScale(timerButtonScale, true)}
+                onPressOut={() => animatePressScale(timerButtonScale, false)}
+                accessibilityRole="button"
+                accessibilityHint="Pause the current timer session"
+              >
+                <LucideIcon name="pause" size={28} color={colors.surface} />
+              </TouchableOpacity>
+            </Animated.View>
           ) : (
-            <TouchableOpacity
-              style={StyleSheet.flatten([
-                styles.playBtn,
-                styles.resumeBtn,
-                { backgroundColor: colors.primary },
-              ])}
-              onPress={handleResume}
-            >
-              <LucideIcon name="play" size={28} color={colors.surface} />
-            </TouchableOpacity>
+            <Animated.View style={{ transform: [{ scale: timerButtonScale }] }}>
+              <TouchableOpacity
+                style={StyleSheet.flatten([
+                  styles.playBtn,
+                  styles.resumeBtn,
+                  { backgroundColor: colors.primary },
+                ])}
+                onPress={handleResume}
+                onPressIn={() => animatePressScale(timerButtonScale, true)}
+                onPressOut={() => animatePressScale(timerButtonScale, false)}
+                accessibilityRole="button"
+                accessibilityHint="Resume the paused timer session"
+              >
+                <LucideIcon name="play" size={28} color={colors.surface} />
+              </TouchableOpacity>
+            </Animated.View>
           )}
 
           <View
@@ -979,6 +1031,7 @@ export default function TimerScreen() {
           visible={focusLockModalVisible}
           animationType="fade"
           transparent
+          statusBarTranslucent
           onRequestClose={() => setFocusLockModalVisible(false)}
         >
           <View style={styles.focusModalOverlay}>
