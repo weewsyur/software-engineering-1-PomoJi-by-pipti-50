@@ -24,6 +24,11 @@ service cloud.firestore {
         allow read: if isSignedIn();
         allow create, update, delete: if isOwner(userId);
       }
+
+      match /tasks/{taskId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isOwner(userId);
+      }
     }
 
     match /following/{userId}/list/{targetId} {
