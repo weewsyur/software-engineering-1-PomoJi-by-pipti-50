@@ -80,14 +80,8 @@ export default function HistoryScreen() {
   const { width: screenWidth } = useWindowDimensions();
 
   useEffect(() => {
-    const syncUserId = () => {
-      const storeUser = getUserStore();
-      setUserId(auth.currentUser?.uid ?? storeUser.userId ?? null);
-    };
-
-    syncUserId();
-    const unsubscribe = auth.onAuthStateChanged(() => {
-      syncUserId();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setUserId(user?.uid ?? null);
     });
 
     return () => unsubscribe();

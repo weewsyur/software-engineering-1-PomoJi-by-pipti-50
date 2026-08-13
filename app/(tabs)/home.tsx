@@ -168,21 +168,13 @@ export default function HomeScreen() {
     return email.slice(0, 2).toUpperCase();
   }, [userId]);
 
-  // Keep the active user id synchronized with Firebase Auth so the streak
-  // listener and profile readers share the same live source of truth.
+  // Keep the active user id synchronized with Firebase Auth. This runs only
+  // after Auth has confirmed the current session state, avoiding the cold-start
+  // race where a stale store value is used before the token is ready.
   useEffect(() => {
-    const syncUser = () => {
-      const storeUser = getUserStore();
-      const activeUserId = auth.currentUser?.uid ?? storeUser.userId;
-      setUserId(activeUserId);
-      setCurrentUsername(
-        auth.currentUser?.displayName || storeUser.username || "User",
-      );
-    };
-
-    syncUser();
-    const unsubscribe = auth.onAuthStateChanged(() => {
-      syncUser();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setUserId(user?.uid ?? null);
+      setCurrentUsername(user?.displayName || "User");
     });
 
     return () => unsubscribe();

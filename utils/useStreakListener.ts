@@ -2,7 +2,7 @@
 // Real-time Firestore listener for streak data
 // Uses onSnapshot for instant updates across devices
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   doc,
   onSnapshot,
@@ -50,21 +50,34 @@ export function useStreakListener(
   const [streakData, setStreakData] = useState<StreakData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!userId) {
       setLoading(false);
       setStreakData(null);
+      setError(null);
       return;
     }
 
-    // Create reference to the canonical streak document for the user.
-    const streakDocRef = doc(db, 'streaks', userId);
+    const isPermissionError = (err: unknown) => {
+      const code =
+        typeof err === 'object' && err !== null && 'code' in err
+          ? String((err as { code?: string }).code)
+          : '';
+      const message = err instanceof Error ? err.message : String(err ?? '');
+      return code === 'permission-denied' || message.toLowerCase().includes('permission');
+    };
 
-    // Set up real-time listener
+    const streakDocRef = doc(db, 'streaks', userId);
+    let cancelled = false;
+
     const unsubscribe = onSnapshot(
       streakDocRef,
       (snapshot: DocumentSnapshot) => {
+        if (cancelled) return;
+
         try {
           if (snapshot.exists()) {
             const data = snapshot.data() as StreakDocument;
@@ -85,10 +98,6 @@ export function useStreakListener(
             });
             setError(null);
           } else {
-            // Document doesn't exist yet. Keep the listener state as null so
-            // the caller can run its own initialization path and create the
-            // backing streak doc instead of treating the missing document as a
-            // loaded, valid streak record.
             setStreakData(null);
           }
         } catch (err) {
@@ -98,14 +107,36 @@ export function useStreakListener(
         }
       },
       (err) => {
+        if (cancelled) return;
+
+        if (isPermissionError(err)) {
+          setError(err instanceof Error ? err : new Error('Permission denied'));
+          setLoading(false);
+
+          if (retryTimeoutRef.current) {
+            clearTimeout(retryTimeoutRef.current);
+          }
+
+          retryTimeoutRef.current = setTimeout(() => {
+            setRetryCount((count) => count + 1);
+          }, 750);
+          return;
+        }
+
         setError(err instanceof Error ? err : new Error('Unknown error'));
         setLoading(false);
       }
     );
 
-    // Cleanup subscription on unmount
-    return () => unsubscribe();
-  }, [userId, db, userTimezone]);
+    return () => {
+      cancelled = true;
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+      unsubscribe();
+    };
+  }, [userId, db, userTimezone, retryCount]);
 
   return { streakData, loading, error };
 }
