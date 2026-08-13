@@ -10,7 +10,7 @@ import {
   DocumentSnapshot,
   Timestamp,
 } from 'firebase/firestore';
-import { calculateStreak, StreakData } from './streakCalculator';
+import { StreakData, getDisplayStreak } from './streakCalculator';
 
 export interface StreakDocument {
   userId: string;
@@ -58,8 +58,8 @@ export function useStreakListener(
       return;
     }
 
-    // Create reference to user's streak document
-    const streakDocRef = doc(db, 'users', userId, 'streakData', 'current');
+    // Create reference to the canonical streak document for the user.
+    const streakDocRef = doc(db, 'streaks', userId);
 
     // Set up real-time listener
     const unsubscribe = onSnapshot(
@@ -72,22 +72,24 @@ export function useStreakListener(
               ? new Date(data.lastActiveDate.toMillis())
               : null;
 
-            // Recalculate streak with latest data
-            const calculated = calculateStreak(
+            const currentStreak = getDisplayStreak(
+              data.currentStreak || 0,
               lastActiveDate,
-              data.currentStreak,
               data.timezone || userTimezone
             );
 
-            setStreakData(calculated);
+            setStreakData({
+              currentStreak,
+              lastActiveDate,
+              highestStreak: data.highestStreak || 0,
+            });
             setError(null);
           } else {
-            // Document doesn't exist yet
-            setStreakData({
-              currentStreak: 0,
-              lastActiveDate: null,
-              highestStreak: 0,
-            });
+            // Document doesn't exist yet. Keep the listener state as null so
+            // the caller can run its own initialization path and create the
+            // backing streak doc instead of treating the missing document as a
+            // loaded, valid streak record.
+            setStreakData(null);
           }
         } catch (err) {
           setError(err instanceof Error ? err : new Error('Unknown error'));

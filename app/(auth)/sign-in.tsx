@@ -109,6 +109,7 @@ export default function SignIn() {
       setFirebaseUser(credential.user);
       await setUserStore({
         userId: credential.user.uid,
+        username: credential.user.displayName || "User",
         email: credential.user.email ?? email.trim(),
       });
       router.replace("/(tabs)/home");

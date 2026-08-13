@@ -18,8 +18,15 @@ function PillButton({ title, href, variant = "primary", style }: any) {
 
   return (
     <Link href={href} asChild>
-      <Pressable style={StyleSheet.flatten([styles.pillButton, buttonStyle, style])}>
-        <Text style={StyleSheet.flatten([styles.pillButtonText, textStyle])} numberOfLines={1}>{title}</Text>
+      <Pressable
+        style={StyleSheet.flatten([styles.pillButton, buttonStyle, style])}
+      >
+        <Text
+          style={StyleSheet.flatten([styles.pillButtonText, textStyle])}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
       </Pressable>
     </Link>
   );
@@ -54,13 +61,13 @@ function WelcomeScreen() {
         <View style={styles.btnRow}>
           <PillButton
             title="SIGN IN"
-            href="./(auth)/sign-in"
+            href="/(auth)/sign-in"
             variant="background"
             style={styles.btnHalf}
           />
           <PillButton
             title="SIGN UP"
-            href="./(auth)/sign-up"
+            href="/(auth)/sign-up"
             variant="background"
             style={styles.btnHalf}
           />
@@ -84,7 +91,6 @@ const COLORS = {
 };
 
 const styles = StyleSheet.create({
-
   blob: {
     position: "absolute",
     borderRadius: 999,

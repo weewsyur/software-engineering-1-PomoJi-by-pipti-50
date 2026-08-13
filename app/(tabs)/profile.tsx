@@ -20,7 +20,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Colors, useColors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
-import { signOut } from "@/services/auth";
+import { signOutUser } from "@/store/userStore";
 import { LucideIcon } from "@/app/components/LucideIcon";
 import { useTheme } from "@/contexts/ThemeContext";
 import * as ImagePicker from "expo-image-picker";
@@ -37,6 +37,8 @@ import {
   where,
   updateDoc,
 } from "firebase/firestore";
+import { getProfileImageURL } from "@/services/profile";
+import { getDisplayStreak } from "@/utils/streakCalculator";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface UserProfile {
@@ -167,13 +169,14 @@ export default function ProfileScreen() {
   const colors = useColors(isDarkMode);
 
   const [profile, setProfile] = useState<UserProfile>({
-    name: "Your Name",
-    email: "your@email.com",
+    name: "",
+    email: "",
     photoUri: null,
   });
   const [loadingProfile, setLoadingProfile] = useState(true);
 
   const [modalVisible, setModalVisible] = useState(false);
+  const [signOutModalVisible, setSignOutModalVisible] = useState(false);
   const [draftName, setDraftName] = useState(profile.name);
   const [draftPhotoUri, setDraftPhotoUri] = useState<string | null>(
     profile.photoUri,
@@ -204,38 +207,67 @@ export default function ProfileScreen() {
 
   // ── Fetch profile from Firestore ────────────────────────────────────────────
   useEffect(() => {
-    const fetchProfile = async () => {
+    let cancelled = false;
+
+    const fetchProfile = async (userId: string | undefined) => {
+      if (!userId) {
+        if (!cancelled) setLoadingProfile(false);
+        return;
+      }
+
+      setLoadingProfile(true);
       try {
-        const userId = auth.currentUser?.uid;
-        if (!userId) {
-          console.warn(
-            "ProfileScreen: auth.currentUser is null; skipping profile fetch.",
-          );
-          return;
-        }
         const userRef = doc(db, "users", userId);
         const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) return;
+        if (!userSnap.exists()) {
+          const fallbackProfile: UserProfile = {
+            name: auth.currentUser?.displayName || "",
+            email: auth.currentUser?.email || "",
+            photoUri: auth.currentUser?.photoURL || null,
+          };
+          if (!cancelled) {
+            setProfile(fallbackProfile);
+            setDraftName(fallbackProfile.name);
+            setDraftPhotoUri(fallbackProfile.photoUri);
+          }
+          return;
+        }
+
         const userData = userSnap.data();
         const nextProfile: UserProfile = {
-          name: (userData.username as string) || "Your Name",
+          name:
+            (userData.username as string) ||
+            auth.currentUser?.displayName ||
+            "",
           email:
             (userData.email as string) ||
             auth.currentUser?.email ||
-            "your@email.com",
-          photoUri: (userData.photoUrl as string) || null,
+            "",
+          photoUri:
+            (await getProfileImageURL(userData.photoUrl as string | null)) ||
+            auth.currentUser?.photoURL ||
+            null,
         };
-        setProfile(nextProfile);
-        setDraftName(nextProfile.name);
-        setDraftPhotoUri(nextProfile.photoUri);
+        if (!cancelled) {
+          setProfile(nextProfile);
+          setDraftName(nextProfile.name);
+          setDraftPhotoUri(nextProfile.photoUri);
+        }
       } catch (error) {
         console.error("Error fetching profile:", error);
       } finally {
-        setLoadingProfile(false);
+        if (!cancelled) setLoadingProfile(false);
       }
     };
 
-    fetchProfile();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      fetchProfile(user?.uid);
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   const animatePressScale = (anim: Animated.Value, pressed: boolean) => {
@@ -266,25 +298,22 @@ export default function ProfileScreen() {
 
   // ── Fetch stats from Firestore ───────────────────────────────────────────────
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const userId = auth.currentUser?.uid;
-        if (!userId) {
-          console.warn(
-            "ProfileScreen: auth.currentUser is null; skipping stats fetch.",
-          );
-          setLoadingStats(false);
-          return;
-        }
+    let cancelled = false;
 
-        // Query sessions for this user
+    const fetchStats = async (userId: string | undefined) => {
+      if (!userId) {
+        if (!cancelled) setLoadingStats(false);
+        return;
+      }
+
+      setLoadingStats(true);
+      try {
         const sessionsQuery = query(
           collection(db, "users", userId, "sessions"),
           where("mode", "==", "focus"),
         );
         const sessionsSnapshot = await getDocs(sessionsQuery);
 
-        // Compute total hours and session count
         let totalSeconds = 0;
         sessionsSnapshot.forEach((doc) => {
           const data = doc.data();
@@ -296,74 +325,66 @@ export default function ProfileScreen() {
         const totalHours = Math.floor(totalSeconds / 3600);
         const sessionCount = sessionsSnapshot.size;
 
-        // Fetch user document for streak data
-        const userDoc = await getDoc(doc(db, "users", userId));
+        const streakDoc = await getDoc(doc(db, "streaks", userId));
         let streakDays = 0;
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          streakDays = userData.streakDays || 0;
+        if (streakDoc.exists()) {
+          const streakData = streakDoc.data();
+          const lastActiveDate = streakData.lastActiveDate
+            ? new Date(streakData.lastActiveDate.toMillis())
+            : null;
+          streakDays = getDisplayStreak(
+            streakData.currentStreak || 0,
+            lastActiveDate,
+            streakData.timezone || "UTC",
+          );
         }
+
         const [followingSnapshot, followersSnapshot] = await Promise.all([
           getDocs(collection(db, "following", userId, "list")),
           getDocs(collection(db, "followers", userId, "list")),
         ]);
 
-        setStats([
-          { label: "Total Hours", value: `${totalHours}h` },
-          { label: "Sessions", value: sessionCount.toString() },
-          { label: "Streak", value: `${streakDays}d` },
-          { label: "Following", value: followingSnapshot.size.toString() },
-          { label: "Followers", value: followersSnapshot.size.toString() },
-        ]);
+        if (!cancelled) {
+          setStats([
+            { label: "Total Hours", value: `${totalHours}h` },
+            { label: "Sessions", value: sessionCount.toString() },
+            { label: "Streak", value: `${streakDays}d` },
+            { label: "Following", value: followingSnapshot.size.toString() },
+            { label: "Followers", value: followersSnapshot.size.toString() },
+          ]);
+        }
       } catch (error) {
         console.error("Error fetching stats:", error);
       } finally {
-        setLoadingStats(false);
+        if (!cancelled) setLoadingStats(false);
       }
     };
 
-    fetchStats();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      fetchStats(user?.uid);
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   // ── Sign out handler ────────────────────────────────────────────────────────
   const handleSignOut = async () => {
-    if (Platform.OS === "web") {
-      const confirmed =
-        typeof window !== "undefined"
-          ? window.confirm("Are you sure you want to sign out?")
-          : true;
-      if (!confirmed) return;
-      try {
-        await signOut();
-        router.replace("/welcome");
-      } catch {
-        Alert.alert("Error", "Failed to sign out. Please try again.");
-      }
-      return;
+    try {
+      await signOutUser();
+      setSignOutModalVisible(false);
+      router.replace("/(auth)/welcome");
+    } catch {
+      Alert.alert("Error", "Failed to sign out. Please try again.");
     }
-
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await signOut();
-            // Navigate to welcome screen
-            router.replace("/welcome");
-          } catch {
-            Alert.alert("Error", "Failed to sign out. Please try again.");
-          }
-        },
-      },
-    ]);
   };
 
   // ── Settings item press handler ────────────────────────────────────────────
   const handleSettingPress = (label: string) => {
     if (label === "Sign Out") {
-      handleSignOut();
+      setSignOutModalVisible(true);
     }
     // Add other settings handlers here
   };
@@ -470,12 +491,18 @@ export default function ProfileScreen() {
         photoURL: nextPhotoUri ?? null,
       });
 
+      const refreshedPhotoUri = nextPhotoUri
+        ? await getProfileImageURL(nextPhotoUri)
+        : null;
+
       setProfile((prev) => ({
         ...prev,
         name: draftName.trim(),
-        photoUri: nextPhotoUri,
+        email: currentUser.email || prev.email,
+        photoUri: refreshedPhotoUri,
       }));
-      setDraftPhotoUri(nextPhotoUri);
+      setDraftName(draftName.trim());
+      setDraftPhotoUri(refreshedPhotoUri);
       setModalVisible(false);
       Alert.alert("Saved", "Your profile has been updated.");
     } catch (error) {
@@ -1039,6 +1066,68 @@ export default function ProfileScreen() {
       </Modal>
 
       <Modal
+        visible={signOutModalVisible}
+        animationType="fade"
+        transparent
+        statusBarTranslucent
+        onRequestClose={() => setSignOutModalVisible(false)}
+      >
+        <View
+          style={[styles.modalOverlay, { backgroundColor: "rgba(0,0,0,0.5)" }]}
+        >
+          <View
+            style={[
+              styles.reminderSheet,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <View style={styles.reminderHeader}>
+              <Text style={[styles.reminderTitle, { color: colors.text }]}>
+                Sign Out
+              </Text>
+              <TouchableOpacity onPress={() => setSignOutModalVisible(false)}>
+                <LucideIcon name="close" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.reminderEmpty, { color: colors.textMuted }]}>
+              Are you sure you want to sign out?
+            </Text>
+            <View style={styles.signOutModalActions}>
+              <TouchableOpacity
+                style={[
+                  styles.signOutCancelBtn,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.background,
+                  },
+                ]}
+                onPress={() => setSignOutModalVisible(false)}
+              >
+                <Text
+                  style={[styles.signOutActionText, { color: colors.text }]}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.signOutConfirmBtn,
+                  { backgroundColor: colors.primary },
+                ]}
+                onPress={handleSignOut}
+              >
+                <Text
+                  style={[styles.signOutActionText, { color: colors.surface }]}
+                >
+                  Sign Out
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
         visible={connectionsModalVisible}
         animationType="fade"
         transparent
@@ -1236,6 +1325,28 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     paddingTop: 84,
     paddingHorizontal: 16,
+  },
+  signOutModalActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 16,
+  },
+  signOutCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: "center",
+  },
+  signOutConfirmBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  signOutActionText: {
+    fontSize: 13,
+    fontWeight: "700",
   },
   reminderSheet: {
     backgroundColor: Colors.background,

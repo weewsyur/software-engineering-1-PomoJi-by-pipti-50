@@ -4,6 +4,7 @@ import { updateProfile as updateFirebaseProfile } from "firebase/auth";
 import { auth, db, storage } from "./firebase";
 import * as FileSystem from "expo-file-system";
 import { getFreshDownloadURL, isStoragePath } from "@/utils/imageStorage";
+import { getDisplayStreak } from "@/utils/streakCalculator";
 
 export interface UserProfile {
   name: string;
@@ -26,15 +27,33 @@ export interface UserListItem {
 
 export const fetchUserProfile = async (userId: string): Promise<UserProfile | null> => {
   try {
+    const currentUser = auth.currentUser;
     const userRef = doc(db, "users", userId);
     const userSnap = await getDoc(userRef);
-    if (!userSnap.exists()) return null;
+
+    if (!userSnap.exists()) {
+      if (!currentUser) return null;
+      return {
+        name: currentUser.displayName || "",
+        email: currentUser.email || "",
+        photoUri: currentUser.photoURL || null,
+      };
+    }
 
     const userData = userSnap.data();
     return {
-      name: (userData.username as string) || "Your Name",
-      email: (userData.email as string) || auth.currentUser?.email || "your@email.com",
-      photoUri: (userData.photoUrl as string) || null,
+      name:
+        (userData.username as string) ||
+        currentUser?.displayName ||
+        "",
+      email:
+        (userData.email as string) ||
+        currentUser?.email ||
+        "",
+      photoUri:
+        (userData.photoUrl as string) ||
+        currentUser?.photoURL ||
+        null,
     };
   } catch {
     throw new Error("Failed to fetch profile");
@@ -60,11 +79,18 @@ export const fetchUserStats = async (userId: string): Promise<UserStats> => {
     const totalHours = Math.floor(totalSeconds / 3600);
     const sessionCount = sessionsSnapshot.size;
 
-    const userDoc = await getDoc(doc(db, "users", userId));
+    const streakDoc = await getDoc(doc(db, "streaks", userId));
     let streakDays = 0;
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
-      streakDays = userData.streakDays || 0;
+    if (streakDoc.exists()) {
+      const streakData = streakDoc.data();
+      const lastActiveDate = streakData.lastActiveDate
+        ? new Date(streakData.lastActiveDate.toMillis())
+        : null;
+      streakDays = getDisplayStreak(
+        streakData.currentStreak || 0,
+        lastActiveDate,
+        streakData.timezone || "UTC"
+      );
     }
 
     const [followingSnapshot, followersSnapshot] = await Promise.all([

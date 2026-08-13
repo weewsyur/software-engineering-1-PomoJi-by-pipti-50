@@ -128,6 +128,24 @@ export function calculateStreak(
   };
 }
 
+/** Read-side streak: use stored value; reset only when last activity is before yesterday. */
+export function getDisplayStreak(
+  storedStreak: number,
+  lastActiveDate: Date | null,
+  timezone: string = 'UTC'
+): number {
+  if (!lastActiveDate || storedStreak <= 0) return 0;
+
+  const yesterday = getYesterdayAtMidnight(timezone);
+  const lastNorm = new Date(
+    lastActiveDate.getFullYear(),
+    lastActiveDate.getMonth(),
+    lastActiveDate.getDate()
+  );
+
+  return lastNorm.getTime() >= yesterday.getTime() ? storedStreak : 0;
+}
+
 /**
  * Format streak display text
  */

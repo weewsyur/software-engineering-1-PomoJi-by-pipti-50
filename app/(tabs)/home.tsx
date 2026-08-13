@@ -28,7 +28,7 @@ import { SharedStyles } from "@/constants/styles";
 import { useTheme } from "@/contexts/ThemeContext";
 import { StreakCard } from "../components/StreakCard";
 import { ActivityCard } from "../components/ActivityCard";
-import { db } from "@/services/firebase";
+import { auth, db } from "@/services/firebase";
 import { useRouter } from "expo-router";
 import { useStreakListener } from "@/utils/useStreakListener";
 import { getUserStore } from "@/store/userStore";
@@ -168,11 +168,24 @@ export default function HomeScreen() {
     return email.slice(0, 2).toUpperCase();
   }, [userId]);
 
-  // Get user ID from store on mount
+  // Keep the active user id synchronized with Firebase Auth so the streak
+  // listener and profile readers share the same live source of truth.
   useEffect(() => {
-    const user = getUserStore();
-    setUserId(user.userId);
-    setCurrentUsername(user.username || "User");
+    const syncUser = () => {
+      const storeUser = getUserStore();
+      const activeUserId = auth.currentUser?.uid ?? storeUser.userId;
+      setUserId(activeUserId);
+      setCurrentUsername(
+        auth.currentUser?.displayName || storeUser.username || "User",
+      );
+    };
+
+    syncUser();
+    const unsubscribe = auth.onAuthStateChanged(() => {
+      syncUser();
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {

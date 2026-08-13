@@ -10,7 +10,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "@/services/firebase";
 import { setFirebaseUser, setUserStore } from "@/store/userStore";
@@ -123,16 +123,28 @@ export default function SignUp() {
 
     try {
       setLoading(true);
-      const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      const credential = await createUserWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password,
+      );
+      const trimmedUsername = username.trim();
+
+      await updateProfile(credential.user, {
+        displayName: trimmedUsername,
+      });
+
       await setDoc(doc(db, "users", credential.user.uid), {
-        username: username.trim(),
+        uid: credential.user.uid,
+        username: trimmedUsername,
         email: credential.user.email ?? email.trim(),
+        photoUrl: null,
         createdAt: serverTimestamp(),
       });
       setFirebaseUser(credential.user);
       await setUserStore({
         userId: credential.user.uid,
-        username: username.trim(),
+        username: trimmedUsername,
         email: credential.user.email ?? email.trim(),
       });
       router.replace("/(tabs)/home");
@@ -218,7 +230,10 @@ export default function SignUp() {
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          <PrimaryButton title={loading ? "CREATING..." : "SIGN UP"} onPress={handleSignUp} />
+          <PrimaryButton
+            title={loading ? "CREATING..." : "SIGN UP"}
+            onPress={handleSignUp}
+          />
 
           <TouchableOpacity
             style={styles.switchWrapper}

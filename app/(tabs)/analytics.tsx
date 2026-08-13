@@ -26,8 +26,9 @@ import {
   groupSessionsByMonthForYear,
 } from "../../utils/sessionFilters";
 import { useStreakListener } from "../../utils/useStreakListener";
+import { initializeStreakData } from "../../utils/activityTracker";
 import { getUserStore } from "../../store/userStore";
-import { db } from "../../services/firebase";
+import { auth, db } from "../../services/firebase";
 import { ActivityDetailModal } from "../components/ActivityDetailModal";
 import { useDeleteActivity } from "../../hooks/useDeleteActivity";
 import {
@@ -79,8 +80,17 @@ export default function HistoryScreen() {
   const { width: screenWidth } = useWindowDimensions();
 
   useEffect(() => {
-    const user = getUserStore();
-    setUserId(user.userId);
+    const syncUserId = () => {
+      const storeUser = getUserStore();
+      setUserId(auth.currentUser?.uid ?? storeUser.userId ?? null);
+    };
+
+    syncUserId();
+    const unsubscribe = auth.onAuthStateChanged(() => {
+      syncUserId();
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -119,7 +129,29 @@ export default function HistoryScreen() {
     loading: streakLoading,
     error: streakError,
   } = useStreakListener(db, userId, "UTC");
-  const typedStreakData = streakData as StreakData | null | undefined;
+
+  useEffect(() => {
+    if (userId && !streakLoading && !streakError && !streakData) {
+      initializeStreakData(userId, "UTC").catch(() => null);
+    }
+  }, [userId, streakLoading, streakError, streakData]);
+
+  const streakSectionData = useMemo<StreakData | null>(() => {
+    if (!streakData) return null;
+    const activeDates = [
+      ...new Set(
+        activities.map((a) => {
+          const d = new Date(a.createdAt);
+          const mm = String(d.getMonth() + 1).padStart(2, "0");
+          const dd = String(d.getDate()).padStart(2, "0");
+          return `${d.getFullYear()}-${mm}-${dd}`;
+        }),
+      ),
+    ];
+    return { currentStreak: streakData.currentStreak, activeDates };
+  }, [streakData, activities]);
+
+  const typedStreakData = streakSectionData;
 
   const filteredActivities = useMemo(() => {
     if (viewMode === "weekly") return filterSessionsByWeek(activities);

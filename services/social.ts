@@ -58,23 +58,15 @@ export const getMutuallyConnectedUsers = async (currentUserId: string | null): P
   }
 
   try {
-    const followingRef = collection(db, "following", currentUid, "list");
-    const followingSnapshot = await getDocs(followingRef);
-    const followedIds = followingSnapshot.docs.map((doc) => doc.id);
+    const [followingSnapshot, followersSnapshot] = await Promise.all([
+      getDocs(collection(db, "following", currentUid, "list")),
+      getDocs(collection(db, "followers", currentUid, "list")),
+    ]);
 
-    // Check which of these users also follow back
-    const mutualConnections: string[] = [];
-    await Promise.all(
-      followedIds.map(async (followedId) => {
-        const followBackRef = doc(db, "following", followedId, "list", currentUid);
-        const followBackSnap = await getDoc(followBackRef);
-        if (followBackSnap.exists()) {
-          mutualConnections.push(followedId);
-        }
-      })
-    );
+    const followedIds = new Set(followingSnapshot.docs.map((doc) => doc.id));
+    const followerIds = new Set(followersSnapshot.docs.map((doc) => doc.id));
 
-    return mutualConnections;
+    return [...followedIds].filter((id) => followerIds.has(id));
   } catch (error) {
     console.error("Error fetching mutually connected users:", error);
     return [];
@@ -137,19 +129,20 @@ export const getFollowStatusMap = async (
   }
 
   try {
-    const statusEntries = await Promise.all(
-      results.map(async (item): Promise<[string, FollowStatus]> => {
-        const currentToTargetRef = doc(db, "following", currentUid, "list", item.id);
-        const targetToCurrentRef = doc(db, "following", item.id, "list", currentUid);
-        const [currentToTargetSnap, targetToCurrentSnap] = await Promise.all([
-          getDoc(currentToTargetRef),
-          getDoc(targetToCurrentRef),
-        ]);
-        if (currentToTargetSnap.exists()) return [item.id, "following"];
-        if (targetToCurrentSnap.exists()) return [item.id, "followBack"];
-        return [item.id, "follow"];
-      })
-    );
+    const [followingSnapshot, followersSnapshot] = await Promise.all([
+      getDocs(collection(db, "following", currentUid, "list")),
+      getDocs(collection(db, "followers", currentUid, "list")),
+    ]);
+
+    const followedIds = new Set(followingSnapshot.docs.map((doc) => doc.id));
+    const followerIds = new Set(followersSnapshot.docs.map((doc) => doc.id));
+
+    const statusEntries = results.map((item): [string, FollowStatus] => {
+      if (followedIds.has(item.id)) return [item.id, "following"];
+      if (followerIds.has(item.id)) return [item.id, "followBack"];
+      return [item.id, "follow"];
+    });
+
     return Object.fromEntries(statusEntries);
   } catch {
     return {};

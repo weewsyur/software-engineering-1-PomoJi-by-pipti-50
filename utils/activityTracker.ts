@@ -73,7 +73,7 @@ export async function logActivity(
     });
 
     // 2. Update streak data (calculate and store current streak)
-    const streakRef = doc(db, 'users', userId, 'streakData', 'current');
+    const streakRef = doc(db, 'streaks', userId);
 
     // Get current streak data to calculate new streak
     const streakSnapshot = await getDoc(streakRef);
@@ -139,7 +139,7 @@ export async function initializeStreakData(
   userId: string,
   timezone: string = 'UTC'
 ): Promise<void> {
-  const streakRef = doc(db, 'users', userId, 'streakData', 'current');
+  const streakRef = doc(db, 'streaks', userId);
 
   try {
     await setDoc(streakRef, {
@@ -150,7 +150,7 @@ export async function initializeStreakData(
       timezone,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    }, { merge: true });
 
     console.log(`✅ Streak data initialized for ${userId}`);
   } catch (error) {

@@ -15,34 +15,46 @@ import {
 
 export const useProfile = () => {
   const [profile, setProfile] = useState<UserProfile>({
-    name: "Your Name",
-    email: "your@email.com",
+    name: "",
+    email: "",
     photoUri: null,
   });
   const [loadingProfile, setLoadingProfile] = useState(true);
 
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        const userId = auth.currentUser?.uid;
-        if (!userId) {
+    let cancelled = false;
+
+    const loadProfile = async (userId: string | undefined) => {
+      if (!userId) {
+        if (!cancelled) {
+          setProfile({ name: "", email: "", photoUri: null });
           setLoadingProfile(false);
-          return;
         }
+        return;
+      }
+
+      setLoadingProfile(true);
+      try {
         const data = await fetchUserProfile(userId);
-        if (data) {
-          // Get fresh download URL for profile image
+        if (data && !cancelled) {
           const freshPhotoUri = await getProfileImageURL(data.photoUri);
           setProfile({ ...data, photoUri: freshPhotoUri });
         }
       } catch {
         // Error handling is done in service layer
       } finally {
-        setLoadingProfile(false);
+        if (!cancelled) setLoadingProfile(false);
       }
     };
 
-    loadProfile();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      loadProfile(user?.uid);
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   return { profile, loadingProfile, setProfile };
@@ -59,23 +71,33 @@ export const useProfileStats = () => {
   const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
-    const loadStats = async () => {
+    let cancelled = false;
+
+    const loadStats = async (userId: string | undefined) => {
+      if (!userId) {
+        if (!cancelled) setLoadingStats(false);
+        return;
+      }
+
+      setLoadingStats(true);
       try {
-        const userId = auth.currentUser?.uid;
-        if (!userId) {
-          setLoadingStats(false);
-          return;
-        }
         const data = await fetchUserStats(userId);
-        setStats(data);
+        if (!cancelled) setStats(data);
       } catch {
         // Error handling is done in service layer
       } finally {
-        setLoadingStats(false);
+        if (!cancelled) setLoadingStats(false);
       }
     };
 
-    loadStats();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      loadStats(user?.uid);
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   return { stats, loadingStats };
