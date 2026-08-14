@@ -19,6 +19,7 @@ import {
   Platform,
   FlatList,
   Animated,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LucideIcon } from "@/app/components/LucideIcon";
@@ -134,6 +135,7 @@ export default function HomeScreen() {
   const [followStatusMap, setFollowStatusMap] = useState<
     Record<string, FollowStatus>
   >({});
+  const [refreshing, setRefreshing] = useState(false);
   const { reminders, pendingCount } = useReminders();
   const { activities } = useSocialActivities();
   const { profile } = useProfile();
@@ -269,6 +271,16 @@ export default function HomeScreen() {
     }
   };
 
+  const onRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    // Data is already real-time via useSocialActivities and useStreakListener
+    // This provides visual feedback and allows any debounced refreshes to complete
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  }, [refreshing]);
+
   return (
     <SafeAreaView
       style={StyleSheet.flatten([
@@ -334,6 +346,15 @@ export default function HomeScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+            progressViewOffset={Platform.OS === "ios" ? 0 : undefined}
+          />
+        }
       >
         {/* Streak Card - Real-time Updates */}
         <StreakCard

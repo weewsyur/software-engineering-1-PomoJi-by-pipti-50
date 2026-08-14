@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   Alert,
   View,
@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   FlatList,
   Animated,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -200,6 +201,7 @@ export default function ProfileScreen() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const fileInputRef = useRef<any>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const profileRevealOpacity = useRef(new Animated.Value(0)).current;
   const profileRevealY = useRef(new Animated.Value(8)).current;
   const editButtonScale = useRef(new Animated.Value(1)).current;
@@ -239,10 +241,7 @@ export default function ProfileScreen() {
             (userData.username as string) ||
             auth.currentUser?.displayName ||
             "",
-          email:
-            (userData.email as string) ||
-            auth.currentUser?.email ||
-            "",
+          email: (userData.email as string) || auth.currentUser?.email || "",
           photoUri:
             (await getProfileImageURL(userData.photoUrl as string | null)) ||
             auth.currentUser?.photoURL ||
@@ -278,6 +277,85 @@ export default function ProfileScreen() {
       useNativeDriver: true,
     }).start();
   };
+
+  const onRefresh = useCallback(async () => {
+    if (refreshing) return;
+    const userId = auth.currentUser?.uid;
+    if (!userId) return;
+
+    setRefreshing(true);
+    try {
+      // Refresh profile
+      const userRef = doc(db, "users", userId);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const nextProfile: UserProfile = {
+          name:
+            (userData.username as string) ||
+            auth.currentUser?.displayName ||
+            "",
+          email: (userData.email as string) || auth.currentUser?.email || "",
+          photoUri:
+            (await getProfileImageURL(userData.photoUrl as string | null)) ||
+            auth.currentUser?.photoURL ||
+            null,
+        };
+        setProfile(nextProfile);
+        setDraftName(nextProfile.name);
+        setDraftPhotoUri(nextProfile.photoUri);
+      }
+
+      // Refresh stats
+      const sessionsQuery = query(
+        collection(db, "users", userId, "sessions"),
+        where("mode", "==", "focus"),
+      );
+      const sessionsSnapshot = await getDocs(sessionsQuery);
+
+      let totalSeconds = 0;
+      sessionsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.duration) {
+          totalSeconds += data.duration;
+        }
+      });
+
+      const totalHours = Math.floor(totalSeconds / 3600);
+      const sessionCount = sessionsSnapshot.size;
+
+      const streakDoc = await getDoc(doc(db, "streaks", userId));
+      let streakDays = 0;
+      if (streakDoc.exists()) {
+        const streakData = streakDoc.data();
+        const lastActiveDate = streakData.lastActiveDate
+          ? new Date(streakData.lastActiveDate.toMillis())
+          : null;
+        streakDays = getDisplayStreak(
+          streakData.currentStreak || 0,
+          lastActiveDate,
+          streakData.timezone || "UTC",
+        );
+      }
+
+      const [followingSnapshot, followersSnapshot] = await Promise.all([
+        getDocs(collection(db, "following", userId, "list")),
+        getDocs(collection(db, "followers", userId, "list")),
+      ]);
+
+      setStats([
+        { label: "Total Hours", value: `${totalHours}h` },
+        { label: "Sessions", value: sessionCount.toString() },
+        { label: "Streak", value: `${streakDays}d` },
+        { label: "Following", value: followingSnapshot.size.toString() },
+        { label: "Followers", value: followersSnapshot.size.toString() },
+      ]);
+    } catch (error) {
+      console.error("Error refreshing profile data:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing]);
 
   useEffect(() => {
     if (loadingProfile || loadingStats) return;
@@ -672,6 +750,15 @@ export default function ProfileScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+            progressViewOffset={Platform.OS === "ios" ? 0 : undefined}
+          />
+        }
       >
         {/* Profile hero */}
         <Animated.View

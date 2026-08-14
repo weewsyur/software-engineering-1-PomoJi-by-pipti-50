@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   Alert,
   View,
@@ -10,6 +10,8 @@ import {
   Image,
   TouchableOpacity,
   useWindowDimensions,
+  RefreshControl,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors, useColors } from "../../constants/colors";
@@ -76,6 +78,7 @@ export default function HistoryScreen() {
   const [activityImageUrls, setActivityImageUrls] = useState<
     Record<string, string>
   >({});
+  const [refreshing, setRefreshing] = useState(false);
   const { deleteActivity } = useDeleteActivity();
   const { width: screenWidth } = useWindowDimensions();
 
@@ -117,6 +120,16 @@ export default function HistoryScreen() {
 
     loadImageUrls();
   }, [activities]);
+
+  const onRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    // Data is already real-time via useActivities and useStreakListener
+    // This provides visual feedback and allows any debounced refreshes to complete
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  }, [refreshing]);
 
   const {
     streakData,
@@ -224,6 +237,15 @@ export default function HistoryScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+            progressViewOffset={Platform.OS === "ios" ? 0 : undefined}
+          />
+        }
       >
         {/* ── 1. Strava-style Streak Section ── */}
         <StreakSection
