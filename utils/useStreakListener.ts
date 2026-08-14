@@ -98,7 +98,12 @@ export function useStreakListener(
             });
             setError(null);
           } else {
-            setStreakData(null);
+            // Document doesn't exist yet - initialize with default streak data
+            setStreakData({
+              currentStreak: 0,
+              lastActiveDate: null,
+              highestStreak: 0,
+            });
           }
         } catch (err) {
           setError(err instanceof Error ? err : new Error('Unknown error'));

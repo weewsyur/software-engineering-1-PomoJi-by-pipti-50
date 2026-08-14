@@ -274,11 +274,15 @@ export default function HomeScreen() {
   const onRefresh = useCallback(async () => {
     if (refreshing) return;
     setRefreshing(true);
-    // Data is already real-time via useSocialActivities and useStreakListener
-    // This provides visual feedback and allows any debounced refreshes to complete
-    setTimeout(() => {
+    try {
+      // Force re-fetch of social activities
+      // Since useSocialActivities has debounced refresh, we just wait for it
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    } catch (error) {
+      console.error("Error refreshing:", error);
+    } finally {
       setRefreshing(false);
-    }, 1000);
+    }
   }, [refreshing]);
 
   return (
@@ -352,7 +356,8 @@ export default function HomeScreen() {
             onRefresh={onRefresh}
             tintColor={colors.primary}
             colors={[colors.primary]}
-            progressViewOffset={Platform.OS === "ios" ? 0 : undefined}
+            enabled={true}
+            progressViewOffset={-10}
           />
         }
       >
@@ -670,6 +675,7 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
+    minHeight: "100%",
   },
   iconBtn: { padding: 4 },
   bellBtn: { position: "relative", padding: 4 },

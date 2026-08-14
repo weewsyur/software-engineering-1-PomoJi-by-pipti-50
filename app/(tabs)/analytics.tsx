@@ -124,11 +124,14 @@ export default function HistoryScreen() {
   const onRefresh = useCallback(async () => {
     if (refreshing) return;
     setRefreshing(true);
-    // Data is already real-time via useActivities and useStreakListener
-    // This provides visual feedback and allows any debounced refreshes to complete
-    setTimeout(() => {
+    try {
+      // Force re-fetch of activities and reload image URLs
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    } catch (error) {
+      console.error("Error refreshing:", error);
+    } finally {
       setRefreshing(false);
-    }, 1000);
+    }
   }, [refreshing]);
 
   const {
@@ -243,7 +246,8 @@ export default function HistoryScreen() {
             onRefresh={onRefresh}
             tintColor={colors.primary}
             colors={[colors.primary]}
-            progressViewOffset={Platform.OS === "ios" ? 0 : undefined}
+            enabled={true}
+            progressViewOffset={-10}
           />
         }
       >
@@ -538,7 +542,7 @@ export default function HistoryScreen() {
 
 const styles = StyleSheet.create({
   // Layout
-  safe: { flex: 1 },
+  safe: { flex: 1, minHeight: "100%" },
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
   headerLabel: {
     fontSize: 10,

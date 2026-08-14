@@ -202,6 +202,7 @@ export default function ProfileScreen() {
   const fileInputRef = useRef<any>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const profileRevealOpacity = useRef(new Animated.Value(0)).current;
   const profileRevealY = useRef(new Animated.Value(8)).current;
   const editButtonScale = useRef(new Animated.Value(1)).current;
@@ -450,12 +451,15 @@ export default function ProfileScreen() {
 
   // ── Sign out handler ────────────────────────────────────────────────────────
   const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
     try {
       await signOutUser();
       setSignOutModalVisible(false);
       router.replace("/(auth)/welcome");
     } catch {
       Alert.alert("Error", "Failed to sign out. Please try again.");
+      setSigningOut(false);
     }
   };
 
@@ -756,7 +760,8 @@ export default function ProfileScreen() {
             onRefresh={onRefresh}
             tintColor={colors.primary}
             colors={[colors.primary]}
-            progressViewOffset={Platform.OS === "ios" ? 0 : undefined}
+            enabled={true}
+            progressViewOffset={-10}
           />
         }
       >
@@ -1160,11 +1165,14 @@ export default function ProfileScreen() {
         onRequestClose={() => setSignOutModalVisible(false)}
       >
         <View
-          style={[styles.modalOverlay, { backgroundColor: "rgba(0,0,0,0.5)" }]}
+          style={[
+            styles.centeredModalOverlay,
+            { backgroundColor: "rgba(0,0,0,0.5)" },
+          ]}
         >
           <View
             style={[
-              styles.reminderSheet,
+              styles.signOutModalCard,
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
@@ -1202,12 +1210,20 @@ export default function ProfileScreen() {
                   { backgroundColor: colors.primary },
                 ]}
                 onPress={handleSignOut}
+                disabled={signingOut}
               >
-                <Text
-                  style={[styles.signOutActionText, { color: colors.surface }]}
-                >
-                  Sign Out
-                </Text>
+                {signingOut ? (
+                  <ActivityIndicator size="small" color={colors.surface} />
+                ) : (
+                  <Text
+                    style={[
+                      styles.signOutActionText,
+                      { color: colors.surface },
+                    ]}
+                  >
+                    Sign Out
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -1296,7 +1312,7 @@ export default function ProfileScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
+  safe: { flex: 1, minHeight: "100%" },
 
   header: {
     paddingHorizontal: 20,
@@ -1412,6 +1428,19 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     paddingTop: 84,
     paddingHorizontal: 16,
+  },
+  centeredModalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  signOutModalCard: {
+    width: "100%",
+    maxWidth: 320,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
   },
   signOutModalActions: {
     flexDirection: "row",
