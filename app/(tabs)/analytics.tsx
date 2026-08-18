@@ -19,6 +19,8 @@ import { SharedStyles } from "../../constants/styles";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getFreshDownloadURL, isStoragePath } from "@/utils/imageStorage";
 import { useActivities, Activity } from "../../hooks/useActivities";
+import { useWebPullToRefresh } from "@/hooks/useWebPullToRefresh";
+import { WebPullToRefreshIndicator } from "@/app/components/WebPullToRefreshIndicator";
 import {
   filterSessionsByWeek,
   filterSessionsByMonth,
@@ -134,6 +136,11 @@ export default function HistoryScreen() {
     }
   }, [refreshing]);
 
+  const { pullDistance, webScrollProps } = useWebPullToRefresh({
+    onRefresh,
+    refreshing,
+  });
+
   const {
     streakData,
     loading: streakLoading,
@@ -240,17 +247,26 @@ export default function HistoryScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        {...webScrollProps}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-            enabled={true}
-            progressViewOffset={-10}
-          />
+          Platform.OS !== "web" ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+              enabled={true}
+              progressViewOffset={-10}
+            />
+          ) : undefined
         }
       >
+        <WebPullToRefreshIndicator
+          refreshing={refreshing}
+          pullDistance={pullDistance}
+          color={colors.primary}
+        />
+
         {/* ── 1. Strava-style Streak Section ── */}
         <StreakSection
           streakData={typedStreakData}

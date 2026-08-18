@@ -24,6 +24,8 @@ import { SharedStyles } from "@/constants/styles";
 import { signOutUser } from "@/store/userStore";
 import { LucideIcon } from "@/app/components/LucideIcon";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useWebPullToRefresh } from "@/hooks/useWebPullToRefresh";
+import { WebPullToRefreshIndicator } from "@/app/components/WebPullToRefreshIndicator";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import { getDownloadURL, ref, uploadString } from "firebase/storage";
@@ -357,6 +359,11 @@ export default function ProfileScreen() {
       setRefreshing(false);
     }
   }, [refreshing]);
+
+  const { pullDistance, webScrollProps } = useWebPullToRefresh({
+    onRefresh,
+    refreshing,
+  });
 
   useEffect(() => {
     if (loadingProfile || loadingStats) return;
@@ -754,17 +761,26 @@ export default function ProfileScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        {...webScrollProps}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-            enabled={true}
-            progressViewOffset={-10}
-          />
+          Platform.OS !== "web" ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+              enabled={true}
+              progressViewOffset={-10}
+            />
+          ) : undefined
         }
       >
+        <WebPullToRefreshIndicator
+          refreshing={refreshing}
+          pullDistance={pullDistance}
+          color={colors.primary}
+        />
+
         {/* Profile hero */}
         <Animated.View
           style={StyleSheet.flatten([

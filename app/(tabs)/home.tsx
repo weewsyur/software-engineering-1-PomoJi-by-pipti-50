@@ -38,6 +38,8 @@ import { useSocialActivities } from "@/hooks/useSocialActivities";
 import { initializeStreakData } from "@/utils/activityTracker";
 import { useProfile } from "@/hooks/useProfile";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useWebPullToRefresh } from "@/hooks/useWebPullToRefresh";
+import { WebPullToRefreshIndicator } from "@/app/components/WebPullToRefreshIndicator";
 import { NotificationsModal } from "@/app/components/NotificationsModal";
 import {
   searchUsers,
@@ -285,6 +287,11 @@ export default function HomeScreen() {
     }
   }, [refreshing]);
 
+  const { pullDistance, webScrollProps } = useWebPullToRefresh({
+    onRefresh,
+    refreshing,
+  });
+
   return (
     <SafeAreaView
       style={StyleSheet.flatten([
@@ -350,17 +357,26 @@ export default function HomeScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        {...webScrollProps}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-            enabled={true}
-            progressViewOffset={-10}
-          />
+          Platform.OS !== "web" ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+              enabled={true}
+              progressViewOffset={-10}
+            />
+          ) : undefined
         }
       >
+        <WebPullToRefreshIndicator
+          refreshing={refreshing}
+          pullDistance={pullDistance}
+          color={colors.primary}
+        />
+
         {/* Streak Card - Real-time Updates */}
         <StreakCard
           streakData={streakData}
