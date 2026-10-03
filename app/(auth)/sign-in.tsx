@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -8,11 +8,98 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Animated,
+  Easing,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/services/firebase";
 import { setFirebaseUser, setUserStore } from "@/store/userStore";
+import { Colors } from "@/constants/colors";
+
+// ─── Animation helpers ────────────────────────────────────────────────────────
+
+function useEntrance(delay = 0, distance = 24) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(v, {
+      toValue: 1,
+      duration: 600,
+      delay,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [v, delay]);
+  return {
+    opacity: v,
+    transform: [
+      {
+        translateY: v.interpolate({
+          inputRange: [0, 1],
+          outputRange: [distance, 0],
+        }),
+      },
+    ],
+  };
+}
+
+function FloatingBlob({
+  style,
+  amplitude = 12,
+  duration = 3500,
+  delay = 0,
+}: {
+  style: any;
+  amplitude?: number;
+  duration?: number;
+  delay?: number;
+}) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(v, {
+          toValue: 1,
+          duration,
+          delay,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(v, {
+          toValue: 0,
+          duration,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [v, duration, delay]);
+  return (
+    <Animated.View
+      style={[
+        style,
+        {
+          transform: [
+            {
+              translateY: v.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-amplitude, amplitude],
+              }),
+            },
+            {
+              translateX: v.interpolate({
+                inputRange: [0, 1],
+                outputRange: [amplitude / 2, -amplitude / 2],
+              }),
+            },
+          ],
+        },
+      ]}
+    />
+  );
+}
 
 // ─── Reusable: AuthInput ──────────────────────────────────────────────────────
 
@@ -23,6 +110,7 @@ type AuthInputProps = {
   placeholder: string;
   secureEntry?: boolean;
   keyboardType?: "default" | "email-address";
+  delay?: number;
 };
 
 function AuthInput({
@@ -32,11 +120,13 @@ function AuthInput({
   placeholder,
   secureEntry = false,
   keyboardType = "default",
+  delay = 0,
 }: AuthInputProps) {
   const [secure, setSecure] = useState(secureEntry);
+  const anim = useEntrance(delay, 16);
 
   return (
-    <View style={styles.inputGroup}>
+    <Animated.View style={[styles.inputGroup, anim]}>
       <Text style={styles.inputLabel}>{label}</Text>
       <View style={styles.inputRow}>
         <TextInput
@@ -57,7 +147,7 @@ function AuthInput({
           <Text style={styles.checkIcon}>✓</Text>
         )}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -66,17 +156,37 @@ function AuthInput({
 type PrimaryButtonProps = {
   title: string;
   onPress: () => void;
+  delay?: number;
 };
 
-function PrimaryButton({ title, onPress }: PrimaryButtonProps) {
+function PrimaryButton({ title, onPress, delay = 0 }: PrimaryButtonProps) {
+  const entrance = useEntrance(delay, 24);
+  const scale = useRef(new Animated.Value(1)).current;
+  const press = (to: number) =>
+    Animated.spring(scale, {
+      toValue: to,
+      speed: 40,
+      bounciness: 8,
+      useNativeDriver: true,
+    }).start();
+
   return (
-    <TouchableOpacity
-      style={styles.primaryButton}
-      onPress={onPress}
-      activeOpacity={0.82}
+    <Animated.View
+      style={{
+        opacity: entrance.opacity,
+        transform: [...entrance.transform, { scale }],
+      }}
     >
-      <Text style={styles.primaryButtonText}>{title}</Text>
-    </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.primaryButton}
+        onPress={onPress}
+        onPressIn={() => press(0.96)}
+        onPressOut={() => press(1)}
+        activeOpacity={0.82}
+      >
+        <Text style={styles.primaryButtonText}>{title}</Text>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -88,6 +198,8 @@ export default function SignIn() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const heroAnim = useEntrance(100, 30);
+  const cardAnim = useEntrance(250, 90);
 
   const handleSignIn = async () => {
     setError("");
@@ -144,18 +256,18 @@ export default function SignIn() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       {/* Decorative blobs */}
-      <View style={StyleSheet.flatten([styles.blob, styles.blobTopLeft])} />
-      <View style={StyleSheet.flatten([styles.blob, styles.blobBottomRight])} />
-      <View style={StyleSheet.flatten([styles.blob, styles.blobMidLeft])} />
+      <FloatingBlob style={[styles.blob, styles.blobTopLeft]} amplitude={14} duration={4200} />
+      <FloatingBlob style={[styles.blob, styles.blobBottomRight]} amplitude={10} duration={3600} delay={300} />
+      <FloatingBlob style={[styles.blob, styles.blobMidLeft]} amplitude={16} duration={3200} delay={150} />
 
       {/* Top area */}
-      <View style={styles.topArea}>
+      <Animated.View style={[styles.topArea, heroAnim]}>
         <Text style={styles.eyebrow}>Welcome back</Text>
         <Text style={styles.heroTitle}>Sign in</Text>
-      </View>
+      </Animated.View>
 
       {/* Card */}
-      <View style={styles.card}>
+      <Animated.View style={[styles.card, cardAnim]}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -164,6 +276,7 @@ export default function SignIn() {
 
           <AuthInput
             label="Email"
+            delay={350}
             value={email}
             onChangeText={setEmail}
             placeholder="Enter your email"
@@ -172,6 +285,7 @@ export default function SignIn() {
 
           <AuthInput
             label="Password"
+            delay={450}
             value={password}
             onChangeText={setPassword}
             placeholder="Enter your password"
@@ -185,6 +299,7 @@ export default function SignIn() {
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
           <PrimaryButton
+            delay={600}
             title={loading ? "SIGNING IN..." : "SIGN IN"}
             onPress={handleSignIn}
           />
@@ -199,7 +314,7 @@ export default function SignIn() {
             </Text>
           </TouchableOpacity>
         </ScrollView>
-      </View>
+      </Animated.View>
     </KeyboardAvoidingView>
   );
 }
@@ -207,7 +322,7 @@ export default function SignIn() {
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 
 const C = {
-  primary: "#C94C3C",
+  primary: Colors.primary,
   beige: "#F5F1E8",
   white: "#FFFFFF",
   textDark: "#1A0808",

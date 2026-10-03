@@ -1,24 +1,25 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
-  ScrollView,
+  FlatList,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
   ActivityIndicator,
   Animated,
+  Easing,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  X,
-  User,
+  ArrowLeft,
   Bell,
   Clock,
   CheckCircle2,
-  AlertCircle,
   UserPlus,
 } from "lucide-react-native";
-import { Colors } from "@/constants/colors";
+import { useColors } from "@/constants/colors";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Notification } from "@/hooks/useNotifications";
 import { useRouter } from "expo-router";
 import { NotificationDetailModal } from "@/app/components/NotificationDetailModal";
@@ -31,6 +32,12 @@ interface NotificationsModalProps {
   onMarkAsRead: (id: string) => void;
   onMarkAllAsRead: () => void;
 }
+
+type ThemeColors = ReturnType<typeof useColors>;
+type Tab = "all" | "unread";
+type ListItem =
+  | { kind: "label"; key: string; text: string }
+  | { kind: "item"; key: string; n: Notification; idx: number };
 
 const fmtDate = (timestamp: any) => {
   if (!timestamp) return "";
@@ -87,111 +94,140 @@ const getNotificationPreview = (notification: Notification): string => {
   }
 };
 
-const AnimatedNotificationRow = ({
+function useEntrance(delay = 0, distance = 24, duration = 500) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(v, {
+      toValue: 1,
+      duration,
+      delay,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [v, delay, duration]);
+  return {
+    opacity: v,
+    transform: [
+      {
+        translateY: v.interpolate({
+          inputRange: [0, 1],
+          outputRange: [distance, 0],
+        }),
+      },
+    ],
+  };
+}
+
+const NotificationRow = ({
   notification,
+  index,
   onPress,
+  colors,
 }: {
   notification: Notification;
+  index: number;
   onPress: () => void;
+  colors: ThemeColors;
 }) => {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(8)).current;
+  const anim = useEntrance(Math.min(index, 8) * 45, 14, 320);
   const pressAnim = useRef(new Animated.Value(1)).current;
+  const spring = (to: number) =>
+    Animated.spring(pressAnim, {
+      toValue: to,
+      friction: 6,
+      tension: 140,
+      useNativeDriver: true,
+    }).start();
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 260,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [fadeAnim, slideAnim]);
-
-  const IconComponent = getNotificationIcon(notification.type);
+  const unread = !notification.read;
+  const isFollow = notification.type === "follow";
+  const Icon = getNotificationIcon(notification.type);
+  const initials = (notification.fromUsername || "U").slice(0, 2).toUpperCase();
+  const preview = getNotificationPreview(notification);
 
   return (
     <Animated.View
       style={{
-        opacity: fadeAnim,
-        transform: [{ translateY: slideAnim }],
+        opacity: anim.opacity,
+        transform: [...anim.transform, { scale: pressAnim }],
       }}
     >
-      <Animated.View style={{ transform: [{ scale: pressAnim }] }}>
-        <TouchableOpacity
-          style={[styles.notificationItem, !notification.read && styles.unread]}
-          onPress={onPress}
-          activeOpacity={0.7}
-          onPressIn={() => {
-            Animated.spring(pressAnim, {
-              toValue: 0.98,
-              friction: 6,
-              tension: 140,
-              useNativeDriver: true,
-            }).start();
-          }}
-          onPressOut={() => {
-            Animated.spring(pressAnim, {
-              toValue: 1,
-              friction: 6,
-              tension: 140,
-              useNativeDriver: true,
-            }).start();
-          }}
-        >
+      <TouchableOpacity
+        style={[
+          styles.row,
+          unread && { backgroundColor: colors.primaryMuted },
+        ]}
+        activeOpacity={0.7}
+        onPress={onPress}
+        onPressIn={() => spring(0.98)}
+        onPressOut={() => spring(1)}
+      >
+        <View>
           <View
             style={[
-              styles.iconContainer,
-              notification.type === "task_reminder" && {
-                backgroundColor: "#4C7AC9" + "20",
-              },
-              notification.type === "session_complete" && {
-                backgroundColor: "#10B981" + "20",
-              },
-              notification.type === "follow" && {
-                backgroundColor: "#8B5CF6" + "20",
+              styles.avatar,
+              {
+                backgroundColor: isFollow
+                  ? colors.avatarBg
+                  : colors.primaryMuted,
               },
             ]}
           >
-            <IconComponent
-              size={18}
-              color={
-                notification.type === "task_reminder"
-                  ? "#4C7AC9"
-                  : notification.type === "session_complete"
-                    ? "#10B981"
-                    : notification.type === "follow"
-                      ? "#8B5CF6"
-                      : Colors.primary
-              }
-              strokeWidth={2}
-            />
+            {isFollow ? (
+              <Text style={[styles.avatarText, { color: colors.avatarText }]}>
+                {initials}
+              </Text>
+            ) : (
+              <Icon size={22} color={colors.primary} strokeWidth={2} />
+            )}
           </View>
-          <View style={styles.notificationContent}>
+          {isFollow && (
+            <View
+              style={[
+                styles.typeBadge,
+                { backgroundColor: colors.primary, borderColor: colors.surface },
+              ]}
+            >
+              <Icon size={10} color="#FFFFFF" strokeWidth={2.5} />
+            </View>
+          )}
+        </View>
+
+        <View style={styles.rowContent}>
+          <Text
+            style={[
+              styles.rowTitle,
+              { color: colors.text, fontWeight: unread ? "700" : "500" },
+            ]}
+            numberOfLines={2}
+          >
+            {getNotificationTitle(notification)}
+          </Text>
+          {preview ? (
             <Text
-              style={[styles.notificationText, { color: Colors.text }]}
+              style={[styles.rowPreview, { color: colors.textSecondary }]}
               numberOfLines={1}
             >
-              {getNotificationTitle(notification)}
+              {preview}
             </Text>
-            <Text
-              style={[styles.notificationPreview, { color: Colors.textMuted }]}
-              numberOfLines={1}
-            >
-              {getNotificationPreview(notification)}
-            </Text>
-            <Text style={[styles.timestamp, { color: Colors.textMuted }]}>
-              {fmtDate(notification.createdAt)}
-            </Text>
-          </View>
-          {!notification.read && <View style={styles.unreadDot} />}
-        </TouchableOpacity>
-      </Animated.View>
+          ) : null}
+          <Text
+            style={[
+              styles.rowTime,
+              {
+                color: unread ? colors.primary : colors.textMuted,
+                fontWeight: unread ? "700" : "500",
+              },
+            ]}
+          >
+            {fmtDate(notification.createdAt)}
+          </Text>
+        </View>
+
+        {unread && (
+          <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
+        )}
+      </TouchableOpacity>
     </Animated.View>
   );
 };
@@ -205,9 +241,18 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   onMarkAllAsRead,
 }) => {
   const router = useRouter();
+  const { isDarkMode } = useTheme();
+  const colors = useColors(isDarkMode);
+  const [tab, setTab] = useState<Tab>("all");
   const [selectedNotification, setSelectedNotification] =
     useState<Notification | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+
+  const headerAnim = useEntrance(0, -10, 350);
+
+  useEffect(() => {
+    if (!visible) setTab("all");
+  }, [visible]);
 
   const handleNotificationPress = (notification: Notification) => {
     setSelectedNotification(notification);
@@ -224,63 +269,129 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  // Facebook-style grouping: "New" (unread) then "Earlier"
+  const items = useMemo<ListItem[]>(() => {
+    const unread = notifications.filter((n) => !n.read);
+    const read = notifications.filter((n) => n.read);
+    if (tab === "unread") {
+      return unread.map((n, i) => ({ kind: "item", key: n.id, n, idx: i }));
+    }
+    const out: ListItem[] = [];
+    let i = 0;
+    if (unread.length) {
+      out.push({ kind: "label", key: "label-new", text: "New" });
+      unread.forEach((n) => out.push({ kind: "item", key: n.id, n, idx: i++ }));
+    }
+    if (read.length) {
+      out.push({ kind: "label", key: "label-earlier", text: "Earlier" });
+      read.forEach((n) => out.push({ kind: "item", key: n.id, n, idx: i++ }));
+    }
+    return out;
+  }, [notifications, tab]);
+
+  const renderTab = (id: Tab, label: string) => {
+    const active = tab === id;
+    return (
+      <TouchableOpacity
+        key={id}
+        onPress={() => setTab(id)}
+        style={[
+          styles.tab,
+          { backgroundColor: active ? colors.primary : colors.background },
+        ]}
+        accessibilityRole="button"
+      >
+        <Text
+          style={[
+            styles.tabText,
+            { color: active ? "#FFFFFF" : colors.text },
+          ]}
+        >
+          {label}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <>
       <Modal
         visible={visible}
-        animationType="fade"
-        transparent
+        animationType="slide"
         statusBarTranslucent
         onRequestClose={onClose}
       >
-        <View style={styles.overlay}>
-          <View style={styles.container}>
-            <View style={styles.header}>
-              <Text style={styles.title}>Notifications</Text>
-              <View style={styles.headerActions}>
-                {unreadCount > 0 && (
-                  <TouchableOpacity
-                    onPress={onMarkAllAsRead}
-                    style={styles.markAllBtn}
-                  >
-                    <Text style={styles.markAllText}>Mark all read</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                  <X size={20} color={Colors.text} strokeWidth={2.5} />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <ScrollView
-              style={styles.content}
-              showsVerticalScrollIndicator={false}
+        <SafeAreaView
+          style={[styles.screen, { backgroundColor: colors.surface }]}
+        >
+          <Animated.View style={[styles.header, headerAnim]}>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Close notifications"
             >
-              {loading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator color={Colors.primary} />
-                </View>
-              ) : notifications.length === 0 ? (
-                <View style={styles.emptyContainer}>
-                  <Bell
-                    size={32}
-                    color={Colors.textMuted}
-                    style={styles.emptyIcon}
-                  />
-                  <Text style={styles.emptyText}>No notifications yet</Text>
-                </View>
-              ) : (
-                notifications.map((notification) => (
-                  <AnimatedNotificationRow
-                    key={notification.id}
-                    notification={notification}
-                    onPress={() => handleNotificationPress(notification)}
-                  />
-                ))
-              )}
-            </ScrollView>
+              <ArrowLeft size={24} color={colors.text} strokeWidth={2.2} />
+            </TouchableOpacity>
+            <Text style={[styles.title, { color: colors.text }]}>
+              Notifications
+            </Text>
+            {unreadCount > 0 ? (
+              <TouchableOpacity onPress={onMarkAllAsRead}>
+                <Text style={[styles.markAllText, { color: colors.primary }]}>
+                  Mark all read
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.markAllSpacer} />
+            )}
+          </Animated.View>
+
+          <View style={styles.tabs}>
+            {renderTab("all", "All")}
+            {renderTab(
+              "unread",
+              unreadCount > 0 ? `Unread (${unreadCount})` : "Unread",
+            )}
           </View>
-        </View>
+
+          {loading ? (
+            <View style={styles.centered}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : (
+            <FlatList
+              data={items}
+              keyExtractor={(item) => item.key}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.list}
+              ListEmptyComponent={
+                <View style={styles.centered}>
+                  <Bell size={34} color={colors.textMuted} />
+                  <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                    {tab === "unread"
+                      ? "You're all caught up"
+                      : "No notifications yet"}
+                  </Text>
+                </View>
+              }
+              renderItem={({ item }) =>
+                item.kind === "label" ? (
+                  <Text style={[styles.sectionLabel, { color: colors.text }]}>
+                    {item.text}
+                  </Text>
+                ) : (
+                  <NotificationRow
+                    notification={item.n}
+                    index={item.idx}
+                    colors={colors}
+                    onPress={() => handleNotificationPress(item.n)}
+                  />
+                )
+              }
+            />
+          )}
+        </SafeAreaView>
       </Modal>
 
       <NotificationDetailModal
@@ -297,114 +408,64 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-start",
-    paddingTop: 84,
-    paddingHorizontal: 16,
-  },
-  container: {
-    backgroundColor: Colors.background,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 12,
-    maxHeight: "70%",
-  },
+  screen: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
-  title: {
-    fontSize: 16,
+  title: { flex: 1, fontSize: 22, fontWeight: "800", letterSpacing: -0.4 },
+  markAllText: { fontSize: 13, fontWeight: "700" },
+  markAllSpacer: { width: 1 },
+  tabs: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+  },
+  tab: { borderRadius: 18, paddingHorizontal: 16, paddingVertical: 8 },
+  tabText: { fontSize: 13, fontWeight: "700" },
+  list: { paddingBottom: 24, flexGrow: 1 },
+  sectionLabel: {
+    fontSize: 17,
     fontWeight: "800",
-    color: Colors.text,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 6,
   },
-  headerActions: {
+  row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-  },
-  markAllBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  markAllText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: Colors.primary,
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  content: {
-    maxHeight: 400,
-  },
-  loadingContainer: {
-    paddingVertical: 40,
-    alignItems: "center",
-  },
-  emptyContainer: {
-    paddingVertical: 40,
-    alignItems: "center",
-  },
-  emptyIcon: {
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: Colors.textMuted,
-    fontWeight: "500",
-  },
-  notificationItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
   },
-  unread: {
-    backgroundColor: Colors.surface + "40",
-  },
-  iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.primary + "20",
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: "center",
     justifyContent: "center",
-    flexShrink: 0,
   },
-  notificationContent: {
-    flex: 1,
-    gap: 2,
+  avatarText: { fontSize: 17, fontWeight: "800" },
+  typeBadge: {
+    position: "absolute",
+    right: -2,
+    bottom: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  notificationText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.text,
-    lineHeight: 18,
-  },
-  notificationPreview: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    fontWeight: "500",
-  },
-  timestamp: {
-    fontSize: 10,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.primary,
-    flexShrink: 0,
-  },
+  rowContent: { flex: 1, gap: 2 },
+  rowTitle: { fontSize: 14, lineHeight: 19 },
+  rowPreview: { fontSize: 12, fontWeight: "500" },
+  rowTime: { fontSize: 12, marginTop: 2 },
+  unreadDot: { width: 10, height: 10, borderRadius: 5 },
+  centered: { paddingVertical: 60, alignItems: "center", gap: 10 },
+  emptyText: { fontSize: 14, fontWeight: "500" },
 });

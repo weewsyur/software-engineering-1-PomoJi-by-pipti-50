@@ -15,10 +15,11 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
-  KeyboardAvoidingView,
   Platform,
   FlatList,
   Animated,
+  Easing,
+  ActivityIndicator,
   RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -72,29 +73,34 @@ function AnimatedActivityCard({
   initials,
   profile,
   fmtActivityDate,
+  index = 0,
 }: {
   activity: any;
   initials: string;
   profile: { name: string; photoUri: string | null };
   fmtActivityDate: string;
+  index?: number;
 }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(10)).current;
+  const slideAnim = useRef(new Animated.Value(24)).current;
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 220,
+        duration: 350,
+        delay: Math.min(index, 6) * 90 + 250,
         useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
-        duration: 260,
+        duration: 450,
+        delay: Math.min(index, 6) * 90 + 250,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
     ]).start();
-  }, [fadeAnim, slideAnim]);
+  }, [fadeAnim, slideAnim, index]);
 
   return (
     <Animated.View
@@ -121,6 +127,171 @@ function AnimatedActivityCard({
   );
 }
 
+type ThemeColors = ReturnType<typeof useColors>;
+
+function useEntrance(delay = 0, distance = 24, duration = 500) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(v, {
+      toValue: 1,
+      duration,
+      delay,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [v, delay, duration]);
+  return {
+    opacity: v,
+    transform: [
+      {
+        translateY: v.interpolate({
+          inputRange: [0, 1],
+          outputRange: [distance, 0],
+        }),
+      },
+    ],
+  };
+}
+
+// Badge that pops whenever the count changes
+function NotificationBadge({
+  count,
+  backgroundColor,
+  textColor,
+}: {
+  count: number;
+  backgroundColor: string;
+  textColor: string;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (count > 0) {
+      scale.setValue(0.4);
+      Animated.spring(scale, {
+        toValue: 1,
+        friction: 4,
+        tension: 140,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [count, scale]);
+
+  if (count <= 0) return null;
+  return (
+    <Animated.View
+      style={[styles.badge, { backgroundColor, transform: [{ scale }] }]}
+    >
+      <Text style={[styles.badgeText, { color: textColor }]}>
+        {count > 9 ? "9+" : count}
+      </Text>
+    </Animated.View>
+  );
+}
+
+function FollowButton({
+  status,
+  loading,
+  onPress,
+  colors,
+}: {
+  status?: FollowStatus;
+  loading: boolean;
+  onPress: () => void;
+  colors: ThemeColors;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const press = (to: number) =>
+    Animated.spring(scale, {
+      toValue: to,
+      friction: 6,
+      tension: 140,
+      useNativeDriver: true,
+    }).start();
+  const following = status === "following";
+  const label = loading
+    ? "..."
+    : following
+      ? "Following"
+      : status === "followBack"
+        ? "Follow Back"
+        : "Follow";
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <TouchableOpacity
+        style={[
+          styles.followBtn,
+          { backgroundColor: following ? colors.border : colors.primary },
+        ]}
+        disabled={loading || following}
+        onPress={onPress}
+        onPressIn={() => press(0.94)}
+        onPressOut={() => press(1)}
+        accessibilityRole="button"
+        accessibilityHint="Follow this user"
+      >
+        <Text
+          style={[
+            styles.followBtnText,
+            { color: following ? colors.textSecondary : "#FFFFFF" },
+          ]}
+        >
+          {label}
+        </Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+function SearchResultRow({
+  item,
+  index,
+  status,
+  loading,
+  onOpen,
+  onFollow,
+  colors,
+}: {
+  item: UserSearchResult;
+  index: number;
+  status?: FollowStatus;
+  loading: boolean;
+  onOpen: () => void;
+  onFollow: () => void;
+  colors: ThemeColors;
+}) {
+  const anim = useEntrance(Math.min(index, 8) * 40, 12, 300);
+  return (
+    <Animated.View style={anim}>
+      <TouchableOpacity
+        style={styles.resultRow}
+        activeOpacity={0.6}
+        onPress={onOpen}
+      >
+        <View
+          style={[styles.avatarCircle, { backgroundColor: colors.avatarBg }]}
+        >
+          <Text style={[styles.avatarText, { color: colors.avatarText }]}>
+            {item.username.slice(0, 2).toUpperCase()}
+          </Text>
+        </View>
+        <Text
+          style={[styles.resultName, { color: colors.text }]}
+          numberOfLines={1}
+        >
+          {item.username}
+        </Text>
+        <FollowButton
+          status={status}
+          loading={loading}
+          onPress={onFollow}
+          colors={colors}
+        />
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const { isDarkMode } = useTheme();
@@ -138,13 +309,13 @@ export default function HomeScreen() {
     Record<string, FollowStatus>
   >({});
   const [refreshing, setRefreshing] = useState(false);
+  const headerAnim = useEntrance(0, -12, 450);
+  const streakAnim = useEntrance(120, 24, 550);
   const { reminders, pendingCount } = useReminders();
   const { activities } = useSocialActivities();
   const { profile } = useProfile();
   const headerButtonScale = useRef(new Animated.Value(1)).current;
   const iconButtonScale = useRef(new Animated.Value(1)).current;
-  const searchButtonScale = useRef(new Animated.Value(1)).current;
-  const followButtonScale = useRef(new Animated.Value(1)).current;
   const {
     notifications,
     unreadCount: notificationCount,
@@ -210,21 +381,26 @@ export default function HomeScreen() {
     };
   }, [router]);
 
+  const searchReqRef = useRef(0);
   const runUserSearch = useCallback(async () => {
+    const reqId = ++searchReqRef.current;
     const trimmed = searchQuery.trim();
     if (!trimmed) {
       setSearchResults([]);
+      setSearching(false);
       return;
     }
 
     setSearching(true);
     try {
       const results = await searchUsers(searchQuery, userId);
+      if (reqId !== searchReqRef.current) return;
       setSearchResults(results);
       const statusMap = await getFollowStatusMap(results, userId);
+      if (reqId !== searchReqRef.current) return;
       setFollowStatusMap(statusMap);
     } finally {
-      setSearching(false);
+      if (reqId === searchReqRef.current) setSearching(false);
     }
   }, [searchQuery, userId]);
 
@@ -257,6 +433,17 @@ export default function HomeScreen() {
     },
     [],
   );
+
+  const closeSearch = useCallback(() => {
+    setShowSearch(false);
+    setSearchQuery("");
+    setSearchResults([]);
+  }, []);
+
+  const openProfile = (uid: string) => {
+    closeSearch();
+    router.push({ pathname: "/profile/[uid]" as never, params: { uid } });
+  };
 
   const handleFollow = async (target: UserSearchResult) => {
     setFollowingUid(target.id);
@@ -306,7 +493,9 @@ export default function HomeScreen() {
       />
 
       {/* Top header */}
-      <View style={[styles.header, { backgroundColor: colors.background }]}>
+      <Animated.View
+        style={[styles.header, { backgroundColor: colors.background }, headerAnim]}
+      >
         <Text style={[styles.headerLabel, { color: colors.textMuted }]}>
           HOME
         </Text>
@@ -332,17 +521,11 @@ export default function HomeScreen() {
               accessibilityRole="button"
               accessibilityHint="Open the notifications sheet"
             >
-              {(pendingCount > 0 || notificationCount > 0) && (
-                <View
-                  style={[styles.badge, { backgroundColor: colors.primary }]}
-                >
-                  <Text style={[styles.badgeText, { color: colors.surface }]}>
-                    {pendingCount + notificationCount > 9
-                      ? "9+"
-                      : pendingCount + notificationCount}
-                  </Text>
-                </View>
-              )}
+              <NotificationBadge
+                count={pendingCount + notificationCount}
+                backgroundColor={colors.primary}
+                textColor={colors.surface}
+              />
               <LucideIcon
                 name="notifications-outline"
                 size={20}
@@ -351,7 +534,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </Animated.View>
         </View>
-      </View>
+      </Animated.View>
 
       <ScrollView
         style={styles.scroll}
@@ -378,12 +561,14 @@ export default function HomeScreen() {
         />
 
         {/* Streak Card - Real-time Updates */}
+        <Animated.View style={streakAnim}>
         <StreakCard
           streakData={streakData}
           loading={loading}
           error={error}
           streakUnit="Days"
         />
+        </Animated.View>
 
         {/* Activity Feed */}
         {activities.length === 0 ? (
@@ -399,9 +584,10 @@ export default function HomeScreen() {
             </Text>
           </View>
         ) : (
-          activities.map((activity) => (
+          activities.map((activity, index) => (
             <AnimatedActivityCard
               key={activity.id}
+              index={index}
               activity={activity}
               initials={initials}
               profile={profile}
@@ -496,170 +682,85 @@ export default function HomeScreen() {
       <Modal
         visible={showSearch}
         animationType="slide"
-        transparent
         statusBarTranslucent
-        onRequestClose={() => setShowSearch(false)}
+        onRequestClose={closeSearch}
       >
-        <KeyboardAvoidingView
-          style={styles.searchOverlay}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        <SafeAreaView
+          style={[styles.searchScreen, { backgroundColor: colors.surface }]}
         >
-          <View
-            style={[
-              styles.searchSheet,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <View style={styles.searchHeader}>
-              <Text style={[styles.searchTitle, { color: colors.text }]}>
-                Find Friends
-              </Text>
-              <TouchableOpacity onPress={() => setShowSearch(false)}>
-                <LucideIcon name="close" size={20} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.searchInputRow}>
+          <View style={styles.searchBar}>
+            <TouchableOpacity
+              onPress={closeSearch}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Close search"
+            >
+              <Text style={[styles.searchBack, { color: colors.text }]}>←</Text>
+            </TouchableOpacity>
+            <View
+              style={[styles.searchField, { backgroundColor: colors.background }]}
+            >
+              <LucideIcon name="search" size={16} color={colors.textMuted} />
               <TextInput
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                placeholder="Search username"
+                placeholder="Search people"
                 placeholderTextColor={colors.textMuted}
-                style={[
-                  styles.searchInput,
-                  {
-                    color: colors.text,
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                  },
-                ]}
+                style={[styles.searchInput, { color: colors.text }]}
+                autoFocus
                 autoCapitalize="none"
                 autoCorrect={false}
-                onSubmitEditing={runUserSearch}
                 returnKeyType="search"
               />
-              <Animated.View
-                style={{ transform: [{ scale: searchButtonScale }] }}
-              >
+              {searching ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : searchQuery.length > 0 ? (
                 <TouchableOpacity
-                  style={[
-                    styles.searchSubmitBtn,
-                    { backgroundColor: colors.primary },
-                  ]}
-                  onPress={runUserSearch}
-                  onPressIn={() => animatePressScale(searchButtonScale, true)}
-                  onPressOut={() => animatePressScale(searchButtonScale, false)}
-                  accessibilityRole="button"
-                  accessibilityHint="Search for users"
+                  onPress={() => setSearchQuery("")}
+                  accessibilityLabel="Clear search"
                 >
-                  <LucideIcon name="search" size={16} color={colors.surface} />
+                  <LucideIcon name="close" size={16} color={colors.textMuted} />
                 </TouchableOpacity>
-              </Animated.View>
+              ) : null}
             </View>
+          </View>
 
-            {searching ? (
-              <Text style={[styles.searchHint, { color: colors.textMuted }]}>
-                Searching...
-              </Text>
-            ) : (
-              <FlatList
-                data={searchResults}
-                keyExtractor={(item) => item.id}
-                keyboardShouldPersistTaps="handled"
-                ListEmptyComponent={
-                  <Text
-                    style={[styles.searchHint, { color: colors.textMuted }]}
-                  >
-                    {searchQuery.trim()
-                      ? "No users found."
-                      : "Search by username to find users."}
-                  </Text>
-                }
-                renderItem={({ item }) => (
-                  <View
-                    style={[
-                      styles.resultRow,
-                      { borderBottomColor: colors.border },
-                    ]}
-                  >
-                    <TouchableOpacity
-                      style={[
-                        styles.avatarCircle,
-                        { backgroundColor: colors.primary },
-                      ]}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/profile/[uid]" as never,
-                          params: { uid: item.id },
-                        })
-                      }
-                    >
-                      <Text
-                        style={[styles.avatarText, { color: colors.surface }]}
-                      >
-                        {item.username.slice(0, 2).toUpperCase()}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={{ flex: 1 }}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/profile/[uid]" as never,
-                          params: { uid: item.id },
-                        })
-                      }
-                    >
-                      <Text style={[styles.resultName, { color: colors.text }]}>
-                        {item.username}
-                      </Text>
-                    </TouchableOpacity>
-                    <Animated.View
-                      style={{ transform: [{ scale: followButtonScale }] }}
-                    >
-                      <TouchableOpacity
-                        style={StyleSheet.flatten([
-                          styles.addBtn,
-                          { backgroundColor: colors.primary },
-                          followStatusMap[item.id] === "following" && {
-                            backgroundColor: colors.textMuted,
-                          },
-                          (followingUid === item.id ||
-                            followStatusMap[item.id] === "following") &&
-                            styles.addBtnDisabled,
-                        ])}
-                        disabled={
-                          followingUid === item.id ||
-                          followStatusMap[item.id] === "following"
-                        }
-                        onPress={() => handleFollow(item)}
-                        onPressIn={() =>
-                          animatePressScale(followButtonScale, true)
-                        }
-                        onPressOut={() =>
-                          animatePressScale(followButtonScale, false)
-                        }
-                        accessibilityRole="button"
-                        accessibilityHint="Follow this user"
-                      >
-                        <Text
-                          style={[styles.addBtnText, { color: colors.surface }]}
-                        >
-                          {followingUid === item.id
-                            ? "Following..."
-                            : followStatusMap[item.id] === "following"
-                              ? "Following"
-                              : followStatusMap[item.id] === "followBack"
-                                ? "Follow Back"
-                                : "Follow"}
-                        </Text>
-                      </TouchableOpacity>
-                    </Animated.View>
-                  </View>
-                )}
+          <FlatList
+            data={searchResults}
+            keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.searchList}
+            ListHeaderComponent={
+              searchResults.length > 0 ? (
+                <Text
+                  style={[styles.searchSectionLabel, { color: colors.textMuted }]}
+                >
+                  People
+                </Text>
+              ) : null
+            }
+            ListEmptyComponent={
+              searching ? null : (
+                <Text style={[styles.searchHint, { color: colors.textMuted }]}>
+                  {searchQuery.trim()
+                    ? "No people found."
+                    : "Search by username to find people."}
+                </Text>
+              )
+            }
+            renderItem={({ item, index }) => (
+              <SearchResultRow
+                item={item}
+                index={index}
+                status={followStatusMap[item.id]}
+                loading={followingUid === item.id}
+                onOpen={() => openProfile(item.id)}
+                onFollow={() => handleFollow(item)}
+                colors={colors}
               />
             )}
-          </View>
-        </KeyboardAvoidingView>
+          />
+        </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );
@@ -757,100 +858,48 @@ const styles = StyleSheet.create({
   },
   upcoming: { color: "#4C7AC9" },
   overdue: { color: "#C94C3C" },
-  searchOverlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.32)",
-  },
-  searchSheet: {
-    maxHeight: "72%",
-    backgroundColor: Colors.background,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 14,
-    borderTopWidth: 1,
-    borderColor: Colors.border,
-  },
-  searchHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  searchTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: Colors.text,
-  },
-  searchInputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 10,
-  },
-  searchInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: Platform.OS === "ios" ? 10 : 8,
-    color: Colors.text,
-    backgroundColor: Colors.surface,
-  },
-  searchSubmitBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.primary,
-  },
-  searchHint: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    paddingVertical: 12,
-    textAlign: "center",
-  },
-  resultRow: {
+  searchScreen: { flex: 1 },
+  searchBar: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  searchBack: { fontSize: 24, lineHeight: 28 },
+  searchField: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    height: 42,
+    borderRadius: 21,
+    paddingHorizontal: 14,
+  },
+  searchInput: { flex: 1, fontSize: 15, paddingVertical: 0 },
+  searchList: { paddingHorizontal: 16, paddingBottom: 24 },
+  searchSectionLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  searchHint: { fontSize: 13, textAlign: "center", paddingVertical: 32 },
+  resultRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
     paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
   },
   avatarCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.primary,
   },
-  avatarText: {
-    color: Colors.surface,
-    fontSize: 11,
-    fontWeight: "800",
-  },
-  resultName: {
-    flex: 1,
-    color: Colors.text,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  addBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  addBtnDisabled: {
-    opacity: 0.6,
-  },
-  addBtnText: {
-    color: Colors.surface,
-    fontSize: 11,
-    fontWeight: "700",
-  },
+  avatarText: { fontSize: 15, fontWeight: "800" },
+  resultName: { flex: 1, fontSize: 15, fontWeight: "600" },
+  followBtn: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 7 },
+  followBtnText: { fontSize: 12, fontWeight: "700" },
 });
