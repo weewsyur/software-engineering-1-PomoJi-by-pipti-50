@@ -91,18 +91,6 @@ class SoundService {
   }
 
   /**
-   * ⚠️ Focus Violation - Alert warning tone
-   */
-  public playFocusViolation() {
-    this.playMelody([
-      { freq: 800, duration: 0.1 },
-      { freq: 600, duration: 0.1 },
-      { freq: 800, duration: 0.1 },
-      { freq: 600, duration: 0.2 },
-    ]);
-  }
-
-  /**
    * 👋 Break Over - Gentle reminder
    */
   public playBreakOver() {

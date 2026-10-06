@@ -16,7 +16,6 @@ The app is built for students, freelancers, and professionals who want to:
 
 - Pomodoro timer with focus, short break, and long break modes
 - Task categories and task selection inside focus sessions
-- Strict focus mode to discourage tab switching or leaving the app mid-session
 - Notification reminders and session completion alerts
 - Daily streak and activity tracking
 - Analytics dashboard for productivity overview

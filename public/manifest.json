@@ -1,7 +1,7 @@
 {
   "name": "PomoJI - A Productivity & Progress Monitoring App",
   "short_name": "PomoJI",
-  "description": "A powerful Pomodoro timer app with Firebase sync, offline support, and strict focus mode to boost productivity",
+  "description": "A powerful Pomodoro timer app with Firebase sync, offline support, and productivity tracking",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
