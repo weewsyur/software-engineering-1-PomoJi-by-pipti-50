@@ -76,11 +76,32 @@ iconSizes.forEach(size => {
   }
 });
 
+['favicon.png', 'apple-touch-icon.png'].forEach((iconName) => {
+  const iconSource = path.join(publicPath, iconName);
+  if (fs.existsSync(iconSource)) {
+    fs.copyFileSync(iconSource, path.join(distPath, iconName));
+    console.log(`✓ Copied ${iconName} to dist/`);
+  }
+});
+
 // Add service worker registration to index.html
 const indexPath = path.join(distPath, 'index.html');
 if (fs.existsSync(indexPath)) {
   let indexContent = fs.readFileSync(indexPath, 'utf8');
-  
+
+  const iconLinks = [
+    '<link rel="icon" type="image/png" href="/favicon.png" />',
+    '<link rel="apple-touch-icon" href="/apple-touch-icon.png" />',
+  ].join('\n    ');
+  const existingFavicon = /<link\b[^>]*\brel=["']icon["'][^>]*>/i;
+  if (existingFavicon.test(indexContent)) {
+    indexContent = indexContent.replace(existingFavicon, iconLinks);
+  } else {
+    indexContent = indexContent.replace('</head>', `${iconLinks}</head>`);
+  }
+  fs.writeFileSync(indexPath, indexContent);
+  console.log('✓ Set browser and Apple touch icons in index.html');
+
   // Check if service worker registration is already present
   if (!indexContent.includes('service-worker.js')) {
     // Add service worker registration script before closing body tag
