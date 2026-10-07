@@ -3,6 +3,7 @@ import { CheckCircle2, Circle, Edit, Trash2, X } from "lucide-react-native";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Task } from "@/hooks/usePomodoro";
 import { CategoryPill } from "./CategoryPill";
+import { shadowStyle } from "@/utils/shadowStyle";
 
 const isTaskCategory = (
   value: unknown,
@@ -194,11 +195,7 @@ const modalStyles = StyleSheet.create({
     padding: 24,
     width: "100%",
     maxWidth: 400,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
+    ...shadowStyle("#000", 0, 2, 8, 0.25, 5),
   },
   header: {
     flexDirection: "row",

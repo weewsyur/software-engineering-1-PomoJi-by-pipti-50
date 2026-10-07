@@ -3,12 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   Pressable,
   Animated,
   Easing,
 } from "react-native";
 import { Link } from "expo-router";
+import { shadowStyle } from "@/utils/shadowStyle";
 
 const COLORS = {
   primary: "#F4512C",
@@ -257,11 +257,7 @@ const styles = StyleSheet.create({
   },
   pillButtonPrimary: {
     backgroundColor: COLORS.primary,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
+    ...shadowStyle(COLORS.primary, 0, 6, 12, 0.35, 6),
   },
   pillButtonOutline: { backgroundColor: "transparent" },
   pillButtonText: { fontSize: 14, fontWeight: "700", letterSpacing: 0.5 },

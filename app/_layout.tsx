@@ -4,9 +4,10 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { useEffect, useState } from "react";
 import { Platform, Text } from "react-native";
 import * as Font from "expo-font";
-import { PWAInstallPrompt } from "@/app/components/PWAInstallPrompt";
-import { OfflineIndicator } from "@/app/components/OfflineIndicator";
-import { SyncingIndicator } from "@/app/components/SyncingIndicator";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { SyncingIndicator } from "@/components/SyncingIndicator";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 // Service Worker Registration for Web PWA
 function registerServiceWorker() {
@@ -110,7 +111,7 @@ export default function RootLayout() {
         try {
           document.body.style.fontFamily =
             "'Open Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial";
-        } catch (e) {
+        } catch {
           /* ignore */
         }
       }
@@ -123,11 +124,13 @@ export default function RootLayout() {
         {Platform.OS === "web" && <PWAInstallPrompt />}
         {Platform.OS === "web" && <OfflineIndicator />}
         {Platform.OS === "web" && <SyncingIndicator />}
-        <Stack
-          screenOptions={{
-            headerShown: false,
-          }}
-        />
+        <AuthProvider>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+            }}
+          />
+        </AuthProvider>
       </SafeAreaProvider>
     </ThemeProvider>
   );

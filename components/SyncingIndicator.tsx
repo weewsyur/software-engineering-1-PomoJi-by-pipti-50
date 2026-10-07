@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { RefreshCw, CheckCircle2, CloudOff } from 'lucide-react-native';
 
@@ -6,7 +6,7 @@ export const SyncingIndicator: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState(false);
   const [showIndicator, setShowIndicator] = useState(false);
-  const slideAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Listen to Firestore sync status

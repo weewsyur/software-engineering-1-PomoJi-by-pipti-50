@@ -4,7 +4,7 @@ import { SharedStyles } from "@/constants/styles";
 import { useActivities } from "@/hooks/useActivities";
 import { Task, TaskCategory, useSessions, useTasks } from "@/hooks/usePomodoro";
 import { useTimerPersistence } from "@/hooks/useTimerPersistence";
-import { LucideIcon } from "@/app/components/LucideIcon";
+import { LucideIcon } from "@/components/LucideIcon";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Sparkles } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -16,6 +16,7 @@ import {
   Easing,
   FlatList,
   ScrollView,
+  Platform,
   StatusBar,
   StyleSheet,
   Text,
@@ -30,6 +31,7 @@ import { TaskPicker } from "@/app/components/timer/TaskPicker";
 import { initializeNotifications } from "@/services/notificationService";
 import { createSessionCompleteNotification } from "@/services/notificationPersistence";
 import { soundService } from "@/services/soundService";
+import { shadowStyle } from "@/utils/shadowStyle";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -103,6 +105,7 @@ export default function TimerScreen() {
   const [sessions, setSessions] = useState(0);
   const [streakCount, setStreakCount] = useState(0);
   const [motivationalQuote, setMotivationalQuote] = useState(getRandomQuote());
+  const timerStateRestoredRef = useRef(false);
 
   // ── Timer persistence ─────────────────────────────────────────────────────
   const {
@@ -113,17 +116,28 @@ export default function TimerScreen() {
 
   // Load persisted timer state on mount
   useEffect(() => {
-    if (!timerLoaded) return;
+    if (!timerLoaded || timerStateRestoredRef.current) return;
     if (timerState.startTime !== null) return; // Don't load if timer was running
     if (hasStarted) return; // Don't overwrite if already started
 
+    timerStateRestoredRef.current = true;
     setMode(timerState.mode);
     setTimeLeft(timerState.timeLeft);
     setIsRunning(timerState.isRunning);
     setHasStarted(timerState.hasStarted);
     setSessions(timerState.sessions);
     setStreakCount(timerState.streakCount);
-  }, [timerLoaded]);
+  }, [
+    timerLoaded,
+    timerState.startTime,
+    timerState.mode,
+    timerState.timeLeft,
+    timerState.isRunning,
+    timerState.hasStarted,
+    timerState.sessions,
+    timerState.streakCount,
+    hasStarted,
+  ]);
 
   useEffect(() => {
     initializeNotifications().catch(() => null);
@@ -614,13 +628,18 @@ export default function TimerScreen() {
               {
                 width: SIZE,
                 height: SIZE,
-                shadowOpacity: glowRef.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.2, 0.6],
-                }),
-                shadowRadius: glowRef.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [4, 24],
+                ...Platform.select({
+                  web: {},
+                  default: {
+                    shadowOpacity: glowRef.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.2, 0.6],
+                    }),
+                    shadowRadius: glowRef.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [4, 24],
+                    }),
+                  },
                 }),
               },
             ])}
@@ -988,11 +1007,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    ...shadowStyle("#000", 0, 2, 8, 0.08, 3),
   },
   quoteIconContainer: {
     marginBottom: 12,
@@ -1042,11 +1057,7 @@ const styles = StyleSheet.create({
     borderRadius: 120,
     borderWidth: 10,
     borderColor: Colors.primary,
-    shadowColor: "#FFA500",
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 8,
+    ...shadowStyle("#FFA500", 2, 2, 8, 0.5, 8),
   },
   timeText: {
     fontSize: 52,
@@ -1108,13 +1119,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    ...shadowStyle(Colors.primary, 0, 4, 12, 0.35, 8),
   },
-  resumeBtn: { backgroundColor: "#4C7AC9", shadowColor: "#4C7AC9" },
+  resumeBtn: {
+    backgroundColor: "#4C7AC9",
+    ...shadowStyle("#4C7AC9", 0, 4, 12, 0.35, 8),
+  },
   sessionBadge: {
     width: 48,
     height: 48,

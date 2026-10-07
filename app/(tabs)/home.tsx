@@ -23,7 +23,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LucideIcon } from "@/app/components/LucideIcon";
+import { LucideIcon } from "@/components/LucideIcon";
 import * as Notifications from "expo-notifications";
 import { Colors, useColors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
@@ -33,15 +33,14 @@ import { ActivityCard } from "../components/ActivityCard";
 import { auth, db } from "@/services/firebase";
 import { useRouter } from "expo-router";
 import { useStreakListener } from "@/utils/useStreakListener";
-import { getUserStore } from "@/store/userStore";
 import { useReminders } from "@/hooks/useReminders";
 import { useSocialActivities } from "@/hooks/useSocialActivities";
 import { initializeStreakData } from "@/utils/activityTracker";
 import { useProfile } from "@/hooks/useProfile";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useWebPullToRefresh } from "@/hooks/useWebPullToRefresh";
-import { WebPullToRefreshIndicator } from "@/app/components/WebPullToRefreshIndicator";
-import { NotificationsModal } from "@/app/components/NotificationsModal";
+import { WebPullToRefreshIndicator } from "@/components/WebPullToRefreshIndicator";
+import { NotificationsModal } from "@/components/NotificationsModal";
 import {
   searchUsers,
   getFollowStatusMap,
@@ -356,6 +355,8 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
+    if (Platform.OS === "web") return;
+
     let sub: { remove: () => void } | null = null;
     let mounted = true;
 

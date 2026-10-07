@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { FC, useEffect, useRef } from "react";
 import {
   Modal,
   View,
@@ -13,7 +13,6 @@ import {
   Bell,
   Clock,
   CheckCircle2,
-  AlertCircle,
   UserPlus,
 } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
@@ -93,18 +92,23 @@ const getNotificationMessage = (notification: Notification): string => {
   }
 };
 
-export const NotificationDetailModal: React.FC<
+export const NotificationDetailModal: FC<
   NotificationDetailModalProps
 > = ({ visible, notification, onClose, onMarkAsRead }) => {
   const revealOpacity = useRef(new Animated.Value(0)).current;
   const revealY = useRef(new Animated.Value(10)).current;
   const actionScale = useRef(new Animated.Value(1)).current;
+  const onMarkAsReadRef = useRef(onMarkAsRead);
+
+  useEffect(() => {
+    onMarkAsReadRef.current = onMarkAsRead;
+  }, [onMarkAsRead]);
 
   useEffect(() => {
     if (visible && notification && !notification.read) {
       markNotificationAsRead(notification.id).then(() => {
-        if (onMarkAsRead) {
-          onMarkAsRead(notification.id);
+        if (onMarkAsReadRef.current) {
+          onMarkAsReadRef.current(notification.id);
         }
       });
     }

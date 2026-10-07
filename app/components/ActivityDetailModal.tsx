@@ -12,6 +12,7 @@ import { Colors } from "@/constants/colors";
 import { Activity } from "@/hooks/useActivities";
 import { useState, useEffect } from "react";
 import { getFreshDownloadURL, isStoragePath } from "@/utils/imageStorage";
+import { shadowStyle } from "@/utils/shadowStyle";
 
 interface ActivityDetailModalProps {
   activity: Activity | null;
@@ -334,11 +335,7 @@ const deleteModalStyles = StyleSheet.create({
     padding: 24,
     width: "100%",
     maxWidth: 400,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
+    ...shadowStyle("#000", 0, 2, 8, 0.25, 5),
   },
   header: {
     flexDirection: "row",

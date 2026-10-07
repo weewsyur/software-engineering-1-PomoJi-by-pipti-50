@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
 import { Colors } from './colors';
+import { shadowStyle } from '../utils/shadowStyle';
 
 export const SharedStyles = StyleSheet.create({
   screen: {
@@ -11,11 +12,7 @@ export const SharedStyles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 3,
+    ...shadowStyle(Colors.shadow, 0, 2, 8, 1, 3),
   },
   sectionLabel: {
     fontSize: 10,

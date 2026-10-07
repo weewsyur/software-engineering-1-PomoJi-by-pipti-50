@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Text, StyleSheet, Animated } from "react-native";
 import { RefreshCw } from "lucide-react-native";
 import { offlineManager } from "@/web/offline-manager";
+import { shadowStyle } from "@/utils/shadowStyle";
 
 export const SyncStatus: React.FC = () => {
   const [hasPendingOps, setHasPendingOps] = useState(false);
   const isSyncing = false;
-  const rotateAnim = React.useRef(new Animated.Value(0)).current;
-  const scaleAnim = React.useRef(new Animated.Value(0)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const checkPendingOps = async () => {
@@ -102,11 +103,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     zIndex: 50,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
+    ...shadowStyle("#000", 0, 2, 4, 0.1, 4),
   },
   badge: {
     width: 24,

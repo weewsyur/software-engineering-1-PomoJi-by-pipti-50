@@ -16,6 +16,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/services/firebase";
 import { setFirebaseUser, setUserStore } from "@/store/userStore";
 import { Colors } from "@/constants/colors";
+import { shadowStyle } from "@/utils/shadowStyle";
 
 // ─── Animation helpers ────────────────────────────────────────────────────────
 
@@ -405,11 +406,7 @@ const styles = StyleSheet.create({
     paddingTop: 32,
     paddingHorizontal: 24,
     paddingBottom: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 8,
+    ...shadowStyle("#000", 0, -3, 16, 0.06, 8),
   },
   cardTitle: {
     fontSize: 20,
@@ -486,11 +483,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
     width: "100%",
-    shadowColor: C.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.28,
-    shadowRadius: 12,
-    elevation: 6,
+    ...shadowStyle(C.primary, 0, 6, 12, 0.28, 6),
   },
   primaryButtonText: {
     color: C.white,

@@ -20,12 +20,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Colors, useColors } from "@/constants/colors";
+import { shadowStyle } from "@/utils/shadowStyle";
 import { SharedStyles } from "@/constants/styles";
 import { signOutUser } from "@/store/userStore";
-import { LucideIcon } from "@/app/components/LucideIcon";
+import { LucideIcon } from "@/components/LucideIcon";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useWebPullToRefresh } from "@/hooks/useWebPullToRefresh";
-import { WebPullToRefreshIndicator } from "@/app/components/WebPullToRefreshIndicator";
+import { WebPullToRefreshIndicator } from "@/components/WebPullToRefreshIndicator";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import { getDownloadURL, ref, uploadString } from "firebase/storage";
@@ -200,7 +201,6 @@ export default function ProfileScreen() {
   const [connectionsList, setConnectionsList] = useState<UserListItem[]>([]);
   const [loadingConnections, setLoadingConnections] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const fileInputRef = useRef<any>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -507,7 +507,6 @@ export default function ProfileScreen() {
     }
 
     setIsSavingProfile(true);
-    setSaveError(null);
 
     try {
       const currentUser = auth.currentUser;
@@ -597,7 +596,6 @@ export default function ProfileScreen() {
     } catch (error) {
       const firebaseError = error as { code?: string; message?: string };
       console.error("Error updating profile:", error);
-      setSaveError(firebaseError.message || "Failed to update profile.");
       Alert.alert(
         "Error",
         firebaseError.message || "Failed to update profile. Please try again.",
@@ -1631,11 +1629,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: 14,
     paddingHorizontal: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    ...shadowStyle("#000", 0, 1, 4, 0.05, 2),
   },
   inputRow: {
     flexDirection: "row",
@@ -1686,11 +1680,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.28,
-    shadowRadius: 10,
-    elevation: 6,
+    ...shadowStyle(Colors.primary, 0, 4, 10, 0.28, 6),
   },
   saveBtnDisabled: {
     opacity: 0.65,
@@ -1720,11 +1710,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     backgroundColor: Colors.surface,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
+    ...shadowStyle("#000", 0, 1, 2, 0.2, 2),
   },
   toggleKnobOn: {
     alignSelf: "flex-end",

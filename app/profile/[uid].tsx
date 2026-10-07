@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { LucideIcon } from "@/app/components/LucideIcon";
+import { LucideIcon } from "@/components/LucideIcon";
 import { Colors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
 import { auth, db } from "@/services/firebase";

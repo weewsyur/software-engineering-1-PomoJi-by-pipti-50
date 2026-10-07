@@ -114,7 +114,7 @@ export function useSocialActivities() {
     // Set up real-time listener for current user's activities with debounce
     const activitiesRef = collection(db, "users", currentUid, "activities");
     const activitiesQuery = query(activitiesRef, orderBy("createdAt", "desc"), limit(20));
-    let timeoutId: NodeJS.Timeout | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const unsubscribe = onSnapshot(
       activitiesQuery,

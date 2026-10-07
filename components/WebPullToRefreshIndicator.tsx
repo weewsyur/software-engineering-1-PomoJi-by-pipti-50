@@ -1,4 +1,4 @@
-import React from "react";
+import React, { FC } from "react";
 import { View, Text, StyleSheet, ActivityIndicator, Platform } from "react-native";
 import { LucideIcon } from "./LucideIcon";
 
@@ -9,7 +9,7 @@ interface WebPullToRefreshIndicatorProps {
   pullThreshold?: number;
 }
 
-export const WebPullToRefreshIndicator: React.FC<
+export const WebPullToRefreshIndicator: FC<
   WebPullToRefreshIndicatorProps
 > = ({ refreshing, pullDistance, color = "#ef4444", pullThreshold = 60 }) => {
   if (Platform.OS !== "web") return null;

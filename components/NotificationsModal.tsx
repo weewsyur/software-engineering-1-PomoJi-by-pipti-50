@@ -22,7 +22,7 @@ import { useColors } from "@/constants/colors";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Notification } from "@/hooks/useNotifications";
 import { useRouter } from "expo-router";
-import { NotificationDetailModal } from "@/app/components/NotificationDetailModal";
+import { NotificationDetailModal } from "@/components/NotificationDetailModal";
 
 interface NotificationsModalProps {
   visible: boolean;

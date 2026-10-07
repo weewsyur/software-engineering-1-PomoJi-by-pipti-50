@@ -9,7 +9,8 @@ import {
   Text,
 } from "react-native";
 import { Colors } from "@/constants/colors";
-import { LucideIcon } from "@/app/components/LucideIcon";
+import { LucideIcon } from "@/components/LucideIcon";
+import { shadowStyle } from "@/utils/shadowStyle";
 
 type IoniconName = string;
 
@@ -251,11 +252,7 @@ const styles = StyleSheet.create({
     height: Platform.OS === "ios" ? 85 : 65,
     paddingBottom: Platform.OS === "ios" ? 20 : 8,
     paddingTop: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 8,
+    ...shadowStyle("#000", 0, -2, 8, 0.04, 8),
   },
   tabItem: {
     alignItems: "center",

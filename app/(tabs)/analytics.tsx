@@ -20,7 +20,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { getFreshDownloadURL, isStoragePath } from "@/utils/imageStorage";
 import { useActivities, Activity } from "../../hooks/useActivities";
 import { useWebPullToRefresh } from "@/hooks/useWebPullToRefresh";
-import { WebPullToRefreshIndicator } from "@/app/components/WebPullToRefreshIndicator";
+import { WebPullToRefreshIndicator } from "@/components/WebPullToRefreshIndicator";
 import {
   filterSessionsByWeek,
   filterSessionsByMonth,
@@ -31,7 +31,6 @@ import {
 } from "../../utils/sessionFilters";
 import { useStreakListener } from "../../utils/useStreakListener";
 import { initializeStreakData } from "../../utils/activityTracker";
-import { getUserStore } from "../../store/userStore";
 import { auth, db } from "../../services/firebase";
 import { ActivityDetailModal } from "../components/ActivityDetailModal";
 import { useDeleteActivity } from "../../hooks/useDeleteActivity";

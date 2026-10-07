@@ -1,8 +1,8 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
 import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { Platform } from "react-native";
+import { initializePlatformAuth } from "./firebaseAuth";
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyAvJ3HwJe_TkNYYjfjAREhRve8oLa7v1Zs",
@@ -15,7 +15,7 @@ const firebaseConfig = {
 
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-export const auth = getAuth(app);
+export const auth = initializePlatformAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 

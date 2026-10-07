@@ -27,7 +27,6 @@ export default function DateTimePickerWeb({
     mode === "date" ? "date" : mode === "time" ? "time" : "datetime-local";
 
   return (
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <input
       type={inputType}
       value={formatted}
