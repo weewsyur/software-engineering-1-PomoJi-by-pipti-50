@@ -2,12 +2,55 @@ import { Stack } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { useEffect, useState } from "react";
-import { Platform, Text } from "react-native";
+import { Image, Platform, StyleSheet, Text, View } from "react-native";
 import * as Font from "expo-font";
+import * as SplashScreen from "expo-splash-screen";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { SyncingIndicator } from "@/components/SyncingIndicator";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+
+if (Platform.OS !== "web") {
+  SplashScreen.preventAutoHideAsync().catch((error) => {
+    console.warn("Unable to keep the native splash screen visible:", error);
+  });
+}
+
+function StartupContent() {
+  const { initializing } = useAuth();
+  const [rootLaidOut, setRootLaidOut] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS === "web" || initializing || !rootLaidOut) return;
+
+    SplashScreen.hideAsync().catch((error) => {
+      console.error("Unable to hide the native splash screen:", error);
+    });
+  }, [initializing, rootLaidOut]);
+
+  return (
+    <View style={styles.root} onLayout={() => setRootLaidOut(true)}>
+      <Stack screenOptions={{ headerShown: false }} />
+      {initializing && (
+        <View style={styles.startupSplash}>
+          <Image
+            source={require("../assets/images/POMOJI.png")}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel="PomoJI"
+          />
+        </View>
+      )}
+      {!initializing && Platform.OS === "web" && (
+        <>
+          <PWAInstallPrompt />
+          <OfflineIndicator />
+          <SyncingIndicator />
+        </>
+      )}
+    </View>
+  );
+}
 
 // Service Worker Registration for Web PWA
 function registerServiceWorker() {
@@ -121,17 +164,28 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <SafeAreaProvider>
-        {Platform.OS === "web" && <PWAInstallPrompt />}
-        {Platform.OS === "web" && <OfflineIndicator />}
-        {Platform.OS === "web" && <SyncingIndicator />}
         <AuthProvider>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-            }}
-          />
+          <StartupContent />
         </AuthProvider>
       </SafeAreaProvider>
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: "#FFFEF1",
+  },
+  startupSplash: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFEF1",
+    zIndex: 10,
+  },
+  logo: {
+    width: 200,
+    height: 200,
+  },
+});

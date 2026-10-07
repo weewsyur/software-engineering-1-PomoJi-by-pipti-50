@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/images/POMOJI.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FFFEF1"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -32,7 +32,7 @@
       "favicon": "./assets/images/POMOJI.png",
       "meta": {
         "viewport": "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
-        "theme-color": "#ef4444",
+        "theme-color": "#FFFEF1",
         "description": "A powerful Pomodoro timer app with Firebase sync, offline support, and productivity tracking",
         "apple-mobile-web-app-capable": "yes",
         "apple-mobile-web-app-status-bar-style": "default",
@@ -45,8 +45,8 @@
         "start_url": "/",
         "scope": "/",
         "display": "standalone",
-        "theme_color": "#ef4444",
-        "background_color": "#ffffff",
+        "theme_color": "#FFFEF1",
+        "background_color": "#FFFEF1",
         "orientation": "portrait-primary",
         "categories": [
           "productivity",
@@ -113,8 +113,8 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#ffffff",
-          "image": "./assets/images/splash-icon.png",
+          "backgroundColor": "#FFFEF1",
+          "image": "./assets/images/POMOJI.png",
           "imageWidth": 200
         }
       ],
