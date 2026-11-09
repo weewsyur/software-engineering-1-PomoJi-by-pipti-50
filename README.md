@@ -106,7 +106,7 @@ npm run build:web
 npm run deploy:web
 ```
 
-To deploy the web app to Firebase Hosting manually, run `npm run deploy:web` from the `PomoJI` project directory. This builds the Expo web export into `dist/` before deploying it.
+To deploy the web app to Firebase Hosting, run `npm run deploy:web` from the `PomoJI` project directory. Firebase Hosting automatically builds the Expo web export into `dist/` before deployment, and the build stops if its `index.html` entrypoint is missing.
 
 ## App workflow
 

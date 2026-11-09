@@ -5,10 +5,16 @@ console.log('🔨 Post-build PWA optimization...');
 
 const distPath = path.join(__dirname, 'dist');
 const publicPath = path.join(__dirname, 'public');
+const indexPath = path.join(distPath, 'index.html');
 
 // Ensure dist directory exists
 if (!fs.existsSync(distPath)) {
   console.error('❌ dist directory not found. Run "expo export --platform web" first.');
+  process.exit(1);
+}
+
+if (!fs.existsSync(indexPath) || fs.statSync(indexPath).size === 0) {
+  console.error('❌ dist/index.html is missing or empty. Run "npm run build:web" before deploying.');
   process.exit(1);
 }
 
@@ -85,7 +91,6 @@ iconSizes.forEach(size => {
 });
 
 // Add service worker registration to index.html
-const indexPath = path.join(distPath, 'index.html');
 if (fs.existsSync(indexPath)) {
   let indexContent = fs.readFileSync(indexPath, 'utf8');
 
