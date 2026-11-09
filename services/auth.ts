@@ -2,10 +2,12 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
+  updateProfile,
   UserCredential,
 } from "firebase/auth";
 import { auth } from "@/services/firebase";
 import { createUserDocument } from "@/services/firestore";
+import { EMPTY_USER_NAME_FIELDS, formatUserName, UserNameFields } from "@/utils/userName";
 
 const getAuthErrorCode = (error: unknown) => {
   const code = (error as { code?: string } | null)?.code ?? "";
@@ -17,34 +19,29 @@ const mapCommonAuthError = (error: unknown) => {
   if (code === "auth/invalid-api-key") {
     return "App configuration error. Please contact support.";
   }
-  if (code === "auth/invalid-credential") {
-    return "Invalid credentials. Please check your email and password.";
-  }
   if (code === "auth/invalid-email") {
-    return "Invalid email address format.";
+    return "Please enter a valid email address.";
   }
   if (code === "auth/weak-password") {
-    return "Password is too weak. Please use a stronger password.";
+    return "Password does not meet the requirements.";
   }
   if (code === "auth/too-many-requests") {
     return "Too many attempts. Please try again later.";
   }
   if (code === "auth/network-request-failed") {
-    return "Network error. Please check your internet connection.";
+    return "Unable to connect. Please check your internet connection.";
   }
-  return `Error: ${code || "Unknown error"}. Please try again.`;
+  return "Unable to complete authentication. Please try again.";
 };
 
 const mapSignInError = (error: unknown) => {
   const code = getAuthErrorCode(error);
-  if (code === "auth/user-not-found") {
-    return "Account does not exist. Please register.";
-  }
-  if (code === "auth/wrong-password") {
-    return "Incorrect password. Please try again.";
-  }
-  if (code === "auth/invalid-credential") {
-    return "Invalid email or password.";
+  if (
+    code === "auth/user-not-found" ||
+    code === "auth/wrong-password" ||
+    code === "auth/invalid-credential"
+  ) {
+    return "Incorrect email or password.";
   }
   return mapCommonAuthError(error);
 };
@@ -55,18 +52,25 @@ const mapSignUpError = (error: unknown) => {
     return "Email is already registered. Please sign in.";
   }
   if (code === "auth/weak-password") {
-    return "Password must be at least 6 characters.";
-  }
-  if (code === "auth/invalid-email") {
-    return "Invalid email address format.";
+    return "Password does not meet the requirements.";
   }
   return mapCommonAuthError(error);
 };
 
-export const signUp = async (email: string, password: string): Promise<UserCredential> => {
+export const getSignUpErrorMessage = (error: unknown) => mapSignUpError(error);
+
+export const signUp = async (
+  email: string,
+  password: string,
+  nameFields: UserNameFields = EMPTY_USER_NAME_FIELDS,
+): Promise<UserCredential> => {
   try {
     const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-    await createUserDocument(credential.user);
+    const displayName = formatUserName(nameFields);
+    if (displayName) {
+      await updateProfile(credential.user, { displayName });
+    }
+    await createUserDocument(credential.user, nameFields);
     return credential;
   } catch (error) {
     throw new Error(mapSignUpError(error));

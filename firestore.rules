@@ -9,53 +9,229 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isMutualConnection(userId) {
+      return isSignedIn() && (
+        isOwner(userId) ||
+        (
+          exists(/databases/$(database)/documents/following/$(userId)/list/$(request.auth.uid)) &&
+          exists(/databases/$(database)/documents/following/$(request.auth.uid)/list/$(userId))
+        )
+      );
+    }
+
+    function validNameFields(data) {
+      return (!("firstName" in data) || data.firstName == null || data.firstName is string) &&
+        (!("lastName" in data) || data.lastName == null || data.lastName is string) &&
+        (!("middleName" in data) || data.middleName == null || data.middleName is string) &&
+        (!("suffix" in data) || data.suffix == null || data.suffix is string);
+    }
+
+    function validPublicProfile(userId) {
+      let data = request.resource.data;
+      return data.keys().hasOnly(["uid", "username", "photoUrl"]) &&
+        data.uid == userId &&
+        data.username is string &&
+        !data.username.matches('.*@.*') &&
+        (!("photoUrl" in data) || data.photoUrl == null || data.photoUrl is string) &&
+        validNameFields(data);
+    }
+
+    function validUserDocument(userId) {
+      let data = request.resource.data;
+      return data.keys().hasOnly([
+          "uid", "email", "username", "firstName", "lastName", "middleName",
+          "suffix", "photoUrl", "createdAt"
+        ]) &&
+        data.uid == userId &&
+        data.username is string &&
+        (data.email == null || data.email is string) &&
+        validNameFields(data) &&
+        (!("photoUrl" in data) || data.photoUrl == null || data.photoUrl is string);
+    }
+
+    function validActivity(userId) {
+      let data = request.resource.data;
+      return data.keys().hasOnly([
+          "title", "description", "sessions", "totalTime", "images", "category",
+          "createdAt", "uid", "userId", "totalMinutes", "timestamp", "date"
+        ]) &&
+        data.title is string &&
+        data.sessions is int &&
+        data.sessions >= 0 &&
+        (
+          (
+            "uid" in data &&
+            data.uid == userId &&
+            data.totalTime is number &&
+            data.totalTime >= 0 &&
+            data.description is string &&
+            data.category is string &&
+            data.images is list
+          ) ||
+          (
+            "userId" in data &&
+            data.userId == userId &&
+            data.totalMinutes is number &&
+            data.totalMinutes >= 0 &&
+            data.timestamp is timestamp &&
+            data.date is string
+          )
+        );
+    }
+
+    function validSession() {
+      let data = request.resource.data;
+      return data.keys().hasOnly([
+          "taskTitle", "taskId", "date", "durationMinutes", "mode"
+        ]) &&
+        data.taskTitle is string &&
+        (data.taskId == null || data.taskId is string) &&
+        data.date is string &&
+        data.durationMinutes is number &&
+        data.durationMinutes >= 0 &&
+        data.mode in ["focus", "short", "long"];
+    }
+
+    function validConnection(data) {
+      return data.keys().hasOnly(["username", "createdAt"]) &&
+        data.username is string &&
+        !data.username.matches('.*@.*') &&
+        data.createdAt is timestamp;
+    }
+
+    function validFollowNotification(userId) {
+      let data = request.resource.data;
+      return data.keys().hasOnly([
+          "type", "fromUid", "fromUsername", "read", "createdAt"
+        ]) &&
+        data.type == "follow" &&
+        data.fromUid == request.auth.uid &&
+        data.fromUsername is string &&
+        !data.fromUsername.matches('.*@.*') &&
+        data.read == false &&
+        data.createdAt is timestamp &&
+        existsAfter(/databases/$(database)/documents/following/$(request.auth.uid)/list/$(userId)) &&
+        existsAfter(/databases/$(database)/documents/followers/$(userId)/list/$(request.auth.uid));
+    }
+
+    function validOwnNotification(userId) {
+      let data = request.resource.data;
+      return isOwner(userId) && (
+        (
+          data.type == "task_reminder" &&
+          data.keys().hasOnly([
+            "type", "taskId", "taskTitle", "dueDate", "reminderStatus", "read", "createdAt"
+          ]) &&
+          data.taskId is string &&
+          data.taskTitle is string &&
+          data.dueDate is string &&
+          data.reminderStatus in ["upcoming", "overdue"]
+        ) ||
+        (
+          data.type == "session_complete" &&
+          data.keys().hasOnly([
+            "type", "taskId", "taskTitle", "durationSeconds",
+            "sessionsCompleted", "read", "createdAt"
+          ]) &&
+          (data.taskId == null || data.taskId is string) &&
+          data.taskTitle is string &&
+          data.durationSeconds is number &&
+          data.durationSeconds >= 0 &&
+          data.sessionsCompleted is int &&
+          data.sessionsCompleted >= 0
+        )
+      ) &&
+      data.read == false &&
+      data.createdAt is timestamp;
+    }
+
     match /users/{userId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isOwner(userId);
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && validUserDocument(userId);
+      allow update: if isOwner(userId) &&
+        validUserDocument(userId) &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if false;
 
       match /activities/{activityId} {
-        allow read: if isSignedIn();
-        allow create, update, delete: if isOwner(userId);
+        allow read: if isMutualConnection(userId);
+        allow create, update: if isOwner(userId) && validActivity(userId);
+        allow delete: if isOwner(userId);
       }
 
       match /sessions/{sessionId} {
-        allow read: if isSignedIn();
-        allow create, update, delete: if isOwner(userId);
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validSession();
+        allow delete: if isOwner(userId);
       }
 
       match /tasks/{taskId} {
-        allow read: if isSignedIn();
-        allow create, update, delete: if isOwner(userId);
+        allow read, create, update, delete: if isOwner(userId);
       }
+
+      match /stats/{statsId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          request.resource.data.userId == userId &&
+          request.resource.data.keys().hasOnly([
+            "userId", "totalActivities", "totalFocusMinutes", "lastUpdated"
+          ]);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    match /publicProfiles/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(userId) && validPublicProfile(userId);
+      allow delete: if false;
+    }
+
+    match /activities/{activityId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
+      allow update: if isOwner(resource.data.userId) &&
+        request.resource.data.userId == resource.data.userId;
+      allow delete: if isOwner(resource.data.userId);
     }
 
     match /following/{userId}/list/{targetId} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && validConnection(request.resource.data);
+      allow delete: if isOwner(userId);
     }
 
     match /followers/{userId}/list/{followerId} {
       allow read: if isSignedIn();
-      allow create, update, delete: if request.auth.uid == userId || request.auth.uid == followerId;
+      allow create, update: if isSignedIn() &&
+        request.auth.uid == followerId &&
+        validConnection(request.resource.data) &&
+        existsAfter(/databases/$(database)/documents/following/$(followerId)/list/$(userId));
+      allow delete: if isOwner(userId) ||
+        (isSignedIn() && request.auth.uid == followerId);
     }
 
     match /notifications/{userId}/items/{notificationId} {
-      allow read: if isSignedIn() && request.auth.uid == userId;
-      allow create: if isSignedIn() &&
-        (request.auth.uid == userId || request.auth.uid == request.resource.data.fromUid);
-      allow update, delete: if isOwner(userId);
+      allow read: if isOwner(userId);
+      allow create: if validOwnNotification(userId) ||
+        (isSignedIn() && validFollowNotification(userId));
+      allow update: if isOwner(userId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"]) &&
+        request.resource.data.read is bool;
+      allow delete: if isOwner(userId);
     }
 
     match /streaks/{userId} {
-      allow read: if isSignedIn();
-      allow write: if isOwner(userId);
-    }
-
-    match /tasks/{taskId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isSignedIn();
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) &&
+        request.resource.data.userId == userId &&
+        request.resource.data.keys().hasOnly([
+          "userId", "currentStreak", "longestStreak", "highestStreak",
+          "lastActiveDate", "lastActivityDate", "totalActivities",
+          "timezone", "createdAt", "updatedAt"
+        ]);
+      allow delete: if isOwner(userId);
     }
   }
 }

@@ -3,9 +3,13 @@
 # dependencies
 node_modules/
 
+# Firebase CLI cache
+.firebase/
+
 # Expo
 .expo/
 dist/
+build/
 web-build/
 expo-env.d.ts
 
@@ -29,9 +33,19 @@ yarn-error.*
 # macOS
 .DS_Store
 *.pem
+Thumbs.db
 
 # local env files
+.env
+.env.*
 .env*.local
+!.env.example
+
+# Firebase service account credentials
+service-account*.json
+firebase-service-account*.json
+*-firebase-adminsdk-*.json
+*-service-account*.json
 
 # typescript
 *.tsbuildinfo

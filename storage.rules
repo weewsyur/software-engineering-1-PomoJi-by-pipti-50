@@ -1,0 +1,39 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function isMutualConnection(userId) {
+      return request.auth != null &&
+        firestore.exists(
+          /databases/(default)/documents/following/$(userId)/list/$(request.auth.uid)
+        ) &&
+        firestore.exists(
+          /databases/(default)/documents/following/$(request.auth.uid)/list/$(userId)
+        );
+    }
+
+    function isValidImageUpload() {
+      return request.resource.size <= 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+
+    match /profileImages/{userId} {
+      allow read: if request.auth != null;
+      allow create, update: if isOwner(userId) && isValidImageUpload();
+      allow delete: if isOwner(userId);
+    }
+
+    match /activityImages/{userId}/{fileName} {
+      allow read: if isOwner(userId) || isMutualConnection(userId);
+      allow create, update: if isOwner(userId) && isValidImageUpload();
+      allow delete: if isOwner(userId);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

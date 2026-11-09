@@ -22,14 +22,14 @@ import { useRouter } from "expo-router";
 import { Colors, useColors } from "@/constants/colors";
 import { shadowStyle } from "@/utils/shadowStyle";
 import { SharedStyles } from "@/constants/styles";
-import { signOutUser } from "@/store/userStore";
+import { setUserStore, signOutUser } from "@/store/userStore";
 import { LucideIcon } from "@/components/LucideIcon";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useWebPullToRefresh } from "@/hooks/useWebPullToRefresh";
 import { WebPullToRefreshIndicator } from "@/components/WebPullToRefreshIndicator";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
-import { getDownloadURL, ref, uploadString } from "firebase/storage";
+import { ref, uploadString } from "firebase/storage";
 import { updateProfile } from "firebase/auth";
 import { auth, db, storage } from "@/services/firebase";
 import {
@@ -39,17 +39,22 @@ import {
   collection,
   query,
   where,
-  updateDoc,
+  writeBatch,
 } from "firebase/firestore";
-import { getProfileImageURL } from "@/services/profile";
+import {
+  fetchUserProfile,
+  getProfileImageURL,
+  UserProfile,
+} from "@/services/profile";
 import { getDisplayStreak } from "@/utils/streakCalculator";
+import {
+  EMPTY_USER_NAME_FIELDS,
+  formatUserName,
+  getPublicUsername,
+  UserNameFields,
+} from "@/utils/userName";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-interface UserProfile {
-  name: string; // maps to username from sign-up
-  email: string;
-  photoUri: string | null;
-}
 type UserListItem = { id: string; username: string };
 type ConnectionModalType = "Following" | "Followers";
 
@@ -173,6 +178,7 @@ export default function ProfileScreen() {
   const colors = useColors(isDarkMode);
 
   const [profile, setProfile] = useState<UserProfile>({
+    ...EMPTY_USER_NAME_FIELDS,
     name: "",
     email: "",
     photoUri: null,
@@ -181,7 +187,10 @@ export default function ProfileScreen() {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [signOutModalVisible, setSignOutModalVisible] = useState(false);
-  const [draftName, setDraftName] = useState(profile.name);
+  const [draftFirstName, setDraftFirstName] = useState("");
+  const [draftLastName, setDraftLastName] = useState("");
+  const [draftMiddleName, setDraftMiddleName] = useState("");
+  const [draftSuffix, setDraftSuffix] = useState("");
   const [draftPhotoUri, setDraftPhotoUri] = useState<string | null>(
     profile.photoUri,
   );
@@ -222,37 +231,27 @@ export default function ProfileScreen() {
 
       setLoadingProfile(true);
       try {
-        const userRef = doc(db, "users", userId);
-        const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) {
-          const fallbackProfile: UserProfile = {
-            name: auth.currentUser?.displayName || "",
-            email: auth.currentUser?.email || "",
-            photoUri: auth.currentUser?.photoURL || null,
-          };
-          if (!cancelled) {
-            setProfile(fallbackProfile);
-            setDraftName(fallbackProfile.name);
-            setDraftPhotoUri(fallbackProfile.photoUri);
-          }
-          return;
-        }
-
-        const userData = userSnap.data();
-        const nextProfile: UserProfile = {
-          name:
-            (userData.username as string) ||
-            auth.currentUser?.displayName ||
-            "",
-          email: (userData.email as string) || auth.currentUser?.email || "",
-          photoUri:
-            (await getProfileImageURL(userData.photoUrl as string | null)) ||
-            auth.currentUser?.photoURL ||
-            null,
-        };
+        const fetchedProfile = await fetchUserProfile(userId);
+        const nextProfile = fetchedProfile
+          ? {
+              ...fetchedProfile,
+              photoUri:
+                (await getProfileImageURL(fetchedProfile.photoUri)) ||
+                auth.currentUser?.photoURL ||
+                null,
+            }
+          : {
+              ...EMPTY_USER_NAME_FIELDS,
+              name: "",
+              email: "",
+              photoUri: null,
+            };
         if (!cancelled) {
           setProfile(nextProfile);
-          setDraftName(nextProfile.name);
+          setDraftFirstName(nextProfile.firstName ?? "");
+          setDraftLastName(nextProfile.lastName ?? "");
+          setDraftMiddleName(nextProfile.middleName ?? "");
+          setDraftSuffix(nextProfile.suffix ?? "");
           setDraftPhotoUri(nextProfile.photoUri);
         }
       } catch (error) {
@@ -289,23 +288,20 @@ export default function ProfileScreen() {
     setRefreshing(true);
     try {
       // Refresh profile
-      const userRef = doc(db, "users", userId);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-        const nextProfile: UserProfile = {
-          name:
-            (userData.username as string) ||
-            auth.currentUser?.displayName ||
-            "",
-          email: (userData.email as string) || auth.currentUser?.email || "",
+      const fetchedProfile = await fetchUserProfile(userId);
+      if (fetchedProfile) {
+        const nextProfile = {
+          ...fetchedProfile,
           photoUri:
-            (await getProfileImageURL(userData.photoUrl as string | null)) ||
+            (await getProfileImageURL(fetchedProfile.photoUri)) ||
             auth.currentUser?.photoURL ||
             null,
         };
         setProfile(nextProfile);
-        setDraftName(nextProfile.name);
+        setDraftFirstName(nextProfile.firstName ?? "");
+        setDraftLastName(nextProfile.lastName ?? "");
+        setDraftMiddleName(nextProfile.middleName ?? "");
+        setDraftSuffix(nextProfile.suffix ?? "");
         setDraftPhotoUri(nextProfile.photoUri);
       }
 
@@ -491,14 +487,26 @@ export default function ProfileScreen() {
 
   // ── Modal open/close ────────────────────────────────────────────────────────
   const openModal = () => {
-    setDraftName(profile.name);
+    setDraftFirstName(profile.firstName ?? "");
+    setDraftLastName(profile.lastName ?? "");
+    setDraftMiddleName(profile.middleName ?? "");
+    setDraftSuffix(profile.suffix ?? "");
     setDraftPhotoUri(profile.photoUri);
     setModalVisible(true);
   };
 
   const handleSave = async () => {
-    if (!draftName.trim()) {
-      Alert.alert("Name required", "Please enter your display name.");
+    const hasNameInput = Boolean(
+      draftFirstName.trim() ||
+        draftLastName.trim() ||
+        draftMiddleName.trim() ||
+        draftSuffix.trim(),
+    );
+    if (
+      hasNameInput &&
+      (!draftFirstName.trim() || !draftLastName.trim())
+    ) {
+      Alert.alert("Name required", "Please enter your first and last name.");
       return;
     }
 
@@ -516,10 +524,24 @@ export default function ProfileScreen() {
 
       const userId = currentUser.uid;
       const userRef = doc(db, "users", userId);
+      const publicProfileRef = doc(db, "publicProfiles", userId);
       let nextPhotoUri = profile.photoUri;
-      const updates: { username: string; photoUrl?: string | null } = {
-        username: draftName.trim(),
-      };
+      const nameFields: UserNameFields | null = hasNameInput
+        ? {
+            firstName: draftFirstName.trim(),
+            lastName: draftLastName.trim(),
+            middleName: draftMiddleName.trim() || null,
+            suffix: draftSuffix.trim() || null,
+          }
+        : null;
+      const displayName = nameFields
+        ? formatUserName(nameFields)
+        : profile.name || currentUser.displayName || "User";
+      const publicUsername = getPublicUsername(displayName, currentUser.email);
+      const updates: Partial<UserNameFields> & {
+        username?: string;
+        photoUrl?: string | null;
+      } = nameFields ? { ...nameFields } : {};
 
       if (draftPhotoUri !== profile.photoUri) {
         if (draftPhotoUri) {
@@ -533,7 +555,10 @@ export default function ProfileScreen() {
             const matches = draftPhotoUri.match(
               /^data:(image\/[a-zA-Z+]+);base64,(.+)$/,
             );
-            if (!matches) {
+            if (
+              !matches ||
+              !["image/jpeg", "image/png", "image/webp"].includes(matches[1])
+            ) {
               throw new Error("Invalid image format.");
             }
             contentType = matches[1];
@@ -547,17 +572,20 @@ export default function ProfileScreen() {
               throw new Error("Photo must be under 5MB.");
             }
 
-            const ext = draftPhotoUri.split(".").pop()?.toLowerCase() ?? "jpg";
+            const ext =
+              draftPhotoUri.split(/[?#]/)[0].split(".").pop()?.toLowerCase() ??
+              "jpg";
             const mimeMap: Record<string, string> = {
               jpg: "image/jpeg",
               jpeg: "image/jpeg",
               png: "image/png",
               webp: "image/webp",
             };
-            contentType = mimeMap[ext] ?? "image/jpeg";
-            if (!Object.values(mimeMap).includes(contentType)) {
+            const detectedContentType = mimeMap[ext];
+            if (!detectedContentType) {
               throw new Error("Please upload a JPG, PNG, or WEBP image.");
             }
+            contentType = detectedContentType;
 
             base64 = await FileSystem.readAsStringAsync(draftPhotoUri, {
               encoding: "base64",
@@ -565,7 +593,7 @@ export default function ProfileScreen() {
           }
 
           await uploadString(avatarRef, base64, "base64", { contentType });
-          nextPhotoUri = await getDownloadURL(avatarRef);
+          nextPhotoUri = `profileImages/${userId}`;
           updates.photoUrl = nextPhotoUri;
         } else {
           nextPhotoUri = null;
@@ -573,10 +601,42 @@ export default function ProfileScreen() {
         }
       }
 
-      await updateDoc(userRef, updates);
-      await updateProfile(currentUser, {
-        displayName: draftName.trim(),
-        photoURL: nextPhotoUri ?? null,
+      if (nameFields || draftPhotoUri !== profile.photoUri) {
+        updates.username = displayName;
+        const batch = writeBatch(db);
+        const userUpdates: [string, string | null | undefined][] = [
+          ["firstName", updates.firstName],
+          ["lastName", updates.lastName],
+          ["middleName", updates.middleName],
+          ["suffix", updates.suffix],
+          ["username", updates.username],
+          ["photoUrl", updates.photoUrl],
+        ];
+        for (const [field, value] of userUpdates) {
+          if (value !== undefined) batch.update(userRef, field, value);
+        }
+        batch.set(
+          publicProfileRef,
+          {
+            uid: userId,
+            username: publicUsername,
+            photoUrl: nextPhotoUri,
+          },
+          { merge: true },
+        );
+        await batch.commit();
+        const authPhotoUrl = nextPhotoUri
+          ? await getProfileImageURL(nextPhotoUri)
+          : null;
+        await updateProfile(currentUser, {
+          displayName: publicUsername,
+          photoURL: authPhotoUrl,
+        });
+      }
+      await setUserStore({
+        userId,
+        username: publicUsername,
+        email: currentUser.email ?? profile.email,
       });
 
       const refreshedPhotoUri = nextPhotoUri
@@ -585,11 +645,11 @@ export default function ProfileScreen() {
 
       setProfile((prev) => ({
         ...prev,
-        name: draftName.trim(),
+        ...(nameFields ?? {}),
+        name: displayName,
         email: currentUser.email || prev.email,
         photoUri: refreshedPhotoUri,
       }));
-      setDraftName(draftName.trim());
       setDraftPhotoUri(refreshedPhotoUri);
       setModalVisible(false);
       Alert.alert("Saved", "Your profile has been updated.");
@@ -1010,7 +1070,13 @@ export default function ProfileScreen() {
                 <ProfileAvatar
                   profile={{
                     ...profile,
-                    name: draftName || profile.name,
+                    name:
+                      formatUserName({
+                        firstName: draftFirstName.trim() || null,
+                        lastName: draftLastName.trim() || null,
+                        middleName: draftMiddleName.trim() || null,
+                        suffix: draftSuffix.trim() || null,
+                      }) || profile.name,
                     photoUri: draftPhotoUri,
                   }}
                   size={96}
@@ -1057,44 +1123,62 @@ export default function ProfileScreen() {
                 ]}
               />
 
-              {/* Username / Display Name input */}
-              <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>
-                USERNAME
-              </Text>
-              <View style={styles.inputCard}>
-                <View style={styles.inputRow}>
-                  <View style={styles.inputIcon}>
-                    <LucideIcon
-                      name="at-outline"
-                      size={15}
-                      color={colors.textSecondary}
-                    />
-                  </View>
-                  <TextInput
-                    style={[styles.textInput, { color: colors.text }]}
-                    value={draftName}
-                    onChangeText={setDraftName}
-                    placeholder="Enter your username"
-                    placeholderTextColor={colors.textMuted}
-                    autoCorrect={false}
-                    autoCapitalize="none"
-                    returnKeyType="done"
-                    maxLength={40}
-                  />
-                  {draftName.length > 0 && (
-                    <TouchableOpacity
-                      onPress={() => setDraftName("")}
-                      activeOpacity={0.7}
-                    >
-                      <LucideIcon
-                        name="close-circle"
-                        size={16}
-                        color={colors.textMuted}
+              {[
+                {
+                  label: "FIRST NAME",
+                  value: draftFirstName,
+                  onChangeText: setDraftFirstName,
+                  placeholder: "Enter your first name",
+                },
+                {
+                  label: "LAST NAME",
+                  value: draftLastName,
+                  onChangeText: setDraftLastName,
+                  placeholder: "Enter your last name",
+                },
+                {
+                  label: "MIDDLE NAME (OPTIONAL)",
+                  value: draftMiddleName,
+                  onChangeText: setDraftMiddleName,
+                  placeholder: "Enter your middle name",
+                },
+                {
+                  label: "SUFFIX (OPTIONAL)",
+                  value: draftSuffix,
+                  onChangeText: setDraftSuffix,
+                  placeholder: "e.g. Jr., III",
+                },
+              ].map((field) => (
+                <View key={field.label} style={{ marginBottom: 12 }}>
+                  <Text
+                    style={[styles.fieldLabel, { color: colors.textMuted }]}
+                  >
+                    {field.label}
+                  </Text>
+                  <View style={styles.inputCard}>
+                    <View style={styles.inputRow}>
+                      <View style={styles.inputIcon}>
+                        <LucideIcon
+                          name="person-outline"
+                          size={15}
+                          color={colors.textSecondary}
+                        />
+                      </View>
+                      <TextInput
+                        style={[styles.textInput, { color: colors.text }]}
+                        value={field.value}
+                        onChangeText={field.onChangeText}
+                        placeholder={field.placeholder}
+                        placeholderTextColor={colors.textMuted}
+                        autoCorrect={false}
+                        autoCapitalize="words"
+                        returnKeyType="next"
+                        maxLength={40}
                       />
-                    </TouchableOpacity>
-                  )}
+                    </View>
+                  </View>
                 </View>
-              </View>
+              ))}
 
               {/* Email — read-only */}
               <Text

@@ -9,6 +9,7 @@ import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { SyncingIndicator } from "@/components/SyncingIndicator";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ToastHost } from "@/components/Toast";
 
 if (Platform.OS !== "web") {
   SplashScreen.preventAutoHideAsync().catch((error) => {
@@ -31,6 +32,7 @@ function StartupContent() {
   return (
     <View style={styles.root} onLayout={() => setRootLaidOut(true)}>
       <Stack screenOptions={{ headerShown: false }} />
+      <ToastHost />
       {initializing && (
         <View style={styles.startupSplash}>
           <Image

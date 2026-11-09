@@ -12,11 +12,13 @@ import {
   Easing,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/services/firebase";
+import { Eye, EyeOff } from "lucide-react-native";
 import { setFirebaseUser, setUserStore } from "@/store/userStore";
 import { Colors } from "@/constants/colors";
 import { shadowStyle } from "@/utils/shadowStyle";
+import { isValidEmailAddress } from "@/utils/authValidation";
+import { signIn } from "@/services/auth";
+import { toast } from "@/components/Toast";
 
 // ─── Animation helpers ────────────────────────────────────────────────────────
 
@@ -111,6 +113,7 @@ type AuthInputProps = {
   placeholder: string;
   secureEntry?: boolean;
   keyboardType?: "default" | "email-address";
+  errorMessage?: string;
   delay?: number;
 };
 
@@ -121,15 +124,23 @@ function AuthInput({
   placeholder,
   secureEntry = false,
   keyboardType = "default",
+  errorMessage,
   delay = 0,
 }: AuthInputProps) {
   const [secure, setSecure] = useState(secureEntry);
+  const [focused, setFocused] = useState(false);
   const anim = useEntrance(delay, 16);
 
   return (
     <Animated.View style={[styles.inputGroup, anim]}>
       <Text style={styles.inputLabel}>{label}</Text>
-      <View style={styles.inputRow}>
+      <View
+        style={[
+          styles.inputRow,
+          focused && styles.inputRowFocused,
+          errorMessage && styles.inputRowError,
+        ]}
+      >
         <TextInput
           style={styles.textInput}
           value={value}
@@ -139,15 +150,30 @@ function AuthInput({
           secureTextEntry={secure}
           autoCapitalize="none"
           keyboardType={keyboardType}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
         />
         {secureEntry ? (
-          <TouchableOpacity onPress={() => setSecure((s) => !s)}>
-            <Text style={styles.toggleText}>{secure ? "Show" : "Hide"}</Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={`${secure ? "Show" : "Hide"} ${label.toLowerCase()}`}
+            hitSlop={8}
+            onPress={() => setSecure((s) => !s)}
+            style={styles.visibilityButton}
+          >
+            {secure ? (
+              <Eye size={18} color={C.primary} />
+            ) : (
+              <EyeOff size={18} color={C.primary} />
+            )}
           </TouchableOpacity>
-        ) : (
-          <Text style={styles.checkIcon}>✓</Text>
-        )}
+        ) : null}
       </View>
+      {errorMessage ? (
+        <Text accessibilityLiveRegion="polite" style={styles.fieldErrorText}>
+          {errorMessage}
+        </Text>
+      ) : null}
     </Animated.View>
   );
 }
@@ -158,9 +184,15 @@ type PrimaryButtonProps = {
   title: string;
   onPress: () => void;
   delay?: number;
+  disabled?: boolean;
 };
 
-function PrimaryButton({ title, onPress, delay = 0 }: PrimaryButtonProps) {
+function PrimaryButton({
+  title,
+  onPress,
+  delay = 0,
+  disabled = false,
+}: PrimaryButtonProps) {
   const entrance = useEntrance(delay, 24);
   const scale = useRef(new Animated.Value(1)).current;
   const press = (to: number) =>
@@ -179,10 +211,12 @@ function PrimaryButton({ title, onPress, delay = 0 }: PrimaryButtonProps) {
       }}
     >
       <TouchableOpacity
-        style={styles.primaryButton}
+        style={[styles.primaryButton, disabled && styles.primaryButtonDisabled]}
         onPress={onPress}
         onPressIn={() => press(0.96)}
         onPressOut={() => press(1)}
+        disabled={disabled}
+        accessibilityState={{ disabled }}
         activeOpacity={0.82}
       >
         <Text style={styles.primaryButtonText}>{title}</Text>
@@ -197,56 +231,52 @@ export default function SignIn() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [validationAttempted, setValidationAttempted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const submitting = useRef(false);
   const heroAnim = useEntrance(100, 30);
   const cardAnim = useEntrance(250, 90);
 
   const handleSignIn = async () => {
-    setError("");
-    if (!email.trim() || !password.trim()) {
-      setError("Please fill in all fields.");
-      return;
-    }
-    if (!email.includes("@")) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-    try {
-      setLoading(true);
-      const credential = await signInWithEmailAndPassword(
-        auth,
-        email.trim(),
-        password,
-      );
-      setFirebaseUser(credential.user);
-      await setUserStore({
-        userId: credential.user.uid,
-        username: credential.user.displayName || "User",
-        email: credential.user.email ?? email.trim(),
-      });
-      router.replace("/(tabs)/home");
-    } catch (e) {
-      const error = e as { code?: string; message?: string };
-      console.log("Sign in error:", error);
+    if (submitting.current) return;
 
-      // Map Firebase error codes to user-friendly messages
-      if (error.code === "auth/user-not-found") {
-        setError("Account does not exist. Please register.");
-      } else if (error.code === "auth/wrong-password") {
-        setError("Incorrect password. Please try again.");
-      } else if (error.code === "auth/invalid-credential") {
-        setError("Invalid email or password.");
-      } else if (error.code === "auth/invalid-email") {
-        setError("Invalid email address format.");
-      } else if (error.code === "auth/too-many-requests") {
-        setError("Too many attempts. Please try again later.");
-      } else if (error.code === "auth/network-request-failed") {
-        setError("Network error. Please check your internet connection.");
-      } else {
-        setError(error.message || "Unable to sign in. Please try again.");
+    setValidationAttempted(true);
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
+      toast.message("Please enter your email and password.", "error");
+      return;
+    }
+    if (!isValidEmailAddress(trimmedEmail)) {
+      toast.message("Please enter a valid email address.", "error");
+      return;
+    }
+
+    submitting.current = true;
+    setLoading(true);
+    try {
+      const credential = await signIn(trimmedEmail, password);
+      setFirebaseUser(credential.user);
+      try {
+        await setUserStore({
+          userId: credential.user.uid,
+          username: credential.user.displayName || "User",
+          email: credential.user.email ?? trimmedEmail,
+        });
+      } catch {
+        toast.message("Unable to complete sign in. Please try again.", "error");
+        return;
       }
+      toast.message("Welcome back! Login successful.", "success");
+      router.replace("/(tabs)/home");
+    } catch (error) {
+      toast.message(
+        error instanceof Error
+          ? error.message
+          : "Unable to sign in. Please try again.",
+        "error",
+      );
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   };
@@ -257,9 +287,23 @@ export default function SignIn() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       {/* Decorative blobs */}
-      <FloatingBlob style={[styles.blob, styles.blobTopLeft]} amplitude={14} duration={4200} />
-      <FloatingBlob style={[styles.blob, styles.blobBottomRight]} amplitude={10} duration={3600} delay={300} />
-      <FloatingBlob style={[styles.blob, styles.blobMidLeft]} amplitude={16} duration={3200} delay={150} />
+      <FloatingBlob
+        style={[styles.blob, styles.blobTopLeft]}
+        amplitude={14}
+        duration={4200}
+      />
+      <FloatingBlob
+        style={[styles.blob, styles.blobBottomRight]}
+        amplitude={10}
+        duration={3600}
+        delay={300}
+      />
+      <FloatingBlob
+        style={[styles.blob, styles.blobMidLeft]}
+        amplitude={16}
+        duration={3200}
+        delay={150}
+      />
 
       {/* Top area */}
       <Animated.View style={[styles.topArea, heroAnim]}>
@@ -282,6 +326,15 @@ export default function SignIn() {
             onChangeText={setEmail}
             placeholder="Enter your email"
             keyboardType="email-address"
+            errorMessage={
+              validationAttempted
+                ? !email.trim()
+                  ? "Email is required."
+                  : !isValidEmailAddress(email.trim())
+                    ? "Enter a valid email address."
+                    : undefined
+                : undefined
+            }
           />
 
           <AuthInput
@@ -291,18 +344,22 @@ export default function SignIn() {
             onChangeText={setPassword}
             placeholder="Enter your password"
             secureEntry
+            errorMessage={
+              validationAttempted && !password
+                ? "Password is required."
+                : undefined
+            }
           />
 
           <TouchableOpacity style={styles.forgotWrapper}>
             <Text style={styles.forgotText}>Forgot password?</Text>
           </TouchableOpacity>
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
           <PrimaryButton
             delay={600}
             title={loading ? "SIGNING IN..." : "SIGN IN"}
             onPress={handleSignIn}
+            disabled={loading}
           />
 
           <TouchableOpacity
@@ -436,9 +493,17 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderBottomWidth: 1.5,
+    minHeight: 38,
+    borderBottomWidth: 1,
     borderBottomColor: C.inputBorder,
     paddingBottom: 7,
+  },
+  inputRowFocused: {
+    borderBottomWidth: 2,
+    borderBottomColor: C.primary,
+  },
+  inputRowError: {
+    borderBottomColor: "#B9382D",
   },
   textInput: {
     flex: 1,
@@ -446,15 +511,17 @@ const styles = StyleSheet.create({
     color: C.textDark,
     paddingVertical: 0,
   },
-  toggleText: {
-    fontSize: 12,
-    color: C.roseLight,
+  visibilityButton: {
+    minWidth: 32,
+    minHeight: 32,
+    alignItems: "center",
+    justifyContent: "center",
     marginLeft: 8,
   },
-  checkIcon: {
-    fontSize: 14,
-    color: C.roseLight,
-    marginLeft: 8,
+  fieldErrorText: {
+    fontSize: 11,
+    color: "#B9382D",
+    marginTop: 5,
   },
 
   // Forgot password
@@ -466,14 +533,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "500",
     color: C.primary,
-  },
-
-  // Error
-  errorText: {
-    fontSize: 11,
-    color: C.primary,
-    textAlign: "center",
-    marginBottom: 12,
   },
 
   // Primary button
@@ -490,6 +549,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     letterSpacing: 1,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.65,
   },
 
   // Switch link

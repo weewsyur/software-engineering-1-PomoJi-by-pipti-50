@@ -15,6 +15,11 @@ import {
   serverTimestamp,
   writeBatch,
 } from "firebase/firestore";
+import {
+  formatUserName,
+  getPublicUsername,
+  readUserNameFields,
+} from "@/utils/userName";
 
 type FollowStatus = "follow" | "followBack" | "following";
 
@@ -23,13 +28,15 @@ export default function UserProfileScreen() {
   const params = useLocalSearchParams<{ uid?: string }>();
   const uid = params.uid ?? "";
   const currentUid = auth.currentUser?.uid ?? getUserStore().userId ?? "";
-  const currentUsername = getUserStore().username || "User";
+  const currentUsername = getPublicUsername(
+    getUserStore().username,
+    auth.currentUser?.email,
+  );
 
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
   const [followStatus, setFollowStatus] = useState<FollowStatus>("follow");
   const [username, setUsername] = useState("User");
-  const [email, setEmail] = useState("");
   const [followingCount, setFollowingCount] = useState(0);
   const [followersCount, setFollowersCount] = useState(0);
 
@@ -46,14 +53,18 @@ export default function UserProfileScreen() {
       }
       try {
         const [userSnap, followingSnap, followersSnap] = await Promise.all([
-          getDoc(doc(db, "users", uid)),
+          getDoc(doc(db, "publicProfiles", uid)),
           getDocs(collection(db, "following", uid, "list")),
           getDocs(collection(db, "followers", uid, "list")),
         ]);
         if (userSnap.exists()) {
           const userData = userSnap.data();
-          setUsername((userData.username as string) || "User");
-          setEmail((userData.email as string) || "");
+          setUsername(
+            formatUserName(
+              readUserNameFields(userData),
+              userData.username as string,
+            ) || "User",
+          );
         }
         setFollowingCount(followingSnap.size);
         setFollowersCount(followersSnap.size);
@@ -138,7 +149,6 @@ export default function UserProfileScreen() {
               <Text style={styles.avatarText}>{initials}</Text>
             </View>
             <Text style={styles.name}>{username}</Text>
-            <Text style={styles.email}>{email || "No email available"}</Text>
             <View style={styles.countsRow}>
               <View style={styles.countBlock}>
                 <Text style={styles.countValue}>{followingCount}</Text>
@@ -215,11 +225,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "800",
     color: Colors.text,
-  },
-  email: {
-    marginTop: 4,
-    fontSize: 12,
-    color: Colors.textMuted,
   },
   countsRow: {
     marginTop: 16,

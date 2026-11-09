@@ -12,9 +12,16 @@ import {
   UserStats,
   UserListItem,
 } from "@/services/profile";
+import {
+  EMPTY_USER_NAME_FIELDS,
+  formatUserName,
+  getPublicUsername,
+  UserNameFields,
+} from "@/utils/userName";
 
 export const useProfile = () => {
   const [profile, setProfile] = useState<UserProfile>({
+    ...EMPTY_USER_NAME_FIELDS,
     name: "",
     email: "",
     photoUri: null,
@@ -27,7 +34,12 @@ export const useProfile = () => {
     const loadProfile = async (userId: string | undefined) => {
       if (!userId) {
         if (!cancelled) {
-          setProfile({ name: "", email: "", photoUri: null });
+          setProfile({
+            ...EMPTY_USER_NAME_FIELDS,
+            name: "",
+            email: "",
+            photoUri: null,
+          });
           setLoadingProfile(false);
         }
         return;
@@ -127,16 +139,31 @@ export const useConnections = () => {
 
 export const useProfileUpdate = () => {
   const updateProfile = useCallback(
-    async (username: string, photoUri: string | null, currentPhotoUri: string | null) => {
+    async (
+      nameFields: UserNameFields,
+      photoUri: string | null,
+      currentPhotoUri: string | null,
+    ) => {
       const currentUser = auth.currentUser;
       if (!currentUser) {
         throw new Error("User not authenticated");
       }
 
       const userId = currentUser.uid;
+      if (!nameFields.firstName?.trim() || !nameFields.lastName?.trim()) {
+        throw new Error("First name and last name are required.");
+      }
       let nextPhotoUri = currentPhotoUri;
-      const updates: { username: string; photoUrl?: string | null } = {
-        username: username.trim(),
+      const displayName = getPublicUsername(
+        formatUserName(nameFields),
+        currentUser.email,
+      );
+      const updates: UserNameFields & {
+        username: string;
+        photoUrl?: string | null;
+      } = {
+        ...nameFields,
+        username: displayName,
       };
 
       if (photoUri !== currentPhotoUri) {
@@ -150,9 +177,12 @@ export const useProfileUpdate = () => {
       }
 
       await updateProfileData(userId, updates);
-      await updateFirebaseUserProfile(username.trim(), nextPhotoUri ?? null);
+      const authPhotoUrl = nextPhotoUri
+        ? await getProfileImageURL(nextPhotoUri)
+        : null;
+      await updateFirebaseUserProfile(displayName, authPhotoUrl);
 
-      return { name: username.trim(), photoUri: nextPhotoUri };
+      return { ...nameFields, name: displayName, photoUri: nextPhotoUri };
     },
     []
   );

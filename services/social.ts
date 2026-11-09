@@ -10,8 +10,14 @@ import {
   limit,
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
+import {
+  formatUserName,
+  getPublicUsername,
+  readUserNameFields,
+  UserNameFields,
+} from "@/utils/userName";
 
-export interface UserSearchResult {
+export interface UserSearchResult extends UserNameFields {
   id: string;
   username: string;
 }
@@ -91,19 +97,25 @@ export const searchUsers = async (
   }
 
   try {
-    const usersRef = collection(db, "users");
+    const publicProfilesRef = collection(db, "publicProfiles");
     const usersQuery = query(
-      usersRef,
+      publicProfilesRef,
       where("username", ">=", trimmed),
       where("username", "<=", `${trimmed}\uf8ff`),
       limit(20)
     );
     const snapshot = await getDocs(usersQuery);
     const results = snapshot.docs
-      .map((userDoc) => ({
-        id: userDoc.id,
-        username: userDoc.data().username as string,
-      }))
+      .map((userDoc) => {
+        const data = userDoc.data();
+        const nameFields = readUserNameFields(data);
+        return {
+          id: userDoc.id,
+          ...nameFields,
+          username:
+            formatUserName(nameFields, data.username as string) || "User",
+        };
+      })
       .filter((item) => item.id !== currentUserId && Boolean(item.username));
     return results;
   } catch {
@@ -166,6 +178,10 @@ export const followUser = async (
     return;
   }
 
+  const safeCurrentUsername = getPublicUsername(
+    currentUsername,
+    currentUser.email,
+  );
   try {
     const batch = writeBatch(db);
     batch.set(doc(db, "following", currentUid, "list", target.id), {
@@ -173,14 +189,14 @@ export const followUser = async (
       createdAt: serverTimestamp(),
     });
     batch.set(doc(db, "followers", target.id, "list", currentUid), {
-      username: currentUsername,
+      username: safeCurrentUsername,
       createdAt: serverTimestamp(),
     });
     const notificationRef = doc(collection(db, "notifications", target.id, "items"));
     batch.set(notificationRef, {
       type: "follow",
       fromUid: currentUid,
-      fromUsername: currentUsername,
+      fromUsername: safeCurrentUsername,
       read: false,
       createdAt: serverTimestamp(),
     });

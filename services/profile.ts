@@ -1,12 +1,32 @@
-import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  writeBatch,
+} from "firebase/firestore";
 import { getDownloadURL, ref, uploadString } from "firebase/storage";
 import { updateProfile as updateFirebaseProfile } from "firebase/auth";
 import { auth, db, storage } from "./firebase";
 import * as FileSystem from "expo-file-system";
 import { getFreshDownloadURL, isStoragePath } from "@/utils/imageStorage";
 import { getDisplayStreak } from "@/utils/streakCalculator";
+import {
+  EMPTY_USER_NAME_FIELDS,
+  formatUserName,
+  getPublicUsername,
+  readUserNameFields,
+  UserNameFields,
+} from "@/utils/userName";
+import {
+  migrateUserNameFields,
+  syncPublicProfile,
+  UserDocument,
+} from "@/services/firestore";
 
-export interface UserProfile {
+export interface UserProfile extends UserNameFields {
   name: string;
   email: string;
   photoUri: string | null;
@@ -28,32 +48,57 @@ export interface UserListItem {
 export const fetchUserProfile = async (userId: string): Promise<UserProfile | null> => {
   try {
     const currentUser = auth.currentUser;
+    if (!currentUser || currentUser.uid !== userId) return null;
+
     const userRef = doc(db, "users", userId);
     const userSnap = await getDoc(userRef);
 
     if (!userSnap.exists()) {
-      if (!currentUser) return null;
+      const nameFields = EMPTY_USER_NAME_FIELDS;
+      const username = getPublicUsername(currentUser.displayName, currentUser.email);
+      const photoUri = currentUser.photoURL || null;
+      await syncPublicProfile(userId, {
+        username,
+        photoUrl: photoUri,
+      });
       return {
-        name: currentUser.displayName || "",
+        ...nameFields,
+        name: username,
         email: currentUser.email || "",
-        photoUri: currentUser.photoURL || null,
+        photoUri,
       };
     }
 
     const userData = userSnap.data();
+    let nameFields = readUserNameFields(userData);
+    const needsMigration = Object.keys(EMPTY_USER_NAME_FIELDS).some(
+      (field) => !(field in userData),
+    );
+    if (currentUser?.uid === userId && needsMigration) {
+      try {
+        nameFields =
+          (await migrateUserNameFields(userId)) ?? nameFields;
+      } catch (error) {
+        console.error("Failed to migrate legacy profile name fields:", error);
+      }
+    }
+    const username = getPublicUsername(
+      formatUserName(nameFields, (userData.username as string) || currentUser.displayName),
+      currentUser.email,
+    );
+    const photoUri = (userData.photoUrl as string) || currentUser.photoURL || null;
+    await syncPublicProfile(userId, {
+      username,
+      photoUrl: photoUri,
+    });
     return {
-      name:
-        (userData.username as string) ||
-        currentUser?.displayName ||
-        "",
-      email:
-        (userData.email as string) ||
-        currentUser?.email ||
-        "",
-      photoUri:
-        (userData.photoUrl as string) ||
-        currentUser?.photoURL ||
-        null,
+      ...nameFields,
+      name: formatUserName(
+        nameFields,
+        (userData.username as string) || currentUser.displayName,
+      ),
+      email: currentUser.email || "",
+      photoUri,
     };
   } catch {
     throw new Error("Failed to fetch profile");
@@ -131,11 +176,51 @@ export const fetchConnections = async (
 
 export const updateProfileData = async (
   userId: string,
-  data: { username: string; photoUrl?: string | null }
+  data: Partial<
+    Pick<
+      UserDocument,
+      | "firstName"
+      | "lastName"
+      | "middleName"
+      | "suffix"
+      | "username"
+      | "photoUrl"
+    >
+  >
 ): Promise<void> => {
   try {
     const userRef = doc(db, "users", userId);
-    await updateDoc(userRef, data);
+    const publicProfileRef = doc(db, "publicProfiles", userId);
+    const updates: Array<[string, string | null]> = [];
+    if (data.firstName !== undefined) updates.push(["firstName", data.firstName]);
+    if (data.lastName !== undefined) updates.push(["lastName", data.lastName]);
+    if (data.middleName !== undefined) updates.push(["middleName", data.middleName]);
+    if (data.suffix !== undefined) updates.push(["suffix", data.suffix]);
+    if (data.username !== undefined) updates.push(["username", data.username]);
+    if (data.photoUrl !== undefined) updates.push(["photoUrl", data.photoUrl]);
+    if (updates.length === 0) return;
+
+    const batch = writeBatch(db);
+    for (const [field, value] of updates) {
+      batch.update(userRef, field, value);
+    }
+    batch.set(
+      publicProfileRef,
+      {
+        uid: userId,
+        ...(data.username !== undefined
+          ? {
+              username: getPublicUsername(
+                data.username,
+                auth.currentUser?.email,
+              ),
+            }
+          : {}),
+        ...(data.photoUrl !== undefined ? { photoUrl: data.photoUrl } : {}),
+      },
+      { merge: true },
+    );
+    await batch.commit();
   } catch {
     throw new Error("Failed to update profile");
   }
@@ -170,16 +255,17 @@ export const uploadProfileImage = async (
       throw new Error("Photo too large. Please upload an image under 5MB.");
     }
 
-    const ext = photoUri.split(".").pop()?.toLowerCase() ?? "jpg";
+    const ext =
+      photoUri.split(/[?#]/)[0].split(".").pop()?.toLowerCase() ?? "jpg";
     const mimeMap: Record<string, string> = {
       jpg: "image/jpeg",
       jpeg: "image/jpeg",
       png: "image/png",
       webp: "image/webp",
     };
-    const contentType = mimeMap[ext] ?? "image/jpeg";
+    const contentType = mimeMap[ext];
 
-    if (!Object.values(mimeMap).includes(contentType)) {
+    if (!contentType) {
       throw new Error("Invalid photo type. Please upload a JPG, PNG, or WEBP.");
     }
 

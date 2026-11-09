@@ -108,6 +108,12 @@ npm run deploy:web
 
 To deploy the web app to Firebase Hosting, run `npm run deploy:web` from the `PomoJI` project directory. Firebase Hosting automatically builds the Expo web export into `dist/` before deployment, and the build stops if its `index.html` entrypoint is missing.
 
+## Firebase security rollout
+
+Firestore account documents at `users/{uid}` are private to their owner. Signed-in social features use `publicProfiles/{uid}`, which contains only the user-chosen display name/username and profile image reference; email and structured name fields remain private. New accounts write both documents; existing accounts populate their public profile the next time they open their profile in the updated app. Until then, they will not appear in social search.
+
+Deploy the updated app and Firestore rules as a coordinated change: older app versions still read other users' `users/{uid}` documents and will lose those social profile lookups under the stricter rules. Profile images are readable by authenticated users; activity images are limited to the owner and mutual connections. The activity-image Storage rule checks Firestore follow documents, so verify Storage-to-Firestore rule access is enabled for the Firebase project before deploying.
+
 ## App workflow
 
 1. Sign in or create an account.

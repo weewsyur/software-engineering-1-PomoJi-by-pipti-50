@@ -28,16 +28,16 @@ export async function uploadActivityImage(
       throw new Error('Image too large. Please upload an image under 5MB');
     }
 
-    const ext = imageUri.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const ext = imageUri.split(/[?#]/)[0].split('.').pop()?.toLowerCase() ?? 'jpg';
     const mimeMap: Record<string, string> = {
       jpg: 'image/jpeg',
       jpeg: 'image/jpeg',
       png: 'image/png',
       webp: 'image/webp',
     };
-    const contentType = mimeMap[ext] ?? 'image/jpeg';
+    const contentType = mimeMap[ext];
 
-    if (!Object.values(mimeMap).includes(contentType)) {
+    if (!contentType) {
       throw new Error('Invalid image type. Please upload a JPG, PNG, or WEBP');
     }
 

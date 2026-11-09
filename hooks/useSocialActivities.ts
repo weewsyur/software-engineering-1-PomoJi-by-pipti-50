@@ -2,7 +2,9 @@ import { useEffect, useState, useRef } from "react";
 import { auth, db } from "@/services/firebase";
 import { collection, onSnapshot, orderBy, query, getDocs, doc, getDoc, limit } from "firebase/firestore";
 import { getMutuallyConnectedUsers } from "@/services/social";
+import { getProfileImageURL } from "@/services/profile";
 import { Activity, normalizeActivity } from "./useActivities";
+import { formatUserName, readUserNameFields } from "@/utils/userName";
 
 export interface SocialActivity extends Activity {
   userName: string;
@@ -19,16 +21,19 @@ const fetchUserProfile = async (uid: string): Promise<{ name: string; photoUri: 
   }
 
   try {
-    const userDoc = await getDoc(doc(db, "users", uid));
+    const userDoc = await getDoc(doc(db, "publicProfiles", uid));
     if (!userDoc.exists()) {
       const fallback = { name: "User", photoUri: null };
       PROFILE_CACHE.set(uid, fallback);
       return fallback;
     }
     const data = userDoc.data();
+    const photoUri = (data.photoUrl as string) || null;
     const profile = {
-      name: data.username || "User",
-      photoUri: data.photoUrl || null,
+      name:
+        formatUserName(readUserNameFields(data), data.username as string) ||
+        "User",
+      photoUri: await getProfileImageURL(photoUri),
     };
     PROFILE_CACHE.set(uid, profile);
     return profile;

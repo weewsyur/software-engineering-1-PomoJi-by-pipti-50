@@ -13,11 +13,23 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
-import { auth, db } from "@/services/firebase";
+import { Check, Circle, Eye, EyeOff } from "lucide-react-native";
+import { auth } from "@/services/firebase";
+import { getSignUpErrorMessage } from "@/services/auth";
+import { createUserDocument } from "@/services/firestore";
 import { setFirebaseUser, setUserStore } from "@/store/userStore";
 import { Colors } from "@/constants/colors";
 import { shadowStyle } from "@/utils/shadowStyle";
+import {
+  getPasswordRequirements,
+  isPasswordValid,
+  isValidEmailAddress,
+} from "@/utils/authValidation";
+import {
+  formatUserName,
+  getPublicUsername,
+  UserNameFields,
+} from "@/utils/userName";
 
 // ─── Animation helpers ────────────────────────────────────────────────────────
 
@@ -112,6 +124,9 @@ type AuthInputProps = {
   placeholder: string;
   secureEntry?: boolean;
   keyboardType?: "default" | "email-address";
+  autoCapitalize?: "none" | "words";
+  errorMessage?: string;
+  invalid?: boolean;
   delay?: number;
 };
 
@@ -122,15 +137,25 @@ function AuthInput({
   placeholder,
   secureEntry = false,
   keyboardType = "default",
+  autoCapitalize = "none",
+  errorMessage,
+  invalid = false,
   delay = 0,
 }: AuthInputProps) {
   const [secure, setSecure] = useState(secureEntry);
+  const [focused, setFocused] = useState(false);
   const anim = useEntrance(delay, 16);
 
   return (
     <Animated.View style={[styles.inputGroup, anim]}>
       <Text style={styles.inputLabel}>{label}</Text>
-      <View style={styles.inputRow}>
+      <View
+        style={[
+          styles.inputRow,
+          focused && styles.inputRowFocused,
+          (errorMessage || invalid) && styles.inputRowError,
+        ]}
+      >
         <TextInput
           style={styles.textInput}
           value={value}
@@ -138,18 +163,59 @@ function AuthInput({
           placeholder={placeholder}
           placeholderTextColor={C.placeholder}
           secureTextEntry={secure}
-          autoCapitalize="none"
+          autoCapitalize={autoCapitalize}
           keyboardType={keyboardType}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
         />
         {secureEntry ? (
-          <TouchableOpacity onPress={() => setSecure((s) => !s)}>
-            <Text style={styles.toggleText}>{secure ? "Show" : "Hide"}</Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={`${secure ? "Show" : "Hide"} ${label.toLowerCase()}`}
+            hitSlop={8}
+            onPress={() => setSecure((s) => !s)}
+            style={styles.visibilityButton}
+          >
+            {secure ? (
+              <Eye size={18} color={C.primary} />
+            ) : (
+              <EyeOff size={18} color={C.primary} />
+            )}
           </TouchableOpacity>
-        ) : (
-          <Text style={styles.checkIcon}>✓</Text>
-        )}
+        ) : null}
       </View>
+      {errorMessage ? (
+        <Text accessibilityLiveRegion="polite" style={styles.fieldErrorText}>
+          {errorMessage}
+        </Text>
+      ) : null}
     </Animated.View>
+  );
+}
+
+function PasswordRequirements({ password }: { password: string }) {
+  const requirements = getPasswordRequirements(password);
+
+  return (
+    <View style={styles.passwordRequirements}>
+      {requirements.map((requirement) => (
+        <View key={requirement.id} style={styles.passwordRequirementRow}>
+          {requirement.met ? (
+            <Check size={14} color={C.success} strokeWidth={3} />
+          ) : (
+            <Circle size={14} color={C.requirementMuted} />
+          )}
+          <Text
+            style={[
+              styles.passwordRequirementText,
+              requirement.met && styles.passwordRequirementTextMet,
+            ]}
+          >
+            {requirement.label}
+          </Text>
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -159,9 +225,15 @@ type PrimaryButtonProps = {
   title: string;
   onPress: () => void;
   delay?: number;
+  disabled?: boolean;
 };
 
-function PrimaryButton({ title, onPress, delay = 0 }: PrimaryButtonProps) {
+function PrimaryButton({
+  title,
+  onPress,
+  delay = 0,
+  disabled = false,
+}: PrimaryButtonProps) {
   const entrance = useEntrance(delay, 24);
   const scale = useRef(new Animated.Value(1)).current;
   const press = (to: number) =>
@@ -180,10 +252,12 @@ function PrimaryButton({ title, onPress, delay = 0 }: PrimaryButtonProps) {
       }}
     >
       <TouchableOpacity
-        style={styles.primaryButton}
+        style={[styles.primaryButton, disabled && styles.primaryButtonDisabled]}
         onPress={onPress}
         onPressIn={() => press(0.96)}
         onPressOut={() => press(1)}
+        disabled={disabled}
+        accessibilityState={{ disabled }}
         activeOpacity={0.82}
       >
         <Text style={styles.primaryButtonText}>{title}</Text>
@@ -196,90 +270,85 @@ function PrimaryButton({ title, onPress, delay = 0 }: PrimaryButtonProps) {
 
 export default function SignUp() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [suffix, setSuffix] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [validationAttempted, setValidationAttempted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const submitting = useRef(false);
   const heroAnim = useEntrance(100, 30);
   const cardAnim = useEntrance(250, 90);
+  const passwordsMatch =
+    confirmPassword.length > 0 && password === confirmPassword;
 
   const handleSignUp = async () => {
+    if (submitting.current) return;
+    setValidationAttempted(true);
     setError("");
 
     if (
-      !username.trim() ||
+      !firstName.trim() ||
+      !lastName.trim() ||
       !email.trim() ||
-      !password.trim() ||
-      !confirmPassword.trim()
+      !password ||
+      !confirmPassword
     ) {
       setError("Please fill in all fields.");
       return;
     }
-    if (username.trim().length < 3) {
-      setError("Username must be at least 3 characters.");
+    if (!isValidEmailAddress(email.trim())) {
+      setError("Please enter a valid email address.");
       return;
     }
-    if (!email.includes("@")) {
-      setError("Please enter a valid email address.");
+    if (!isPasswordValid(password)) {
+      setError("Please meet all password requirements.");
       return;
     }
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
-    }
 
+    submitting.current = true;
+    setLoading(true);
     try {
-      setLoading(true);
+      const nameFields: UserNameFields = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        middleName: middleName.trim() || null,
+        suffix: suffix.trim() || null,
+      };
+      const displayName = getPublicUsername(
+        formatUserName(nameFields),
+        email.trim(),
+      );
       const credential = await createUserWithEmailAndPassword(
         auth,
         email.trim(),
         password,
       );
-      const trimmedUsername = username.trim();
 
       await updateProfile(credential.user, {
-        displayName: trimmedUsername,
+        displayName,
       });
 
-      await setDoc(doc(db, "users", credential.user.uid), {
-        uid: credential.user.uid,
-        username: trimmedUsername,
-        email: credential.user.email ?? email.trim(),
-        photoUrl: null,
-        createdAt: serverTimestamp(),
-      });
+      await createUserDocument(credential.user, nameFields);
       setFirebaseUser(credential.user);
       await setUserStore({
         userId: credential.user.uid,
-        username: trimmedUsername,
+        username: displayName,
         email: credential.user.email ?? email.trim(),
       });
       router.replace("/(tabs)/home");
     } catch (e) {
-      const error = e as { code?: string; message?: string };
-      console.log("Sign up error:", error);
-
-      // Map Firebase error codes to user-friendly messages
-      if (error.code === "auth/email-already-in-use") {
-        setError("Email is already registered. Please sign in.");
-      } else if (error.code === "auth/weak-password") {
-        setError("Password must be at least 6 characters.");
-      } else if (error.code === "auth/invalid-email") {
-        setError("Invalid email address format.");
-      } else if (error.code === "auth/too-many-requests") {
-        setError("Too many attempts. Please try again later.");
-      } else if (error.code === "auth/network-request-failed") {
-        setError("Network error. Please check your internet connection.");
-      } else {
-        setError(error.message || "Unable to sign up. Please try again.");
-      }
+      setError(getSignUpErrorMessage(e));
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   };
@@ -309,48 +378,161 @@ export default function SignUp() {
           <Text style={styles.cardTitle}>Register</Text>
           <Text style={styles.cardSub}>Fill in the details below</Text>
 
-          {/* ── NEW: Username field ── */}
           <AuthInput
-            label="Username"
+            label="First Name"
             delay={350}
-            value={username}
-            onChangeText={setUsername}
-            placeholder="Choose a username"
+            value={firstName}
+            onChangeText={(value) => {
+              setFirstName(value);
+              setError("");
+            }}
+            placeholder="Enter your first name"
+            autoCapitalize="words"
+            errorMessage={
+              validationAttempted && !firstName.trim()
+                ? "First name is required."
+                : undefined
+            }
+          />
+
+          <AuthInput
+            label="Last Name"
+            delay={390}
+            value={lastName}
+            onChangeText={(value) => {
+              setLastName(value);
+              setError("");
+            }}
+            placeholder="Enter your last name"
+            autoCapitalize="words"
+            errorMessage={
+              validationAttempted && !lastName.trim()
+                ? "Last name is required."
+                : undefined
+            }
+          />
+
+          <AuthInput
+            label="Middle Name (Optional)"
+            delay={410}
+            value={middleName}
+            onChangeText={(value) => {
+              setMiddleName(value);
+              setError("");
+            }}
+            placeholder="Enter your middle name"
+            autoCapitalize="words"
+          />
+
+          <AuthInput
+            label="Suffix (Optional)"
+            delay={420}
+            value={suffix}
+            onChangeText={(value) => {
+              setSuffix(value);
+              setError("");
+            }}
+            placeholder="e.g. Jr., III"
+            autoCapitalize="words"
           />
 
           <AuthInput
             label="Email"
             delay={430}
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(value) => {
+              setEmail(value);
+              setError("");
+            }}
             placeholder="Enter your email"
             keyboardType="email-address"
+            errorMessage={
+              validationAttempted
+                ? !email.trim()
+                  ? "Email is required."
+                  : !isValidEmailAddress(email.trim())
+                    ? "Enter a valid email address."
+                    : undefined
+                : undefined
+            }
           />
 
           <AuthInput
             label="Password"
             delay={510}
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(value) => {
+              setPassword(value);
+              setError("");
+            }}
             placeholder="Enter your password"
             secureEntry
+            errorMessage={
+              validationAttempted && !isPasswordValid(password)
+                ? "Password does not meet the requirements."
+                : undefined
+            }
           />
+          <PasswordRequirements password={password} />
 
           <AuthInput
             label="Confirm Password"
             delay={590}
             value={confirmPassword}
-            onChangeText={setConfirmPassword}
+            onChangeText={(value) => {
+              setConfirmPassword(value);
+              setError("");
+            }}
             placeholder="Confirm your password"
             secureEntry
+            errorMessage={
+              validationAttempted && !confirmPassword
+                ? "Confirm password is required."
+                : undefined
+            }
+            invalid={
+              validationAttempted &&
+              confirmPassword.length > 0 &&
+              confirmPassword !== password
+            }
           />
+          {confirmPassword.length > 0 && (
+            <View style={styles.passwordMatchStatus}>
+              {passwordsMatch ? (
+                <Check size={14} color={C.success} strokeWidth={3} />
+              ) : (
+                <Circle size={14} color={C.error} />
+              )}
+              <Text
+                style={[
+                  styles.passwordMatchText,
+                  passwordsMatch
+                    ? styles.passwordMatchTextMet
+                    : styles.passwordMatchTextMismatch,
+                ]}
+              >
+                {passwordsMatch
+                  ? "Passwords match."
+                  : "Passwords do not match."}
+              </Text>
+            </View>
+          )}
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {error &&
+          ![
+            "Please fill in all fields.",
+            "Please enter a valid email address.",
+            "Please meet all password requirements.",
+            "Passwords do not match.",
+          ].includes(error) ? (
+            <Text style={styles.errorText}>{error}</Text>
+          ) : null}
 
           <PrimaryButton
             delay={700}
             title={loading ? "CREATING..." : "SIGN UP"}
             onPress={handleSignUp}
+            disabled={loading}
           />
 
           <TouchableOpacity
@@ -379,6 +561,9 @@ const C = {
   inputBorder: "#EAD8D8",
   placeholder: "#C4A8A8",
   roseLight: "#FDA4AF",
+  success: "#25804F",
+  requirementMuted: "#A39A96",
+  error: "#B9382D",
 };
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -484,9 +669,17 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderBottomWidth: 1.5,
+    minHeight: 38,
+    borderBottomWidth: 1,
     borderBottomColor: C.inputBorder,
     paddingBottom: 7,
+  },
+  inputRowFocused: {
+    borderBottomWidth: 2,
+    borderBottomColor: C.primary,
+  },
+  inputRowError: {
+    borderBottomColor: C.error,
   },
   textInput: {
     flex: 1,
@@ -494,23 +687,58 @@ const styles = StyleSheet.create({
     color: C.textDark,
     paddingVertical: 0,
   },
-  toggleText: {
-    fontSize: 12,
-    color: C.roseLight,
+  visibilityButton: {
+    minWidth: 32,
+    minHeight: 32,
+    alignItems: "center",
+    justifyContent: "center",
     marginLeft: 8,
   },
-  checkIcon: {
-    fontSize: 14,
-    color: C.roseLight,
-    marginLeft: 8,
+  fieldErrorText: {
+    fontSize: 11,
+    color: C.error,
+    marginTop: 5,
   },
 
   // Error
   errorText: {
     fontSize: 11,
-    color: C.primary,
+    color: C.error,
     textAlign: "center",
     marginBottom: 12,
+  },
+  passwordRequirements: {
+    marginTop: -12,
+    marginBottom: 14,
+  },
+  passwordRequirementRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  passwordRequirementText: {
+    marginLeft: 7,
+    fontSize: 11,
+    color: C.requirementMuted,
+  },
+  passwordRequirementTextMet: {
+    color: C.success,
+  },
+  passwordMatchStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: -12,
+    marginBottom: 14,
+  },
+  passwordMatchText: {
+    marginLeft: 7,
+    fontSize: 11,
+  },
+  passwordMatchTextMet: {
+    color: C.success,
+  },
+  passwordMatchTextMismatch: {
+    color: C.error,
   },
 
   // Primary button
@@ -527,6 +755,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     letterSpacing: 0.5,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.65,
   },
 
   // Switch link
