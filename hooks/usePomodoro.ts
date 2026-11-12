@@ -6,6 +6,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  serverTimestamp,
 } from "firebase/firestore";
 import { useTasks as useGlobalTasks } from "@/hooks/useTasks";
 import type { Task as StoreTask, TaskCategory } from "@/store/taskStore";
@@ -77,12 +78,16 @@ export function useSessions() {
   }, []);
 
   const createSession = useCallback(
-    async (params: Omit<Session, "id">) => {
+    async (params: Omit<Session, "id">): Promise<string | null> => {
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        return;
+        return null;
       }
-      await addDoc(collection(db, "users", currentUser.uid, "sessions"), params);
+      const sessionDoc = await addDoc(
+        collection(db, "users", currentUser.uid, "sessions"),
+        { ...params, completedAt: serverTimestamp() },
+      );
+      return sessionDoc.id;
     },
     []
   );

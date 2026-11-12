@@ -31,8 +31,15 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { StreakCard } from "../components/StreakCard";
 import { ActivityCard } from "../components/ActivityCard";
 import { auth, db } from "@/services/firebase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useStreakListener } from "@/utils/useStreakListener";
+import {
+  CounselingSmartTrigger,
+  createAsyncStorageDismissalStore,
+  useWellnessScore,
+  WellnessScoreCard,
+} from "@/wellness";
 import { useReminders } from "@/hooks/useReminders";
 import { useSocialActivities } from "@/hooks/useSocialActivities";
 import { initializeStreakData } from "@/utils/activityTracker";
@@ -50,6 +57,8 @@ import {
 } from "@/services/social";
 import { initializeNotifications } from "@/services/notificationService";
 import Constants from "expo-constants";
+
+const counselingDismissalStore = createAsyncStorageDismissalStore(AsyncStorage);
 
 const fmtTotalHours = (seconds: number) => {
   const minutes = Math.max(0, Math.round(seconds / 60));
@@ -325,6 +334,7 @@ export default function HomeScreen() {
 
   // Real-time streak listener
   const { streakData, loading, error } = useStreakListener(db, userId, "UTC");
+  const wellness = useWellnessScore({ firestore: db, userId });
 
   // Initialize streak data if it doesn't exist
   useEffect(() => {
@@ -570,6 +580,19 @@ export default function HomeScreen() {
           streakUnit="Days"
         />
         </Animated.View>
+
+        <WellnessScoreCard
+          state={wellness}
+          onPressDashboard={() => router.push("/(tabs)/analytics")}
+          style={{ marginTop: 16 }}
+        />
+        <CounselingSmartTrigger
+          score={wellness.result?.score ?? null}
+          threshold={40}
+          onOpenCounseling={() => router.push("/counseling")}
+          store={counselingDismissalStore}
+          style={{ marginTop: 16 }}
+        />
 
         {/* Activity Feed */}
         {activities.length === 0 ? (

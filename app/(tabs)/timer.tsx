@@ -30,8 +30,11 @@ import { BreakBanner } from "@/app/components/timer/BreakBanner";
 import { TaskPicker } from "@/app/components/timer/TaskPicker";
 import { initializeNotifications } from "@/services/notificationService";
 import { createSessionCompleteNotification } from "@/services/notificationPersistence";
+import { db } from "@/services/firebase";
+import { useAuth } from "@/contexts/AuthContext";
 import { soundService } from "@/services/soundService";
 import { shadowStyle } from "@/utils/shadowStyle";
+import { MoodCheckInModal, useMoodCheckIn } from "@/wellness";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,6 +99,8 @@ const getTaskCategory = (task: Task): TaskCategory =>
 export default function TimerScreen() {
   const { isDarkMode } = useTheme();
   const colors = useColors(isDarkMode);
+  const { user } = useAuth();
+  const mood = useMoodCheckIn({ firestore: db, userId: user?.uid });
 
   // ── Timer state ──────────────────────────────────────────────────────────
   const [mode, setMode] = useState<TimerMode>("focus");
@@ -285,13 +290,21 @@ export default function TimerScreen() {
                   )
                 : 25 * 60;
 
-              createSession({
+              void createSession({
                 taskTitle: activeTaskRef.current?.title ?? "Unassigned Session",
                 taskId: activeTaskRef.current?.id ?? null,
                 date: getLocalISODateTime(),
                 durationMinutes,
                 mode: "focus",
-              });
+              })
+                .then((savedSessionId) => {
+                  if (savedSessionId) {
+                    mood.requestMoodCheckIn(savedSessionId, "focus");
+                  }
+                })
+                .catch((error: unknown) => {
+                  console.error("Failed to save completed focus session:", error);
+                });
 
               // If there was an active task, add focus time to it
               if (activeTaskRef.current) {
@@ -922,6 +935,15 @@ export default function TimerScreen() {
             )}
           </View>
         )}
+
+        {/* Mood check-in modal */}
+        <MoodCheckInModal
+          visible={mood.visible}
+          saving={mood.saving}
+          errorMessage={mood.error}
+          onSelect={mood.submit}
+          onSkip={mood.skip}
+        />
 
         {/* Task modal */}
         <TaskModal
