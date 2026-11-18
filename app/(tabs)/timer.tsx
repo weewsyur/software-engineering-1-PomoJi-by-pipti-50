@@ -3,10 +3,10 @@ import { Colors, useColors } from "@/constants/colors";
 import { SharedStyles } from "@/constants/styles";
 import { useActivities } from "@/hooks/useActivities";
 import { Task, TaskCategory, useSessions, useTasks } from "@/hooks/usePomodoro";
-import { useTimerPersistence } from "@/hooks/useTimerPersistence";
+import { useTimerPersistence, type TimerMode } from "@/hooks/useTimerPersistence";
 import { LucideIcon } from "@/components/LucideIcon";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Sparkles } from "lucide-react-native";
+import { Settings2 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { getLocalISODateTime } from "@/utils/dateHelpers";
@@ -20,6 +20,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -36,45 +37,15 @@ import { soundService } from "@/services/soundService";
 import { shadowStyle } from "@/utils/shadowStyle";
 import { MoodCheckInModal, useMoodCheckIn } from "@/wellness";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type TimerMode = "focus" | "short" | "long";
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const MODES: { key: TimerMode; label: string; duration: number }[] = [
-  { key: "focus", label: "Focus", duration: 25 * 60 },
-  { key: "short", label: "Short Break", duration: 5 * 60 },
-  { key: "long", label: "Long Break", duration: 15 * 60 },
+const MODES: { key: TimerMode; label: string }[] = [
+  { key: "focus", label: "Focus" },
+  { key: "short", label: "Break" },
 ];
 
-const SESSIONS_BEFORE_LONG_BREAK = 4;
-
-const MOTIVATIONAL_QUOTES = [
-  "Focus is your superpower — protect it from distractions.",
-  "Small, steady work beats bursts of chaos.",
-  "Every minute of intentional focus makes the next task easier.",
-  "Stay present. Your future self will thank you.",
-  "A focused session now builds momentum for the whole day.",
-  "Excellence is the result of caring more than others think is wise.",
-  "Your concentration is your competitive edge.",
-  "Deep work creates deep satisfaction.",
-  "Every distraction avoided is progress earned.",
-  "Consistency trumps intensity. Show up, focus, deliver.",
-  "The world rewards the focused mind.",
-  "You're building the future one session at a time.",
-  "Distraction is the enemy of greatness—stay locked in.",
-  "Your future self is watching. Make them proud.",
-  "Twenty-five minutes of pure focus > hours of scattered work.",
-  "Mastery lives in the margins of focused effort.",
-  "Every completed session is a building block of success.",
-  "Silence is the canvas for deep work.",
-  "You've got this. Lock in, crush it.",
-  "Progress over perfection. Focus on the process.",
-];
-
-const getRandomQuote = () =>
-  MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
+const MIN_DURATION_MINUTES = 1;
+const MAX_DURATION_MINUTES = 180;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -104,12 +75,18 @@ export default function TimerScreen() {
 
   // ── Timer state ──────────────────────────────────────────────────────────
   const [mode, setMode] = useState<TimerMode>("focus");
-  const [timeLeft, setTimeLeft] = useState(25 * 60);
+  const [timeLeft, setTimeLeft] = useState(30 * 60);
   const [isRunning, setIsRunning] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [activeDurationMinutes, setActiveDurationMinutes] = useState<
+    number | null
+  >(null);
   const [sessions, setSessions] = useState(0);
-  const [streakCount, setStreakCount] = useState(0);
-  const [motivationalQuote, setMotivationalQuote] = useState(getRandomQuote());
+  const [totalFocusSeconds, setTotalFocusSeconds] = useState(0);
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  const [focusDurationDraft, setFocusDurationDraft] = useState("30");
+  const [breakDurationDraft, setBreakDurationDraft] = useState("5");
+  const [durationError, setDurationError] = useState<string | null>(null);
   const timerStateRestoredRef = useRef(false);
 
   // ── Timer persistence ─────────────────────────────────────────────────────
@@ -118,31 +95,47 @@ export default function TimerScreen() {
     isLoaded: timerLoaded,
     updateTimerState,
   } = useTimerPersistence();
+  const { focusDurationMinutes, breakDurationMinutes } = timerState;
 
   // Load persisted timer state on mount
   useEffect(() => {
     if (!timerLoaded || timerStateRestoredRef.current) return;
-    if (timerState.startTime !== null) return; // Don't load if timer was running
-    if (hasStarted) return; // Don't overwrite if already started
+    if (hasStarted) {
+      timerStateRestoredRef.current = true;
+      return;
+    }
 
     timerStateRestoredRef.current = true;
     setMode(timerState.mode);
     setTimeLeft(timerState.timeLeft);
     setIsRunning(timerState.isRunning);
     setHasStarted(timerState.hasStarted);
+    setActiveDurationMinutes(timerState.activeDurationMinutes);
     setSessions(timerState.sessions);
-    setStreakCount(timerState.streakCount);
+    setTotalFocusSeconds(timerState.totalFocusSeconds);
+    sessionStartTimeRef.current = timerState.startTime;
+    pauseStartedAtRef.current = timerState.pausedAt;
+    pausedAccumulatedMsRef.current = timerState.pausedAccumulated;
   }, [
     timerLoaded,
-    timerState.startTime,
     timerState.mode,
     timerState.timeLeft,
     timerState.isRunning,
     timerState.hasStarted,
+    timerState.activeDurationMinutes,
     timerState.sessions,
-    timerState.streakCount,
+    timerState.totalFocusSeconds,
+    timerState.startTime,
+    timerState.pausedAt,
+    timerState.pausedAccumulated,
     hasStarted,
   ]);
+
+  useEffect(() => {
+    if (!timerLoaded) return;
+    setFocusDurationDraft(String(focusDurationMinutes));
+    setBreakDurationDraft(String(breakDurationMinutes));
+  }, [timerLoaded, focusDurationMinutes, breakDurationMinutes]);
 
   useEffect(() => {
     initializeNotifications().catch(() => null);
@@ -157,8 +150,10 @@ export default function TimerScreen() {
         isRunning,
         hasStarted,
         sessions,
-        streakCount,
-        startTime: hasStarted && isRunning ? sessionStartTimeRef.current : null,
+        activeDurationMinutes,
+        totalFocusSeconds,
+        startTime:
+          hasStarted && mode === "focus" ? sessionStartTimeRef.current : null,
         pausedAt: pauseStartedAtRef.current,
         pausedAccumulated: pausedAccumulatedMsRef.current,
       });
@@ -168,8 +163,9 @@ export default function TimerScreen() {
     timeLeft,
     isRunning,
     hasStarted,
+    activeDurationMinutes,
     sessions,
-    streakCount,
+    totalFocusSeconds,
     timerLoaded,
     updateTimerState,
   ]);
@@ -206,6 +202,7 @@ export default function TimerScreen() {
 
   // ── Refs ─────────────────────────────────────────────────────────────────
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastTickAtRef = useRef<number | null>(null);
   const glowRef = useRef(new Animated.Value(0)).current;
   const timerButtonScale = useRef(new Animated.Value(1)).current;
   const stopButtonScale = useRef(new Animated.Value(1)).current;
@@ -226,6 +223,12 @@ export default function TimerScreen() {
   }, [taskId, tasks]);
 
   const currentMode = MODES.find((m) => m.key === mode)!;
+  const currentDurationMinutes =
+    mode === "focus" ? focusDurationMinutes : breakDurationMinutes;
+  const displayDurationMinutes =
+    hasStarted && activeDurationMinutes !== null
+      ? activeDurationMinutes
+      : currentDurationMinutes;
 
   const animatePressScale = useCallback(
     (anim: Animated.Value, pressed: boolean) => {
@@ -241,29 +244,28 @@ export default function TimerScreen() {
 
   const endBreak = useCallback(() => {
     setMode("focus");
-    setTimeLeft(25 * 60);
+    setTimeLeft(focusDurationMinutes * 60);
     setIsRunning(false);
     setHasStarted(false);
-  }, []);
-
-  // ── Quote rotation interval ─────────────────────────────────────────────
-  useEffect(() => {
-    if (hasStarted && isRunning) {
-      const quoteInterval = setInterval(() => {
-        setMotivationalQuote(getRandomQuote());
-      }, 5000);
-      return () => clearInterval(quoteInterval);
-    }
-  }, [hasStarted, isRunning]);
+    setActiveDurationMinutes(null);
+  }, [focusDurationMinutes]);
 
   // ── Countdown tick ───────────────────────────────────────────────────────
   useEffect(() => {
     if (isRunning) {
+      lastTickAtRef.current = Date.now();
       intervalRef.current = setInterval(() => {
+        const now = Date.now();
+        const elapsedSeconds = Math.max(
+          1,
+          Math.floor((now - (lastTickAtRef.current ?? now)) / 1000),
+        );
+        lastTickAtRef.current = now;
         setTimeLeft((prev) => {
-          if (prev <= 1) {
+          if (prev <= elapsedSeconds) {
             clearInterval(intervalRef.current!);
             setIsRunning(false);
+            lastTickAtRef.current = null;
 
             if (mode === "focus") {
               soundService.playSessionComplete();
@@ -277,7 +279,7 @@ export default function TimerScreen() {
                         pausedAccumulatedMsRef.current,
                     ) / 60000,
                   )
-                : 25;
+                  : currentDurationMinutes;
               const durationSeconds = sessionStartTimeRef.current
                 ? Math.max(
                     60,
@@ -288,7 +290,7 @@ export default function TimerScreen() {
                         1000,
                     ),
                   )
-                : 25 * 60;
+                : currentDurationMinutes * 60;
 
               void createSession({
                 taskTitle: activeTaskRef.current?.title ?? "Unassigned Session",
@@ -317,9 +319,7 @@ export default function TimerScreen() {
 
               const newSessions = sessions + 1;
               setSessions(newSessions);
-              setStreakCount((prev) =>
-                prev + 1 >= SESSIONS_BEFORE_LONG_BREAK ? 0 : prev + 1,
-              );
+              setTotalFocusSeconds((prev) => prev + durationSeconds);
               setPostActivityDraft({
                 title: activeTaskRef.current?.title ?? "Focus Session",
                 sessions: newSessions,
@@ -356,11 +356,12 @@ export default function TimerScreen() {
             }
             return 0;
           }
-          return prev - 1;
+          return prev - elapsedSeconds;
         });
       }, 1000);
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      lastTickAtRef.current = null;
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -396,8 +397,8 @@ export default function TimerScreen() {
 
   const handleStart = useCallback(() => {
     setCanRecordSession(false);
+    setActiveDurationMinutes(currentDurationMinutes);
     if (mode === "focus") {
-      setMotivationalQuote(getRandomQuote());
       sessionStartTimeRef.current = Date.now();
       pauseStartedAtRef.current = null;
       pausedAccumulatedMsRef.current = 0;
@@ -407,7 +408,7 @@ export default function TimerScreen() {
     }
     setHasStarted(true);
     setIsRunning(true);
-  }, [mode]);
+  }, [mode, currentDurationMinutes]);
 
   const handlePause = useCallback(() => {
     if (
@@ -430,6 +431,7 @@ export default function TimerScreen() {
 
   const handleStop = useCallback(() => {
     setIsRunning(false);
+    setHasStarted(false);
     if (mode === "focus" && sessionStartTimeRef.current) {
       const elapsedSeconds = Math.max(
         60,
@@ -447,32 +449,76 @@ export default function TimerScreen() {
       });
       setCanRecordSession(true);
     }
-    setTimeLeft(currentMode.duration);
+    setTimeLeft(currentDurationMinutes * 60);
+    setActiveDurationMinutes(null);
     sessionStartTimeRef.current = null;
     pauseStartedAtRef.current = null;
     pausedAccumulatedMsRef.current = 0;
-  }, [mode, activeTask, sessions, currentMode.duration]);
+  }, [mode, activeTask, sessions, currentDurationMinutes]);
 
   const handleModeSwitch = useCallback((m: TimerMode) => {
     setMode(m);
     setIsRunning(false);
     setHasStarted(false);
+    setActiveDurationMinutes(null);
     setCanRecordSession(false);
-    setTimeLeft(MODES.find((x) => x.key === m)!.duration);
+    setTimeLeft(
+      (m === "focus" ? focusDurationMinutes : breakDurationMinutes) * 60,
+    );
     sessionStartTimeRef.current = null;
     pauseStartedAtRef.current = null;
     pausedAccumulatedMsRef.current = 0;
-  }, []);
+  }, [focusDurationMinutes, breakDurationMinutes]);
 
   const handleSkipBreak = useCallback(() => {
     setMode("focus");
-    setTimeLeft(25 * 60);
+    setTimeLeft(focusDurationMinutes * 60);
     setIsRunning(false);
     setHasStarted(false);
+    setActiveDurationMinutes(null);
     setCanRecordSession(false);
     pauseStartedAtRef.current = null;
     pausedAccumulatedMsRef.current = 0;
-  }, []);
+    sessionStartTimeRef.current = null;
+  }, [focusDurationMinutes]);
+
+  const handleSaveDurations = useCallback(() => {
+    const focusDuration = /^\d+$/.test(focusDurationDraft)
+      ? Number(focusDurationDraft)
+      : Number.NaN;
+    const breakDuration = /^\d+$/.test(breakDurationDraft)
+      ? Number(breakDurationDraft)
+      : Number.NaN;
+
+    if (
+      !Number.isInteger(focusDuration) ||
+      focusDuration < MIN_DURATION_MINUTES ||
+      focusDuration > MAX_DURATION_MINUTES ||
+      !Number.isInteger(breakDuration) ||
+      breakDuration < MIN_DURATION_MINUTES ||
+      breakDuration > MAX_DURATION_MINUTES
+    ) {
+      setDurationError("Enter whole minutes from 1 to 180.");
+      return;
+    }
+
+    setDurationError(null);
+    updateTimerState({
+      focusDurationMinutes: focusDuration,
+      breakDurationMinutes: breakDuration,
+    });
+
+    if (!hasStarted) {
+      setTimeLeft((mode === "focus" ? focusDuration : breakDuration) * 60);
+    }
+    setSettingsVisible(false);
+  }, [
+    focusDurationDraft,
+    breakDurationDraft,
+    updateTimerState,
+    hasStarted,
+    mode,
+  ]);
 
   // ── FR-03: Task Management (FIXED – uses hook methods, not setTasks) ───
 
@@ -605,8 +651,98 @@ export default function TimerScreen() {
                 />
               </TouchableOpacity>
             </Animated.View>
+            <TouchableOpacity
+              style={styles.settingsToggle}
+              onPress={() => {
+                if (!settingsVisible) {
+                  setFocusDurationDraft(String(focusDurationMinutes));
+                  setBreakDurationDraft(String(breakDurationMinutes));
+                  setDurationError(null);
+                }
+                setSettingsVisible((visible) => !visible);
+              }}
+              disabled={!timerLoaded}
+              accessibilityRole="button"
+              accessibilityLabel="Timer settings"
+              accessibilityHint="Edit focus and break durations"
+            >
+              <Settings2
+                size={20}
+                color={settingsVisible ? colors.primary : colors.textMuted}
+              />
+            </TouchableOpacity>
           </View>
         </View>
+
+        {settingsVisible && (
+          <View
+            style={[
+              SharedStyles.card,
+              styles.settingsCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.settingsTitle, { color: colors.text }]}>
+              Timer durations
+            </Text>
+            <View style={styles.settingsFields}>
+              <View style={styles.settingsField}>
+                <Text style={[styles.settingsLabel, { color: colors.textMuted }]}>
+                  Focus · minutes
+                </Text>
+                <TextInput
+                  accessibilityLabel="Focus duration in minutes"
+                  style={[
+                    styles.durationInput,
+                    {
+                      color: colors.text,
+                      borderColor: colors.border,
+                      backgroundColor: colors.background,
+                    },
+                  ]}
+                  value={focusDurationDraft}
+                  onChangeText={setFocusDurationDraft}
+                  keyboardType="number-pad"
+                  maxLength={3}
+                  selectTextOnFocus
+                />
+              </View>
+              <View style={styles.settingsField}>
+                <Text style={[styles.settingsLabel, { color: colors.textMuted }]}>
+                  Break · minutes
+                </Text>
+                <TextInput
+                  accessibilityLabel="Break duration in minutes"
+                  style={[
+                    styles.durationInput,
+                    {
+                      color: colors.text,
+                      borderColor: colors.border,
+                      backgroundColor: colors.background,
+                    },
+                  ]}
+                  value={breakDurationDraft}
+                  onChangeText={setBreakDurationDraft}
+                  keyboardType="number-pad"
+                  maxLength={3}
+                  selectTextOnFocus
+                />
+              </View>
+            </View>
+            {durationError && (
+              <Text style={styles.durationError}>{durationError}</Text>
+            )}
+            <TouchableOpacity
+              style={[styles.saveDurationsButton, { backgroundColor: colors.primary }]}
+              onPress={handleSaveDurations}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.saveDurationsText, { color: colors.surface }]}>
+                Save durations
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <BreakBanner mode={mode} onSkip={handleSkipBreak} />
 
@@ -658,42 +794,11 @@ export default function TimerScreen() {
             ])}
           >
             <Text style={styles.timeText}>{formatTime(timeLeft)}</Text>
-            <Text style={styles.modeLabel}>{currentMode.label}</Text>
-            <View style={styles.streakDots}>
-              {Array.from({ length: SESSIONS_BEFORE_LONG_BREAK }).map(
-                (_, i) => (
-                  <View
-                    key={i}
-                    style={StyleSheet.flatten([
-                      styles.dot,
-                      i < streakCount && styles.dotFilled,
-                    ])}
-                  />
-                ),
-              )}
-            </View>
+            <Text style={styles.modeLabel}>
+              {currentMode.label} · {displayDurationMinutes} min
+            </Text>
           </Animated.View>
         </View>
-
-        {/* Motivational Quote Display */}
-        {hasStarted && mode === "focus" && (
-          <View
-            style={StyleSheet.flatten([
-              styles.quoteCard,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ])}
-          >
-            <Sparkles
-              size={24}
-              color={colors.textMuted}
-              strokeWidth={1.5}
-              style={styles.quoteIconContainer}
-            />
-            <Text style={[styles.quoteText, { color: colors.text }]}>
-              {motivationalQuote}
-            </Text>
-          </View>
-        )}
 
         {/* Active task selector */}
         {mode === "focus" && (
@@ -821,7 +926,7 @@ export default function TimerScreen() {
           </View>
         </View>
 
-        {hasStarted && !isRunning && canRecordSession && (
+        {!isRunning && canRecordSession && (
           <TouchableOpacity
             style={[
               styles.recordSessionBtn,
@@ -862,7 +967,8 @@ export default function TimerScreen() {
                 Focus Time
               </Text>
               <Text style={[styles.infoValue, { color: colors.text }]}>
-                {Math.floor((sessions * 25) / 60)}h {(sessions * 25) % 60}m
+                {Math.floor(totalFocusSeconds / 3600)}h{" "}
+                {Math.floor((totalFocusSeconds % 3600) / 60)}m
               </Text>
             </View>
             <View
@@ -1014,6 +1120,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  settingsToggle: { padding: 4 },
   headerLabel: {
     fontSize: 10,
     fontWeight: "700",
@@ -1021,26 +1128,28 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textTransform: "uppercase",
   },
-  quoteCard: {
-    marginHorizontal: 0,
-    marginVertical: 16,
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-    borderRadius: 14,
+  settingsCard: { marginHorizontal: 16, marginBottom: 16 },
+  settingsTitle: { fontSize: 14, fontWeight: "700", marginBottom: 12 },
+  settingsFields: { flexDirection: "row", gap: 12 },
+  settingsField: { flex: 1, gap: 6 },
+  settingsLabel: { fontSize: 11, fontWeight: "600" },
+  durationInput: {
     borderWidth: 1,
-    alignItems: "center",
-    ...shadowStyle("#000", 0, 2, 8, 0.08, 3),
+    borderRadius: 8,
+    minHeight: 40,
+    paddingHorizontal: 10,
+    fontSize: 15,
+    fontWeight: "600",
   },
-  quoteIconContainer: {
-    marginBottom: 12,
+  durationError: { color: "#C94C3C", fontSize: 12, marginTop: 8 },
+  saveDurationsButton: {
+    alignSelf: "flex-end",
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    marginTop: 12,
   },
-  quoteText: {
-    fontSize: 14,
-    fontWeight: "500",
-    lineHeight: 22,
-    textAlign: "center",
-    letterSpacing: 0.2,
-  },
+  saveDurationsText: { fontSize: 12, fontWeight: "700" },
   tasksToggle: { position: "relative", padding: 4 },
   badge: {
     position: "absolute",
@@ -1093,16 +1202,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginTop: 4,
   },
-  streakDots: { flexDirection: "row", gap: 6, marginTop: 10 },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    borderWidth: 1.5,
-    borderColor: "#C94C3C",
-    backgroundColor: "transparent",
-  },
-  dotFilled: { backgroundColor: "#C94C3C" },
   controls: {
     flexDirection: "row",
     alignItems: "center",

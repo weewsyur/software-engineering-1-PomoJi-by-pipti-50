@@ -125,15 +125,14 @@ export async function showSessionCompleteNotification(params: {
 }
 
 export async function showBreakReminderNotification(params: {
-  breakType: 'short' | 'long';
   durationMinutes: number;
 }) {
   await webNotificationService.showNotification({
     title: '☕ Time for a Break!',
-    body: `${params.breakType === 'short' ? '5' : '15'} minute ${params.breakType} break`,
+    body: `${params.durationMinutes} minute break`,
     tag: 'break-reminder',
     requireInteraction: true,
-    data: { type: 'break-reminder', breakType: params.breakType },
+    data: { type: 'break-reminder' },
   });
 }
 

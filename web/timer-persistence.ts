@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type TimerMode = 'focus' | 'short' | 'long';
+export type TimerMode = 'focus' | 'short';
 
 export interface TimerState {
   mode: TimerMode;
@@ -16,12 +16,6 @@ export interface TimerState {
 }
 
 const STORAGE_KEY = '@pomoji_timer_state';
-const TIMER_DURATION = {
-  focus: 25 * 60, // 25 minutes
-  short: 5 * 60, // 5 minutes
-  long: 15 * 60, // 15 minutes
-};
-
 export class TimerPersistence {
   static async saveState(state: TimerState): Promise<void> {
     try {
@@ -76,10 +70,16 @@ export class TimerPersistence {
 
       if (!serialized) return null;
 
-      const saved = JSON.parse(serialized) as TimerState & { lastSaved: number };
+      const saved = JSON.parse(serialized) as Omit<TimerState, 'mode'> & {
+        mode: string;
+        lastSaved: number;
+      };
 
       // Validate and recover timer state
-      return TimerPersistence.recoverTimerState(saved);
+      return TimerPersistence.recoverTimerState({
+        ...saved,
+        mode: saved.mode === 'short' || saved.mode === 'long' ? 'short' : 'focus',
+      });
     } catch (error) {
       console.error('Failed to load timer state:', error);
       return null;
@@ -100,7 +100,6 @@ export class TimerPersistence {
 
     // Timer was running - calculate current time
     const elapsed = Date.now() - saved.lastSaved;
-    const maxDuration = TIMER_DURATION[saved.mode];
     let timeLeft = Math.max(saved.timeLeft - Math.floor(elapsed / 1000), 0);
 
     // If more time passed than remaining, session finished
@@ -111,12 +110,7 @@ export class TimerPersistence {
         isRunning: false,
         hasStarted: false,
         sessions: saved.mode === 'focus' ? saved.sessions + 1 : saved.sessions,
-        streakCount:
-          saved.mode === 'focus'
-            ? saved.streakCount + 1
-            : saved.streakCount % 4 === 0
-              ? 0
-              : saved.streakCount,
+        streakCount: saved.streakCount,
       };
     }
 

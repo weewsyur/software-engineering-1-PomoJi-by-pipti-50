@@ -39,18 +39,19 @@ import {
   collection,
   query,
   where,
-  writeBatch,
 } from "firebase/firestore";
 import {
   fetchUserProfile,
   getProfileImageURL,
+  updateProfileData,
   UserProfile,
 } from "@/services/profile";
+import { useAuth } from "@/contexts/AuthContext";
 import { getDisplayStreak } from "@/utils/streakCalculator";
 import {
   EMPTY_USER_NAME_FIELDS,
   formatUserName,
-  getPublicUsername,
+  generateUsername,
   UserNameFields,
 } from "@/utils/userName";
 
@@ -102,7 +103,7 @@ function ProfileAvatar({
   size?: number;
   onPress?: () => void;
 }) {
-  const initials = getInitials(profile.name);
+  const initials = getInitials(profile.displayName);
 
   return (
     <TouchableOpacity
@@ -174,16 +175,20 @@ const SETTINGS = [
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const router = useRouter();
+  const { refreshUser } = useAuth();
   const { isDarkMode, toggleDarkMode } = useTheme();
   const colors = useColors(isDarkMode);
 
   const [profile, setProfile] = useState<UserProfile>({
     ...EMPTY_USER_NAME_FIELDS,
-    name: "",
+    fullName: "",
+    displayName: "",
+    username: "",
     email: "",
     photoUri: null,
   });
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [profileLoadError, setProfileLoadError] = useState(false);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [signOutModalVisible, setSignOutModalVisible] = useState(false);
@@ -222,31 +227,54 @@ export default function ProfileScreen() {
   // ── Fetch profile from Firestore ────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
+    let requestId = 0;
 
     const fetchProfile = async (userId: string | undefined) => {
+      const currentRequestId = ++requestId;
       if (!userId) {
-        if (!cancelled) setLoadingProfile(false);
+        if (!cancelled) {
+          setProfile({
+            ...EMPTY_USER_NAME_FIELDS,
+            fullName: "",
+            displayName: "",
+            username: "",
+            email: "",
+            photoUri: null,
+          });
+          setProfileLoadError(false);
+          setLoadingProfile(false);
+        }
         return;
       }
 
       setLoadingProfile(true);
+      setProfileLoadError(false);
+      setProfile({
+        ...EMPTY_USER_NAME_FIELDS,
+        fullName: "",
+        displayName: "",
+        username: "",
+        email: "",
+        photoUri: null,
+      });
       try {
         const fetchedProfile = await fetchUserProfile(userId);
-        const nextProfile = fetchedProfile
-          ? {
-              ...fetchedProfile,
-              photoUri:
-                (await getProfileImageURL(fetchedProfile.photoUri)) ||
-                auth.currentUser?.photoURL ||
-                null,
-            }
-          : {
-              ...EMPTY_USER_NAME_FIELDS,
-              name: "",
-              email: "",
-              photoUri: null,
-            };
-        if (!cancelled) {
+        if (!fetchedProfile) {
+          if (auth.currentUser?.uid !== userId) return;
+          throw new Error("Unable to load the authenticated user's profile.");
+        }
+        const nextProfile = {
+          ...fetchedProfile,
+          photoUri:
+            (await getProfileImageURL(fetchedProfile.photoUri)) ||
+            auth.currentUser?.photoURL ||
+            null,
+        };
+        if (
+          !cancelled &&
+          currentRequestId === requestId &&
+          auth.currentUser?.uid === userId
+        ) {
           setProfile(nextProfile);
           setDraftFirstName(nextProfile.firstName ?? "");
           setDraftLastName(nextProfile.lastName ?? "");
@@ -255,9 +283,18 @@ export default function ProfileScreen() {
           setDraftPhotoUri(nextProfile.photoUri);
         }
       } catch (error) {
-        console.error("Error fetching profile:", error);
+        if (
+          !cancelled &&
+          currentRequestId === requestId &&
+          auth.currentUser?.uid === userId
+        ) {
+          console.error("Error fetching profile:", error);
+          setProfileLoadError(true);
+        }
       } finally {
-        if (!cancelled) setLoadingProfile(false);
+        if (!cancelled && currentRequestId === requestId) {
+          setLoadingProfile(false);
+        }
       }
     };
 
@@ -298,6 +335,7 @@ export default function ProfileScreen() {
             null,
         };
         setProfile(nextProfile);
+        setProfileLoadError(false);
         setDraftFirstName(nextProfile.firstName ?? "");
         setDraftLastName(nextProfile.lastName ?? "");
         setDraftMiddleName(nextProfile.middleName ?? "");
@@ -487,6 +525,19 @@ export default function ProfileScreen() {
 
   // ── Modal open/close ────────────────────────────────────────────────────────
   const openModal = () => {
+    if (loadingProfile) return;
+    if (profileLoadError) {
+      Alert.alert(
+        "Profile unavailable",
+        "Refresh your profile before editing your information.",
+      );
+      return;
+    }
+    if (!auth.currentUser) {
+      Alert.alert("Sign in required", "Please sign in to edit your profile.");
+      return;
+    }
+
     setDraftFirstName(profile.firstName ?? "");
     setDraftLastName(profile.lastName ?? "");
     setDraftMiddleName(profile.middleName ?? "");
@@ -496,6 +547,8 @@ export default function ProfileScreen() {
   };
 
   const handleSave = async () => {
+    if (loadingProfile || profileLoadError) return;
+
     const hasNameInput = Boolean(
       draftFirstName.trim() ||
         draftLastName.trim() ||
@@ -523,8 +576,6 @@ export default function ProfileScreen() {
       }
 
       const userId = currentUser.uid;
-      const userRef = doc(db, "users", userId);
-      const publicProfileRef = doc(db, "publicProfiles", userId);
       let nextPhotoUri = profile.photoUri;
       const nameFields: UserNameFields | null = hasNameInput
         ? {
@@ -534,11 +585,13 @@ export default function ProfileScreen() {
             suffix: draftSuffix.trim() || null,
           }
         : null;
-      const displayName = nameFields
-        ? formatUserName(nameFields)
-        : profile.name || currentUser.displayName || "User";
-      const publicUsername = getPublicUsername(displayName, currentUser.email);
+      const displayName =
+        (nameFields ? formatUserName(nameFields) : profile.displayName) || "";
+      const publicUsername = nameFields
+        ? generateUsername(nameFields)
+        : profile.username || displayName.replace(/\s+/g, "").toLowerCase();
       const updates: Partial<UserNameFields> & {
+        displayName?: string;
         username?: string;
         photoUrl?: string | null;
       } = nameFields ? { ...nameFields } : {};
@@ -602,36 +655,19 @@ export default function ProfileScreen() {
       }
 
       if (nameFields || draftPhotoUri !== profile.photoUri) {
-        updates.username = displayName;
-        const batch = writeBatch(db);
-        const userUpdates: [string, string | null | undefined][] = [
-          ["firstName", updates.firstName],
-          ["lastName", updates.lastName],
-          ["middleName", updates.middleName],
-          ["suffix", updates.suffix],
-          ["username", updates.username],
-          ["photoUrl", updates.photoUrl],
-        ];
-        for (const [field, value] of userUpdates) {
-          if (value !== undefined) batch.update(userRef, field, value);
+        if (displayName) {
+          updates.displayName = displayName;
+          updates.username = publicUsername;
         }
-        batch.set(
-          publicProfileRef,
-          {
-            uid: userId,
-            username: publicUsername,
-            photoUrl: nextPhotoUri,
-          },
-          { merge: true },
-        );
-        await batch.commit();
+        await updateProfileData(userId, updates);
         const authPhotoUrl = nextPhotoUri
           ? await getProfileImageURL(nextPhotoUri)
           : null;
         await updateProfile(currentUser, {
-          displayName: publicUsername,
+          ...(displayName ? { displayName } : {}),
           photoURL: authPhotoUrl,
         });
+        refreshUser();
       }
       await setUserStore({
         userId,
@@ -646,7 +682,9 @@ export default function ProfileScreen() {
       setProfile((prev) => ({
         ...prev,
         ...(nameFields ?? {}),
-        name: displayName,
+        fullName: displayName,
+        displayName,
+        username: publicUsername,
         email: currentUser.email || prev.email,
         photoUri: refreshedPhotoUri,
       }));
@@ -803,6 +841,7 @@ export default function ProfileScreen() {
             style={[styles.editChip, { backgroundColor: colors.primaryMuted }]}
             onPress={openModal}
             activeOpacity={0.7}
+            disabled={loadingProfile}
             onPressIn={() => animatePressScale(editButtonScale, true)}
             onPressOut={() => animatePressScale(editButtonScale, false)}
             accessibilityRole="button"
@@ -852,10 +891,14 @@ export default function ProfileScreen() {
             },
           ])}
         >
-          <ProfileAvatar profile={profile} size={80} onPress={openModal} />
+          <ProfileAvatar
+            profile={profile}
+            size={80}
+            onPress={loadingProfile ? undefined : openModal}
+          />
           {/* Username displayed as the profile name */}
           <Text style={[styles.profileName, { color: colors.text }]}>
-            {profile.name}
+            {profile.displayName}
           </Text>
           {/* Email from sign-up */}
           <Text style={[styles.profileEmail, { color: colors.textMuted }]}>
@@ -1070,13 +1113,13 @@ export default function ProfileScreen() {
                 <ProfileAvatar
                   profile={{
                     ...profile,
-                    name:
+                    displayName:
                       formatUserName({
                         firstName: draftFirstName.trim() || null,
                         lastName: draftLastName.trim() || null,
                         middleName: draftMiddleName.trim() || null,
                         suffix: draftSuffix.trim() || null,
-                      }) || profile.name,
+                      }) || profile.displayName,
                     photoUri: draftPhotoUri,
                   }}
                   size={96}

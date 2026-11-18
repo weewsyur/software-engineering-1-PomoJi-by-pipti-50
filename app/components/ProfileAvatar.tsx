@@ -21,7 +21,7 @@ const getInitials = (name: string): string => {
 
 export const ProfileAvatar: React.FC<ProfileAvatarProps> = memo(
   ({ profile, size = 80, onPress }) => {
-    const initials = getInitials(profile.name);
+    const initials = getInitials(profile.displayName);
 
     return (
       <TouchableOpacity
@@ -62,7 +62,7 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = memo(
   },
   (prevProps, nextProps) => {
     return (
-      prevProps.profile.name === nextProps.profile.name &&
+      prevProps.profile.displayName === nextProps.profile.displayName &&
       prevProps.profile.photoUri === nextProps.profile.photoUri &&
       prevProps.size === nextProps.size &&
       prevProps.onPress === nextProps.onPress

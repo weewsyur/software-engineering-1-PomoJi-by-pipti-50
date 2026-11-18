@@ -44,6 +44,13 @@ export function formatUserName(
   return structuredName || legacyName?.trim() || "";
 }
 
+export function generateUsername(fields: UserNameFields): string {
+  return [fields.firstName, fields.lastName]
+    .map((part) => part?.trim().replace(/\s+/g, "").toLowerCase())
+    .filter((part): part is string => Boolean(part))
+    .join("");
+}
+
 export function getPublicUsername(
   value: string | null | undefined,
   email: string | null | undefined,

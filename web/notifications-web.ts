@@ -60,16 +60,15 @@ export class WebNotifications {
   }
 
   static async showTimerCompleteNotification(timerType: string): Promise<Notification | null> {
-    const messages = {
+    const messages: Record<string, string> = {
       focus: '🎉 Focus session complete! Time for a break.',
       short: '✅ Break finished! Ready to focus again?',
-      long: '🏆 Long break done! You earned it.',
     };
 
     return this.showNotification(
       'PomoJI - Session Complete',
       {
-        body: messages[timerType as keyof typeof messages] || 'Session complete!',
+        body: messages[timerType] || 'Session complete!',
         tag: 'timer-complete',
         requireInteraction: false,
       }

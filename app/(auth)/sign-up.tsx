@@ -12,12 +12,9 @@ import {
   Easing,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { Check, Circle, Eye, EyeOff } from "lucide-react-native";
-import { auth } from "@/services/firebase";
-import { getSignUpErrorMessage } from "@/services/auth";
-import { createUserDocument } from "@/services/firestore";
-import { setFirebaseUser, setUserStore } from "@/store/userStore";
+import { signUp } from "@/services/auth";
+import { toast } from "@/components/Toast";
 import { Colors } from "@/constants/colors";
 import { shadowStyle } from "@/utils/shadowStyle";
 import {
@@ -25,11 +22,7 @@ import {
   isPasswordValid,
   isValidEmailAddress,
 } from "@/utils/authValidation";
-import {
-  formatUserName,
-  getPublicUsername,
-  UserNameFields,
-} from "@/utils/userName";
+import { UserNameFields } from "@/utils/userName";
 
 // ─── Animation helpers ────────────────────────────────────────────────────────
 
@@ -299,18 +292,22 @@ export default function SignUp() {
       !confirmPassword
     ) {
       setError("Please fill in all fields.");
+      toast.message("Please fill in all required fields.", "error");
       return;
     }
     if (!isValidEmailAddress(email.trim())) {
       setError("Please enter a valid email address.");
+      toast.message("Please enter a valid email address.", "error");
       return;
     }
     if (!isPasswordValid(password)) {
       setError("Please meet all password requirements.");
+      toast.message("Please meet all password requirements.", "error");
       return;
     }
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
+      toast.message("Passwords do not match.", "error");
       return;
     }
 
@@ -323,30 +320,22 @@ export default function SignUp() {
         middleName: middleName.trim() || null,
         suffix: suffix.trim() || null,
       };
-      const displayName = getPublicUsername(
-        formatUserName(nameFields),
-        email.trim(),
-      );
-      const credential = await createUserWithEmailAndPassword(
-        auth,
+      await signUp(
         email.trim(),
         password,
+        nameFields,
       );
-
-      await updateProfile(credential.user, {
-        displayName,
-      });
-
-      await createUserDocument(credential.user, nameFields);
-      setFirebaseUser(credential.user);
-      await setUserStore({
-        userId: credential.user.uid,
-        username: displayName,
-        email: credential.user.email ?? email.trim(),
-      });
-      router.replace("/(tabs)/home");
+      toast.message(
+        "You've created an account successfully!",
+        "success",
+        { duration: 4000, showIcon: false },
+      );
+      router.replace("/(auth)/sign-in");
     } catch (e) {
-      setError(getSignUpErrorMessage(e));
+      toast.message(
+        e instanceof Error ? e.message : "Unable to complete registration.",
+        "error",
+      );
     } finally {
       submitting.current = false;
       setLoading(false);

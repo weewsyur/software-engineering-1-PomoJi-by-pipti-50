@@ -85,7 +85,7 @@ function AnimatedActivityCard({
 }: {
   activity: any;
   initials: string;
-  profile: { name: string; photoUri: string | null };
+  profile: { displayName: string; photoUri: string | null };
   fmtActivityDate: string;
   index?: number;
 }) {
@@ -120,7 +120,7 @@ function AnimatedActivityCard({
       <View style={styles.activityCardWrap}>
         <ActivityCard
           initials={initials}
-          name={profile.name}
+          name={profile.displayName}
           timestamp={fmtActivityDate}
           title={activity.title}
           sessions={activity.sessions}
@@ -305,7 +305,7 @@ export default function HomeScreen() {
   const { isDarkMode } = useTheme();
   const colors = useColors(isDarkMode);
   const [userId, setUserId] = useState<string | null>(null);
-  const [currentUsername, setCurrentUsername] = useState<string>("User");
+  const [currentUsername, setCurrentUsername] = useState<string>("");
   const [showReminders, setShowReminders] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -348,9 +348,13 @@ export default function HomeScreen() {
 
   // Memoize expensive calculations
   const initials = useMemo(() => {
-    const email = userId ?? "User";
-    return email.slice(0, 2).toUpperCase();
-  }, [userId]);
+    return profile.displayName
+      .trim()
+      .split(/\s+/)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .slice(0, 2)
+      .join("");
+  }, [profile.displayName]);
 
   // Keep the active user id synchronized with Firebase Auth. This runs only
   // after Auth has confirmed the current session state, avoiding the cold-start
@@ -358,11 +362,15 @@ export default function HomeScreen() {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       setUserId(user?.uid ?? null);
-      setCurrentUsername(user?.displayName || "User");
+      setCurrentUsername(user?.displayName || "");
     });
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (profile.displayName) setCurrentUsername(profile.displayName);
+  }, [profile.displayName]);
 
   useEffect(() => {
     if (Platform.OS === "web") return;

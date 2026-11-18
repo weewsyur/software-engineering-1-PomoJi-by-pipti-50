@@ -36,7 +36,7 @@ export default function UserProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
   const [followStatus, setFollowStatus] = useState<FollowStatus>("follow");
-  const [username, setUsername] = useState("User");
+  const [username, setUsername] = useState("");
   const [followingCount, setFollowingCount] = useState(0);
   const [followersCount, setFollowersCount] = useState(0);
 
@@ -62,8 +62,8 @@ export default function UserProfileScreen() {
           setUsername(
             formatUserName(
               readUserNameFields(userData),
-              userData.username as string,
-            ) || "User",
+              (userData.displayName as string) || (userData.username as string),
+            ),
           );
         }
         setFollowingCount(followingSnap.size);

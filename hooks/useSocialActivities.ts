@@ -20,27 +20,36 @@ const fetchUserProfile = async (uid: string): Promise<{ name: string; photoUri: 
     return PROFILE_CACHE.get(uid)!;
   }
 
+  const signedInUser = auth.currentUser;
+  const fallback = {
+    name: signedInUser?.uid === uid ? signedInUser.displayName?.trim() || "" : "",
+    photoUri: signedInUser?.uid === uid ? signedInUser.photoURL || null : null,
+  };
+
   try {
     const userDoc = await getDoc(doc(db, "publicProfiles", uid));
     if (!userDoc.exists()) {
-      const fallback = { name: "User", photoUri: null };
-      PROFILE_CACHE.set(uid, fallback);
       return fallback;
     }
     const data = userDoc.data();
-    const photoUri = (data.photoUrl as string) || null;
+    const photoUri =
+      typeof data.photoUrl === "string"
+        ? data.photoUrl
+        : typeof data.photoURL === "string"
+          ? data.photoURL
+          : null;
     const profile = {
       name:
-        formatUserName(readUserNameFields(data), data.username as string) ||
-        "User",
+        formatUserName(
+          readUserNameFields(data),
+          (data.displayName as string) || (data.username as string),
+        ) || fallback.name,
       photoUri: await getProfileImageURL(photoUri),
     };
     PROFILE_CACHE.set(uid, profile);
     return profile;
   } catch (error) {
     console.error("Error fetching user profile:", error);
-    const fallback = { name: "User", photoUri: null };
-    PROFILE_CACHE.set(uid, fallback);
     return fallback;
   }
 };

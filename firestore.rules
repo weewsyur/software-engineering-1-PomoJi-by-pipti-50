@@ -28,8 +28,10 @@ service cloud.firestore {
 
     function validPublicProfile(userId) {
       let data = request.resource.data;
-      return data.keys().hasOnly(["uid", "username", "photoUrl"]) &&
+      return data.keys().hasOnly(["uid", "displayName", "username", "photoUrl"]) &&
         data.uid == userId &&
+        (!("displayName" in data) ||
+          (data.displayName is string && !data.displayName.matches('.*@.*'))) &&
         data.username is string &&
         !data.username.matches('.*@.*') &&
         (!("photoUrl" in data) || data.photoUrl == null || data.photoUrl is string) &&
@@ -39,14 +41,42 @@ service cloud.firestore {
     function validUserDocument(userId) {
       let data = request.resource.data;
       return data.keys().hasOnly([
-          "uid", "email", "username", "firstName", "lastName", "middleName",
-          "suffix", "photoUrl", "createdAt"
+          "uid", "email", "fullName", "displayName", "username", "firstName",
+          "lastName", "middleName", "suffix", "photoUrl", "photoURL",
+          "createdAt", "updatedAt"
         ]) &&
         data.uid == userId &&
+        (!("createdAt" in data) || data.createdAt is timestamp) &&
+        (!("fullName" in data) ||
+          (data.fullName is string && !data.fullName.matches('.*@.*'))) &&
+        (!("displayName" in data) ||
+          (data.displayName is string && !data.displayName.matches('.*@.*'))) &&
         data.username is string &&
         (data.email == null || data.email is string) &&
         validNameFields(data) &&
-        (!("photoUrl" in data) || data.photoUrl == null || data.photoUrl is string);
+        (!("photoUrl" in data) || data.photoUrl == null || data.photoUrl is string) &&
+        (!("photoURL" in data) || data.photoURL == null || data.photoURL is string) &&
+        (!("updatedAt" in data) || data.updatedAt is timestamp);
+    }
+
+    function validNewUserDocument(userId) {
+      let data = request.resource.data;
+      return validUserDocument(userId) &&
+        data.email is string &&
+        data.email.size() > 0 &&
+        data.firstName is string &&
+        data.firstName.size() > 0 &&
+        data.lastName is string &&
+        data.lastName.size() > 0 &&
+        data.fullName is string &&
+        data.fullName.size() > 0 &&
+        data.displayName is string &&
+        data.displayName.size() > 0 &&
+        data.username is string &&
+        data.username.size() > 0 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp &&
+        "photoURL" in data;
     }
 
     function validActivity(userId) {
@@ -147,7 +177,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isOwner(userId);
-      allow create: if isOwner(userId) && validUserDocument(userId);
+      allow create: if isOwner(userId) && validNewUserDocument(userId);
       allow update: if isOwner(userId) &&
         validUserDocument(userId) &&
         request.resource.data.email == resource.data.email &&

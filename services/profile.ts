@@ -4,10 +4,11 @@ import {
   getDoc,
   getDocs,
   query,
+  serverTimestamp,
   where,
   writeBatch,
 } from "firebase/firestore";
-import { getDownloadURL, ref, uploadString } from "firebase/storage";
+import { ref, uploadString } from "firebase/storage";
 import { updateProfile as updateFirebaseProfile } from "firebase/auth";
 import { auth, db, storage } from "./firebase";
 import * as FileSystem from "expo-file-system";
@@ -16,6 +17,7 @@ import { getDisplayStreak } from "@/utils/streakCalculator";
 import {
   EMPTY_USER_NAME_FIELDS,
   formatUserName,
+  generateUsername,
   getPublicUsername,
   readUserNameFields,
   UserNameFields,
@@ -23,11 +25,15 @@ import {
 import {
   migrateUserNameFields,
   syncPublicProfile,
+  synchronizeUserDisplayName,
   UserDocument,
 } from "@/services/firestore";
+import { recoverPendingUserProfile } from "@/services/auth";
 
 export interface UserProfile extends UserNameFields {
-  name: string;
+  fullName: string;
+  displayName: string;
+  username: string;
   email: string;
   photoUri: string | null;
 }
@@ -51,19 +57,24 @@ export const fetchUserProfile = async (userId: string): Promise<UserProfile | nu
     if (!currentUser || currentUser.uid !== userId) return null;
 
     const userRef = doc(db, "users", userId);
-    const userSnap = await getDoc(userRef);
+    let userSnap = await getDoc(userRef);
 
     if (!userSnap.exists()) {
-      const nameFields = EMPTY_USER_NAME_FIELDS;
-      const username = getPublicUsername(currentUser.displayName, currentUser.email);
+      if (await recoverPendingUserProfile(currentUser)) {
+        userSnap = await getDoc(userRef);
+      }
+    }
+
+    if (!userSnap.exists()) {
+      console.warn("Firestore profile is missing for authenticated user:", userId);
+      const displayName = currentUser.displayName?.trim() || "";
       const photoUri = currentUser.photoURL || null;
-      await syncPublicProfile(userId, {
-        username,
-        photoUrl: photoUri,
-      });
+      const username = displayName.replace(/\s+/g, "").toLowerCase();
       return {
-        ...nameFields,
-        name: username,
+        ...EMPTY_USER_NAME_FIELDS,
+        fullName: displayName,
+        displayName,
+        username,
         email: currentUser.email || "",
         photoUri,
       };
@@ -82,25 +93,43 @@ export const fetchUserProfile = async (userId: string): Promise<UserProfile | nu
         console.error("Failed to migrate legacy profile name fields:", error);
       }
     }
-    const username = getPublicUsername(
-      formatUserName(nameFields, (userData.username as string) || currentUser.displayName),
-      currentUser.email,
-    );
-    const photoUri = (userData.photoUrl as string) || currentUser.photoURL || null;
-    await syncPublicProfile(userId, {
-      username,
-      photoUrl: photoUri,
-    });
+    const displayName = await synchronizeUserDisplayName(currentUser);
+    const fullName =
+      formatUserName(nameFields, typeof userData.fullName === "string"
+        ? userData.fullName
+        : displayName);
+    const storedUsername =
+      typeof userData.username === "string" ? userData.username.trim() : "";
+    const username =
+      (storedUsername && !storedUsername.includes("@") ? storedUsername : "") ||
+      generateUsername(nameFields) ||
+      fullName.replace(/\s+/g, "").toLowerCase();
+    const storedPhoto =
+      typeof userData.photoURL === "string"
+          ? userData.photoURL
+          : typeof userData.photoUrl === "string"
+            ? userData.photoUrl
+            : null;
+    const photoUri = storedPhoto || currentUser.photoURL || null;
+    if (displayName && username) {
+      await syncPublicProfile(userId, {
+        displayName,
+        username,
+        photoUrl: photoUri,
+      });
+    }
     return {
       ...nameFields,
-      name: formatUserName(
-        nameFields,
-        (userData.username as string) || currentUser.displayName,
-      ),
-      email: currentUser.email || "",
+      fullName,
+      displayName,
+      username,
+      email:
+        currentUser.email ||
+        (typeof userData.email === "string" ? userData.email : ""),
       photoUri,
     };
-  } catch {
+  } catch (error) {
+    console.error("Failed to fetch or synchronize profile:", error);
     throw new Error("Failed to fetch profile");
   }
 };
@@ -183,45 +212,100 @@ export const updateProfileData = async (
       | "lastName"
       | "middleName"
       | "suffix"
+      | "displayName"
       | "username"
       | "photoUrl"
     >
   >
 ): Promise<void> => {
   try {
+    const currentUser = auth.currentUser;
+    if (!currentUser || currentUser.uid !== userId) {
+      throw new Error("User not authenticated");
+    }
+
     const userRef = doc(db, "users", userId);
     const publicProfileRef = doc(db, "publicProfiles", userId);
-    const updates: Array<[string, string | null]> = [];
-    if (data.firstName !== undefined) updates.push(["firstName", data.firstName]);
-    if (data.lastName !== undefined) updates.push(["lastName", data.lastName]);
-    if (data.middleName !== undefined) updates.push(["middleName", data.middleName]);
-    if (data.suffix !== undefined) updates.push(["suffix", data.suffix]);
-    if (data.username !== undefined) updates.push(["username", data.username]);
-    if (data.photoUrl !== undefined) updates.push(["photoUrl", data.photoUrl]);
-    if (updates.length === 0) return;
-
-    const batch = writeBatch(db);
-    for (const [field, value] of updates) {
-      batch.update(userRef, field, value);
+    const [userSnapshot, publicProfileSnapshot] = await Promise.all([
+      getDoc(userRef),
+      getDoc(publicProfileRef),
+    ]);
+    if (
+      data.firstName === undefined &&
+      data.lastName === undefined &&
+      data.middleName === undefined &&
+      data.suffix === undefined &&
+      data.displayName === undefined &&
+      data.username === undefined &&
+      data.photoUrl === undefined
+    ) {
+      return;
     }
+
+    const existingUser = userSnapshot.data();
+    const nameFields = {
+      ...readUserNameFields(existingUser ?? {}),
+      ...(data.firstName !== undefined ? { firstName: data.firstName } : {}),
+      ...(data.lastName !== undefined ? { lastName: data.lastName } : {}),
+      ...(data.middleName !== undefined ? { middleName: data.middleName } : {}),
+      ...(data.suffix !== undefined ? { suffix: data.suffix } : {}),
+    };
+    const displayName =
+      data.displayName ??
+      formatUserName(
+        nameFields,
+        typeof existingUser?.displayName === "string"
+          ? existingUser.displayName
+          : null,
+      );
+    const username =
+      data.username ??
+      (typeof existingUser?.username === "string"
+        ? existingUser.username
+        : generateUsername(nameFields) ||
+          displayName.replace(/\s+/g, "").toLowerCase());
+    const userUpdates: Partial<UserDocument> = {
+      ...(!userSnapshot.exists()
+        ? {
+            uid: userId,
+            email: currentUser.email,
+            createdAt: serverTimestamp(),
+            photoURL: currentUser.photoURL || null,
+          }
+        : {}),
+      ...nameFields,
+      fullName: displayName,
+      displayName,
+      username,
+      updatedAt: serverTimestamp(),
+      ...(data.photoUrl !== undefined ? { photoURL: data.photoUrl } : {}),
+    };
+    const existingPublicProfile = publicProfileSnapshot.data();
+    const batch = writeBatch(db);
+    batch.set(userRef, userUpdates, { merge: true });
     batch.set(
       publicProfileRef,
       {
         uid: userId,
-        ...(data.username !== undefined
-          ? {
-              username: getPublicUsername(
-                data.username,
-                auth.currentUser?.email,
-              ),
-            }
-          : {}),
+        displayName:
+          displayName ||
+          (typeof existingPublicProfile?.displayName === "string"
+            ? existingPublicProfile.displayName
+            : ""),
+        username: getPublicUsername(
+          username ||
+            (typeof existingPublicProfile?.username === "string"
+              ? existingPublicProfile.username
+              : ""),
+          currentUser.email,
+        ),
         ...(data.photoUrl !== undefined ? { photoUrl: data.photoUrl } : {}),
       },
       { merge: true },
     );
     await batch.commit();
-  } catch {
+  } catch (error) {
+    console.error("Failed to update Firestore profile:", error);
     throw new Error("Failed to update profile");
   }
 };

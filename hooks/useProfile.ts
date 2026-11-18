@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { auth } from "@/services/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
+import { auth, db } from "@/services/firebase";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   fetchUserProfile,
   fetchUserStats,
@@ -15,14 +17,16 @@ import {
 import {
   EMPTY_USER_NAME_FIELDS,
   formatUserName,
-  getPublicUsername,
+  generateUsername,
   UserNameFields,
 } from "@/utils/userName";
 
 export const useProfile = () => {
   const [profile, setProfile] = useState<UserProfile>({
     ...EMPTY_USER_NAME_FIELDS,
-    name: "",
+    fullName: "",
+    displayName: "",
+    username: "",
     email: "",
     photoUri: null,
   });
@@ -30,13 +34,17 @@ export const useProfile = () => {
 
   useEffect(() => {
     let cancelled = false;
+    let requestId = 0;
 
     const loadProfile = async (userId: string | undefined) => {
+      const currentRequestId = ++requestId;
       if (!userId) {
-        if (!cancelled) {
+        if (!cancelled && currentRequestId === requestId) {
           setProfile({
             ...EMPTY_USER_NAME_FIELDS,
-            name: "",
+            fullName: "",
+            displayName: "",
+            username: "",
             email: "",
             photoUri: null,
           });
@@ -48,24 +56,67 @@ export const useProfile = () => {
       setLoadingProfile(true);
       try {
         const data = await fetchUserProfile(userId);
-        if (data && !cancelled) {
+        if (
+          data &&
+          !cancelled &&
+          currentRequestId === requestId &&
+          auth.currentUser?.uid === userId
+        ) {
           const freshPhotoUri = await getProfileImageURL(data.photoUri);
-          setProfile({ ...data, photoUri: freshPhotoUri });
+          if (
+            !cancelled &&
+            currentRequestId === requestId &&
+            auth.currentUser?.uid === userId
+          ) {
+            setProfile({ ...data, photoUri: freshPhotoUri });
+          }
         }
-      } catch {
-        // Error handling is done in service layer
+      } catch (error) {
+        if (!cancelled && currentRequestId === requestId) {
+          console.error("Failed to load profile:", error);
+        }
       } finally {
-        if (!cancelled) setLoadingProfile(false);
+        if (!cancelled && currentRequestId === requestId) {
+          setLoadingProfile(false);
+        }
       }
     };
 
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      loadProfile(user?.uid);
+    let unsubscribeProfile: (() => void) | undefined;
+    let activeUserId: string | null = null;
+    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+      unsubscribeProfile?.();
+      const nextUserId = user?.uid ?? null;
+      if (activeUserId !== nextUserId) {
+        activeUserId = nextUserId;
+        setProfile({
+          ...EMPTY_USER_NAME_FIELDS,
+          fullName: "",
+          displayName: "",
+          username: "",
+          email: "",
+          photoUri: null,
+        });
+      }
+      if (!user) {
+        loadProfile(undefined);
+        return;
+      }
+
+      unsubscribeProfile = onSnapshot(
+        doc(db, "users", user.uid),
+        () => loadProfile(user.uid),
+        (error) => {
+          console.error("Failed to listen for profile updates:", error);
+          if (!cancelled) setLoadingProfile(false);
+        },
+      );
     });
 
     return () => {
       cancelled = true;
-      unsubscribe();
+      unsubscribeProfile?.();
+      unsubscribeAuth();
     };
   }, []);
 
@@ -138,6 +189,7 @@ export const useConnections = () => {
 };
 
 export const useProfileUpdate = () => {
+  const { refreshUser } = useAuth();
   const updateProfile = useCallback(
     async (
       nameFields: UserNameFields,
@@ -154,16 +206,16 @@ export const useProfileUpdate = () => {
         throw new Error("First name and last name are required.");
       }
       let nextPhotoUri = currentPhotoUri;
-      const displayName = getPublicUsername(
-        formatUserName(nameFields),
-        currentUser.email,
-      );
+      const displayName = formatUserName(nameFields);
+      const username = generateUsername(nameFields);
       const updates: UserNameFields & {
+        displayName: string;
         username: string;
         photoUrl?: string | null;
       } = {
         ...nameFields,
-        username: displayName,
+        displayName,
+        username,
       };
 
       if (photoUri !== currentPhotoUri) {
@@ -181,10 +233,18 @@ export const useProfileUpdate = () => {
         ? await getProfileImageURL(nextPhotoUri)
         : null;
       await updateFirebaseUserProfile(displayName, authPhotoUrl);
+      refreshUser();
 
-      return { ...nameFields, name: displayName, photoUri: nextPhotoUri };
+      return {
+        ...nameFields,
+        fullName: displayName,
+        displayName,
+        username,
+        email: currentUser.email || "",
+        photoUri: nextPhotoUri,
+      };
     },
-    []
+    [refreshUser]
   );
 
   return { updateProfile };

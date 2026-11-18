@@ -259,7 +259,7 @@ export default function SignIn() {
       try {
         await setUserStore({
           userId: credential.user.uid,
-          username: credential.user.displayName || "User",
+          username: credential.user.displayName || "",
           email: credential.user.email ?? trimmedEmail,
         });
       } catch {

@@ -2,6 +2,7 @@ import {
   createContext,
   ReactNode,
   useContext,
+  useCallback,
   useEffect,
   useState,
 } from "react";
@@ -15,7 +16,11 @@ interface AuthState {
   error: Error | null;
 }
 
-const AuthContext = createContext<AuthState | null>(null);
+interface AuthContextValue extends AuthState {
+  refreshUser: () => void;
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [authState, setAuthState] = useState<AuthState>({
@@ -23,6 +28,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initializing: true,
     error: null,
   });
+  const refreshUser = useCallback(() => {
+    setAuthState((state) => ({ ...state, user: auth.currentUser }));
+  }, []);
 
   useEffect(() => {
     return onAuthStateChanged(
@@ -36,11 +44,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={authState}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ ...authState, refreshUser }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 
-export function useAuth(): AuthState {
+export function useAuth(): AuthContextValue {
   const authState = useContext(AuthContext);
   if (!authState) {
     throw new Error("useAuth must be used within an AuthProvider.");

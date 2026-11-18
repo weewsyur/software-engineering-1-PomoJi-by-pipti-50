@@ -91,7 +91,7 @@ export const searchUsers = async (
     return [];
   }
 
-  const trimmed = searchQuery.trim();
+  const trimmed = searchQuery.trim().toLowerCase();
   if (!trimmed) {
     return [];
   }
@@ -109,14 +109,28 @@ export const searchUsers = async (
       .map((userDoc) => {
         const data = userDoc.data();
         const nameFields = readUserNameFields(data);
+        const storedUsername =
+          typeof data.username === "string" ? data.username.trim() : "";
+        const publicUsername =
+          storedUsername && !storedUsername.includes("@") &&
+          storedUsername.toLowerCase() !== "user"
+            ? storedUsername
+            : "";
         return {
           id: userDoc.id,
           ...nameFields,
           username:
-            formatUserName(nameFields, data.username as string) || "User",
+            formatUserName(
+              nameFields,
+              typeof data.displayName === "string"
+                ? data.displayName
+                : publicUsername,
+            ) || publicUsername,
         };
       })
-      .filter((item) => item.id !== currentUserId && Boolean(item.username));
+      .filter(
+        (item) => item.id !== currentUserId && Boolean(item.username.trim()),
+      );
     return results;
   } catch {
     return [];

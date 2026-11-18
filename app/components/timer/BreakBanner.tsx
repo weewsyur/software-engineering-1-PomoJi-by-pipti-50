@@ -1,6 +1,5 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-
-type TimerMode = "focus" | "short" | "long";
+import type { TimerMode } from "@/hooks/useTimerPersistence";
 
 interface BreakBannerProps {
   mode: TimerMode;
@@ -11,13 +10,8 @@ export const BreakBanner = ({ mode, onSkip }: BreakBannerProps) => {
   if (mode === "focus") return null;
   return (
     <View style={bannerStyles.banner}>
-      <Text style={bannerStyles.emoji}>{mode === "long" ? "🛋️" : "☕"}</Text>
-      <Text style={bannerStyles.text}>
-        {mode === "long"
-          ? "Long Break – great work on 4 sessions!"
-          : "Short Break – recharge!"}
-      </Text>
-      <TouchableOpacity onPress={onSkip}>
+      <Text style={bannerStyles.text}>Break time. Recharge and return when ready.</Text>
+      <TouchableOpacity onPress={onSkip} accessibilityRole="button">
         <Text style={bannerStyles.skip}>Skip</Text>
       </TouchableOpacity>
     </View>
@@ -38,7 +32,6 @@ const bannerStyles = StyleSheet.create({
     paddingVertical: 8,
     gap: 8,
   },
-  emoji: { fontSize: 16 },
   text: { flex: 1, fontSize: 12, color: "#856404", fontWeight: "500" },
   skip: { fontSize: 12, fontWeight: "700", color: "#C94C3C" },
 });

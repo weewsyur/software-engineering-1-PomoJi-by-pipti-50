@@ -1,126 +1,73 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
-import {
-  ArrowRight,
-  CalendarCheck,
-  Coffee,
-  HeartPulse,
-  Smile,
-  TrendingUp,
-  type LucideIcon,
-} from 'lucide-react-native';
+import { ArrowRight, Heart } from 'lucide-react-native';
 import type { WellnessScoreState, WellnessStatus } from '../types/wellness';
 
-/** Brand colours (taken from the PomoJI Home screen). Tweak here to retheme. */
+/** Brand colours (from the PomoJI Home screen). Tweak here to retheme. */
 const C = {
   accent: '#F9522E',
-  accentTint: '#FFE5DF',
-  accentSoft: '#FFF3F0',
   text: '#1B1B1B',
+  body: '#5F5F5F',
   muted: '#8A8A8A',
-  track: '#F1ECE6',
-  divider: '#EFEAE3',
+  faint: '#B9B4AC',
+  track: '#EFEBE5',
+  hairline: '#E9E5DE',
   card: '#FFFFFF',
-  mood: '#2E9E6B',
-  moodTint: '#E2F5EC',
-  breaks: '#2F6DB5',
-  breaksTint: '#E1ECF8',
-  freq: '#E8920F',
-  freqTint: '#FDF0D9',
 };
 
-const STATUS: Record<WellnessStatus, { color: string; tint: string; insight: string }> = {
-  Excellent: { color: '#2E9E6B', tint: '#E2F5EC', insight: "You're keeping a healthy rhythm." },
-  Good: { color: '#2F6DB5', tint: '#E1ECF8', insight: 'Steady progress this week.' },
-  Fair: { color: '#E8920F', tint: '#FDF0D9', insight: 'Room to build a more balanced week.' },
-  'Needs Attention': { color: '#F9522E', tint: '#FFE5DF', insight: 'A lighter, more balanced week could help.' },
+/** Score bands (match getWellnessStatus): 0-39, 40-59, 60-79, 80-100. */
+const BANDS = [
+  { from: 0, to: 40, color: '#F9522E' },
+  { from: 40, to: 60, color: '#E8920F' },
+  { from: 60, to: 80, color: '#2F6DB5' },
+  { from: 80, to: 100, color: '#2E9E6B' },
+] as const;
+
+const STATUS: Record<WellnessStatus, { color: string; insight: string }> = {
+  Excellent: { color: '#2E9E6B', insight: "You're keeping a healthy rhythm." },
+  Good: { color: '#2F6DB5', insight: 'Steady progress this week.' },
+  Fair: { color: '#E8920F', insight: 'Room for a more balanced week.' },
+  'Needs Attention': { color: '#F9522E', insight: 'A lighter, more balanced week could help.' },
 };
 
 export interface WellnessScoreCardProps {
   /** Output of useWellnessScore(). */
   state: WellnessScoreState;
-  /** Shows the "Dashboard" button only when provided. */
+  /** Shows the "Dashboard" link only when provided. */
   onPressDashboard?: () => void;
   onRetry?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
-function ScoreRing({
-  score,
-  color,
-  size = 132,
-  stroke = 13,
-  children,
-}: {
-  score: number | null;
-  color: string;
-  size?: number;
-  stroke?: number;
-  children: React.ReactNode;
-}) {
-  const r = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * r;
-  const pct = score === null ? 0 : Math.max(0, Math.min(100, score));
-  const mid = size / 2;
+/** Four-band gauge; each band fills as the score passes through it. */
+function Gauge({ score }: { score: number | null }) {
   return (
-    <View style={{ width: size, height: size }}>
-      <Svg width={size} height={size}>
-        <Circle cx={mid} cy={mid} r={r} stroke={C.track} strokeWidth={stroke} fill="none" />
-        {pct > 0 ? (
-          <Circle
-            cx={mid}
-            cy={mid}
-            r={r}
-            stroke={color}
-            strokeWidth={stroke}
-            strokeLinecap="round"
-            fill="none"
-            strokeDasharray={`${circumference} ${circumference}`}
-            strokeDashoffset={circumference * (1 - pct / 100)}
-            rotation="-90"
-            origin={`${mid}, ${mid}`}
-          />
-        ) : null}
-      </Svg>
-      <View style={[StyleSheet.absoluteFill, styles.ringCenter]}>{children}</View>
+    <View style={styles.gauge} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {BANDS.map((b) => {
+        const span = b.to - b.from;
+        const frac = score === null ? 0 : Math.max(0, Math.min(1, (score - b.from) / span));
+        return (
+          <View key={b.from} style={[styles.seg, { flex: span }]}>
+            <View style={{ width: `${frac * 100}%`, height: '100%', backgroundColor: b.color }} />
+          </View>
+        );
+      })}
     </View>
   );
 }
 
-function Metric({
-  icon: Icon,
-  label,
-  value,
-  color,
-  tint,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: number | null;
-  color: string;
-  tint: string;
-}) {
+function Stat({ label, value, first }: { label: string; value: number | null; first?: boolean }) {
   const pct = value === null ? 0 : Math.max(0, Math.min(100, value));
   return (
     <View
-      style={styles.metric}
+      style={[styles.stat, !first && styles.statDivider]}
       accessible
       accessibilityLabel={`${label}: ${value === null ? 'not enough data yet' : `${pct} percent`}`}
     >
-      <View style={[styles.metricIcon, { backgroundColor: tint }]}>
-        <Icon size={16} color={color} />
-      </View>
-      <View style={styles.metricBody}>
-        <View style={styles.metricHeader}>
-          <Text style={styles.metricLabel}>{label}</Text>
-          <Text style={[styles.metricValue, value === null && { color: C.muted }]}>
-            {value === null ? 'Not enough data' : `${pct}%`}
-          </Text>
-        </View>
-        <View style={styles.track}>
-          <View style={[styles.fill, { width: `${pct}%`, backgroundColor: color }]} />
-        </View>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statValue, value === null && { color: C.faint }]}>{value === null ? '--' : `${pct}%`}</Text>
+      <View style={styles.statTrack}>
+        <View style={[styles.statFill, { width: `${pct}%` }]} />
       </View>
     </View>
   );
@@ -133,7 +80,6 @@ export default function WellnessScoreCard({ state, onPressDashboard, onRetry, st
     body = (
       <View style={styles.centerBlock} accessibilityLabel="Loading wellness score">
         <ActivityIndicator color={C.accent} />
-        <Text style={styles.message}>Calculating your score…</Text>
       </View>
     );
   } else if (state.status === 'error') {
@@ -141,8 +87,8 @@ export default function WellnessScoreCard({ state, onPressDashboard, onRetry, st
       <View style={styles.centerBlock}>
         <Text style={styles.message}>We couldn't load your wellness score.</Text>
         {onRetry ? (
-          <Pressable onPress={onRetry} accessibilityRole="button" style={styles.softButton}>
-            <Text style={styles.softButtonText}>Try again</Text>
+          <Pressable onPress={onRetry} accessibilityRole="button">
+            <Text style={styles.linkText}>Try again</Text>
           </Pressable>
         ) : null}
       </View>
@@ -153,230 +99,130 @@ export default function WellnessScoreCard({ state, onPressDashboard, onRetry, st
         <Text style={styles.message}>Sign in to see your wellness score.</Text>
       </View>
     );
-  } else if (state.status === 'empty') {
-    body = (
-      <View style={styles.emptyWrap}>
-        <ScoreRing score={null} color={C.accent} size={112} stroke={11}>
-          <Text style={styles.emptyDash}>--</Text>
-        </ScoreRing>
-        <Text style={styles.emptyTitle}>No score yet</Text>
-        <Text style={styles.message}>Complete a focus session this week to see your wellness score.</Text>
-        <View style={styles.chipRow}>
-          {[
-            { icon: Smile, label: 'Mood', color: C.mood, tint: C.moodTint },
-            { icon: Coffee, label: 'Breaks', color: C.breaks, tint: C.breaksTint },
-            { icon: CalendarCheck, label: 'Consistency', color: C.freq, tint: C.freqTint },
-          ].map(({ icon: Icon, label, color, tint }) => (
-            <View key={label} style={[styles.chip, { backgroundColor: tint }]}>
-              <Icon size={13} color={color} />
-              <Text style={[styles.chipText, { color }]}>{label}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-    );
   } else {
-    const { result } = state;
-    const meta = result.status ? STATUS[result.status] : null;
-    const color = meta?.color ?? C.accent;
+    const isEmpty = state.status === 'empty';
+    const result = state.result;
+    const score = isEmpty ? null : result.score;
+    const meta = !isEmpty && result.status ? STATUS[result.status] : null;
     body = (
       <>
-        <View style={styles.heroRow}>
-          <ScoreRing score={result.score} color={color}>
-            <Text style={styles.score} accessibilityLabel={`Wellness score ${result.score} out of 100`}>
-              {result.score}
+        <View style={styles.hero}>
+          <View style={styles.scoreRow}>
+            <Text
+              style={[styles.score, score === null && { color: C.faint }]}
+              accessibilityLabel={score === null ? 'No wellness score yet' : `Wellness score ${score} out of 100`}
+            >
+              {score === null ? '--' : score}
             </Text>
-            <Text style={styles.outOf}>out of 100</Text>
-          </ScoreRing>
-          <View style={styles.heroText}>
-            {result.status && meta ? (
-              <View style={[styles.pill, { backgroundColor: meta.tint }]}>
-                <View style={[styles.pillDot, { backgroundColor: meta.color }]} />
-                <Text style={[styles.pillText, { color: meta.color }]}>{result.status}</Text>
-              </View>
-            ) : null}
-            {meta ? <Text style={styles.insight}>{meta.insight}</Text> : null}
-            <Text style={styles.sessionsNote}>
-              {result.counts.completedWorkSessions} focus session
-              {result.counts.completedWorkSessions === 1 ? '' : 's'} this week
-            </Text>
+            <Text style={styles.outOf}>/100</Text>
+          </View>
+          <View style={styles.heroRight}>
+            {meta && result.status ? (
+              <>
+                <Text style={[styles.status, { color: meta.color }]}>{result.status.toUpperCase()}</Text>
+                <Text style={styles.insight}>{meta.insight}</Text>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.status, { color: C.muted }]}>NO SCORE YET</Text>
+                <Text style={styles.insight}>Complete a focus session this week to see your wellness score.</Text>
+              </>
+            )}
           </View>
         </View>
 
-        <View style={styles.metrics}>
-          <Metric icon={Smile} label="Mood" value={result.components.mood} color={C.mood} tint={C.moodTint} />
-          <Metric
-            icon={Coffee}
-            label="Break compliance"
-            value={result.components.breakCompliance}
-            color={C.breaks}
-            tint={C.breaksTint}
-          />
-          <Metric
-            icon={CalendarCheck}
-            label="Consistency"
-            value={result.components.sessionFrequency}
-            color={C.freq}
-            tint={C.freqTint}
-          />
+        <Gauge score={score} />
+
+        <View style={styles.statsRow}>
+          <Stat first label="MOOD" value={isEmpty ? null : result.components.mood} />
+          <Stat label="BREAKS" value={isEmpty ? null : result.components.breakCompliance} />
+          <Stat label="CONSISTENCY" value={isEmpty ? null : result.components.sessionFrequency} />
         </View>
       </>
     );
   }
 
   return (
-    <View style={[styles.shadow, style]}>
-      <View style={styles.card}>
-        <View style={styles.blob} pointerEvents="none" />
-        <View style={styles.blobSmall} pointerEvents="none" />
-
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.iconTile}>
-              <HeartPulse size={20} color={C.accent} />
-            </View>
-            <View>
-              <Text style={styles.title}>Wellness Score</Text>
-              <Text style={styles.subtitle}>Your last 7 days</Text>
-            </View>
-          </View>
-          <View style={styles.iconTile}>
-            <TrendingUp size={20} color={C.accent} />
-          </View>
+    <View style={[styles.card, style]}>
+      <View style={styles.header}>
+        <View style={styles.iconTile}>
+          <Heart size={20} color="#FFFFFF" fill="#FFFFFF" />
         </View>
-
-        {body}
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Updates after every session</Text>
-          {onPressDashboard ? (
-            <Pressable
-              onPress={onPressDashboard}
-              accessibilityRole="button"
-              accessibilityLabel="Open dashboard"
-              style={({ pressed }) => [styles.dashButton, pressed && { opacity: 0.75 }]}
-            >
-              <Text style={styles.dashText}>Dashboard</Text>
-              <ArrowRight size={16} color={C.accent} />
-            </Pressable>
-          ) : null}
+        <View>
+          <Text style={styles.title}>Wellness Score</Text>
+          <Text style={styles.subtitle}>Last 7 days</Text>
         </View>
-        <Text style={styles.disclaimer}>A productivity &amp; wellness indicator, not a medical assessment.</Text>
+      </View>
+
+      {body}
+
+      <View style={styles.footer}>
+        {onPressDashboard ? (
+          <Pressable
+            onPress={onPressDashboard}
+            accessibilityRole="link"
+            accessibilityLabel="Open dashboard"
+            hitSlop={8}
+            style={({ pressed }) => [styles.link, pressed && { opacity: 0.6 }]}
+          >
+            <Text style={styles.linkText}>Dashboard</Text>
+            <ArrowRight size={12} color={C.accent} />
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Shadow lives on a wrapper because overflow:hidden would clip it on iOS.
-  shadow: {
-    borderRadius: 28,
+  card: {
     backgroundColor: C.card,
-    shadowColor: '#7A3B1D',
-    shadowOpacity: 0.14,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 6,
-  },
-  card: { borderRadius: 28, backgroundColor: C.card, padding: 20, overflow: 'hidden' },
-  blob: {
-    position: 'absolute',
-    top: -70,
-    right: -60,
-    width: 190,
-    height: 190,
-    borderRadius: 95,
-    backgroundColor: C.accentSoft,
-  },
-  blobSmall: {
-    position: 'absolute',
-    top: 40,
-    right: 50,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: C.accentSoft,
-    opacity: 0.7,
-  },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconTile: {
-    width: 44,
-    height: 44,
     borderRadius: 14,
-    backgroundColor: C.accentTint,
+    borderWidth: 1,
+    borderColor: C.hairline,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  iconTile: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: C.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: 19, fontWeight: '800', color: C.text },
-  subtitle: { fontSize: 13, color: C.muted, marginTop: 1 },
+  title: { fontSize: 16, fontWeight: '700', color: C.text, letterSpacing: -0.2 },
+  subtitle: { fontSize: 12, color: C.muted, marginTop: 1 },
 
-  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 22 },
-  ringCenter: { alignItems: 'center', justifyContent: 'center' },
-  score: { fontSize: 42, fontWeight: '800', color: C.text, lineHeight: 46 },
-  outOf: { fontSize: 11, color: C.muted, marginTop: 0 },
-  heroText: { flex: 1, gap: 8 },
-  pill: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  pillDot: { width: 7, height: 7, borderRadius: 4 },
-  pillText: { fontSize: 13, fontWeight: '800' },
-  insight: { fontSize: 15, fontWeight: '600', color: C.text, lineHeight: 20 },
-  sessionsNote: { fontSize: 12, color: C.muted },
+  hero: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 14, gap: 12 },
+  scoreRow: { flexDirection: 'row', alignItems: 'baseline', gap: 3 },
+  score: { fontSize: 46, fontWeight: '800', color: C.text, letterSpacing: -1.5, lineHeight: 50 },
+  outOf: { fontSize: 15, fontWeight: '600', color: C.muted },
+  heroRight: { flex: 1, alignItems: 'flex-end', paddingBottom: 4 },
+  status: { fontSize: 12, fontWeight: '800', letterSpacing: 1 },
+  insight: { fontSize: 12.5, color: C.body, marginTop: 2, textAlign: 'right', lineHeight: 17 },
 
-  metrics: {
-    marginTop: 20,
-    padding: 14,
-    borderRadius: 20,
-    backgroundColor: '#FBF9F6',
-    gap: 14,
-  },
-  metric: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  metricIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  metricBody: { flex: 1 },
-  metricHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  metricLabel: { fontSize: 13, color: C.muted, fontWeight: '600' },
-  metricValue: { fontSize: 13, fontWeight: '800', color: C.text },
-  track: { height: 8, borderRadius: 4, backgroundColor: C.track, overflow: 'hidden' },
-  fill: { height: 8, borderRadius: 4 },
+  gauge: { flexDirection: 'row', gap: 2, height: 6, marginTop: 12 },
+  seg: { borderRadius: 3, backgroundColor: C.track, overflow: 'hidden' },
 
-  emptyWrap: { alignItems: 'center', paddingTop: 20, paddingBottom: 6 },
-  emptyDash: { fontSize: 30, fontWeight: '800', color: '#D8D0C6' },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: C.text, marginTop: 14 },
-  chipRow: { flexDirection: 'row', gap: 8, marginTop: 16, flexWrap: 'wrap', justifyContent: 'center' },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999 },
-  chipText: { fontSize: 12, fontWeight: '700' },
+  statsRow: { flexDirection: 'row', marginTop: 16 },
+  stat: { flex: 1 },
+  statDivider: { borderLeftWidth: 1, borderLeftColor: C.hairline, paddingLeft: 12 },
+  statLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, color: C.muted },
+  statValue: { fontSize: 20, fontWeight: '800', color: C.text, letterSpacing: -0.5, marginTop: 2 },
+  statTrack: { height: 3, borderRadius: 2, backgroundColor: C.track, marginTop: 6, overflow: 'hidden', marginRight: 12 },
+  statFill: { height: 3, backgroundColor: C.accent },
 
-  centerBlock: { alignItems: 'center', paddingVertical: 34, gap: 10 },
-  message: { fontSize: 14, color: '#6B6B6B', textAlign: 'center', lineHeight: 20, marginTop: 4, paddingHorizontal: 8 },
-  softButton: { backgroundColor: C.accentTint, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 },
-  softButtonText: { color: C.accent, fontWeight: '700', fontSize: 13 },
+  centerBlock: { alignItems: 'center', paddingVertical: 26, gap: 8 },
+  message: { fontSize: 14, color: C.body, textAlign: 'center', lineHeight: 20 },
 
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: C.divider,
-    paddingTop: 14,
-    marginTop: 18,
-  },
-  footerText: { fontSize: 12, color: C.muted },
-  dashButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: C.accentTint,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  dashText: { fontSize: 14, fontWeight: '800', color: C.accent },
-  disclaimer: { fontSize: 11, color: '#A8A29A', marginTop: 10 },
+  footer: { borderTopWidth: 1, borderTopColor: C.hairline, marginTop: 14, paddingTop: 10, gap: 6 },
+  link: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
+  linkText: { fontSize: 14, fontWeight: '800', color: C.accent },
+  disclaimer: { fontSize: 10.5, color: C.faint },
 });
