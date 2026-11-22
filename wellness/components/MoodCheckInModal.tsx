@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Frown, Heart, Meh, Smile, SmilePlus, type LucideIcon } from 'lucide-react-native';
-import { MOOD_OPTIONS, type MoodIconName, type MoodRating } from '../types/wellness';
-
-const ICONS: Record<MoodIconName, LucideIcon> = { Frown, Meh, Smile, SmilePlus, Heart };
+import { useColors } from '@/constants/colors';
+import { useTheme } from '@/contexts/ThemeContext';
+import { MOOD_OPTIONS, type MoodRating } from '../types/wellness';
 
 export interface MoodCheckInModalProps {
   visible: boolean;
@@ -23,6 +22,8 @@ export default function MoodCheckInModal({
   onSkip,
 }: MoodCheckInModalProps) {
   const [selected, setSelected] = useState<MoodRating | null>(null);
+  const { isDarkMode } = useTheme();
+  const colors = useColors(isDarkMode);
 
   useEffect(() => {
     if (!visible) setSelected(null);
@@ -44,13 +45,12 @@ export default function MoodCheckInModal({
       }}
     >
       <View style={styles.backdrop}>
-        <View style={styles.card} accessibilityViewIsModal>
-          <Text style={styles.title}>How are you feeling?</Text>
-          <Text style={styles.subtitle}>Nice work finishing that session.</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface }]} accessibilityViewIsModal>
+          <Text style={[styles.title, { color: colors.text }]}>How did that session feel?</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Nice work finishing that session.</Text>
 
           <View style={styles.row}>
             {MOOD_OPTIONS.map((option) => {
-              const Icon = ICONS[option.icon];
               const isSelected = selected === option.rating;
               return (
                 <Pressable
@@ -62,12 +62,13 @@ export default function MoodCheckInModal({
                   accessibilityState={{ selected: isSelected, disabled: saving }}
                   style={({ pressed }) => [
                     styles.option,
-                    isSelected && styles.optionSelected,
+                    { backgroundColor: colors.background },
+                    isSelected && { borderColor: colors.primary, backgroundColor: colors.primaryMuted },
                     pressed && styles.optionPressed,
                   ]}
                 >
-                  <Icon size={28} color={isSelected ? '#2E7D5B' : '#5F5F5F'} strokeWidth={2} />
-                  <Text style={[styles.optionLabel, isSelected && styles.optionLabelSelected]} numberOfLines={1}>
+                  <Text style={styles.emoji} accessible={false}>{option.emoji}</Text>
+                  <Text style={[styles.optionLabel, { color: colors.textSecondary }, isSelected && { color: colors.primary, fontWeight: '700' }]} numberOfLines={1}>
                     {option.label}
                   </Text>
                 </Pressable>
@@ -75,7 +76,7 @@ export default function MoodCheckInModal({
             })}
           </View>
 
-          {saving ? <ActivityIndicator style={styles.status} color="#2E7D5B" /> : null}
+          {saving ? <ActivityIndicator style={styles.status} color={colors.primary} /> : null}
           {errorMessage ? (
             <Text style={[styles.status, styles.error]} accessibilityRole="alert">
               {errorMessage} Tap a mood to try again, or skip.
@@ -89,7 +90,7 @@ export default function MoodCheckInModal({
             accessibilityLabel="Skip for now"
             style={styles.skip}
           >
-            <Text style={[styles.skipText, saving && styles.skipDisabled]}>Skip for now</Text>
+            <Text style={[styles.skipText, { color: colors.textSecondary }, saving && styles.skipDisabled]}>Skip for now</Text>
           </Pressable>
         </View>
       </View>
@@ -99,27 +100,28 @@ export default function MoodCheckInModal({
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 20 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20 },
-  title: { fontSize: 20, fontWeight: '700', color: '#1F1F1F', textAlign: 'center' },
-  subtitle: { fontSize: 14, color: '#6B6B6B', textAlign: 'center', marginTop: 4, marginBottom: 18 },
+  card: { borderRadius: 24, padding: 20 },
+  title: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
+  subtitle: { fontSize: 14, textAlign: 'center', marginTop: 4, marginBottom: 18 },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
   option: {
     flex: 1,
+    minWidth: 48,
+    minHeight: 56,
     alignItems: 'center',
-    paddingVertical: 12,
+    justifyContent: 'center',
+    paddingVertical: 6,
     paddingHorizontal: 2,
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: 'transparent',
-    backgroundColor: '#F6F3EC',
   },
-  optionSelected: { borderColor: '#2E7D5B', backgroundColor: '#E3F3EA' },
   optionPressed: { opacity: 0.7 },
-  optionLabel: { fontSize: 11, color: '#5F5F5F', marginTop: 6, fontWeight: '500' },
-  optionLabelSelected: { color: '#2E7D5B', fontWeight: '700' },
+  emoji: { fontSize: 25 },
+  optionLabel: { fontSize: 11, marginTop: 4, fontWeight: '500' },
   status: { marginTop: 14, textAlign: 'center' },
   error: { color: '#C8402F', fontSize: 13 },
-  skip: { marginTop: 16, alignItems: 'center', paddingVertical: 8 },
-  skipText: { color: '#6B6B6B', fontSize: 14, fontWeight: '600' },
+  skip: { marginTop: 12, alignItems: 'center', justifyContent: 'center', minHeight: 44 },
+  skipText: { fontSize: 14, fontWeight: '600' },
   skipDisabled: { opacity: 0.4 },
 });

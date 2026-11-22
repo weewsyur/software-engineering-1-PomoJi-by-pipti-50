@@ -7,21 +7,19 @@
 
 export type MoodRating = 1 | 2 | 3 | 4 | 5;
 export type MoodLabel = 'Very Bad' | 'Bad' | 'Okay' | 'Good' | 'Great';
-/** Names of the Lucide icons used by the mood modal (never emoji characters). */
-export type MoodIconName = 'Frown' | 'Meh' | 'Smile' | 'SmilePlus' | 'Heart';
 
 export interface MoodOption {
   rating: MoodRating;
   label: MoodLabel;
-  icon: MoodIconName;
+  emoji: string;
 }
 
 export const MOOD_OPTIONS: readonly MoodOption[] = [
-  { rating: 1, label: 'Very Bad', icon: 'Frown' },
-  { rating: 2, label: 'Bad', icon: 'Meh' },
-  { rating: 3, label: 'Okay', icon: 'Smile' },
-  { rating: 4, label: 'Good', icon: 'SmilePlus' },
-  { rating: 5, label: 'Great', icon: 'Heart' },
+  { rating: 1, label: 'Very Bad', emoji: '😫' },
+  { rating: 2, label: 'Bad', emoji: '😕' },
+  { rating: 3, label: 'Okay', emoji: '😐' },
+  { rating: 4, label: 'Good', emoji: '🙂' },
+  { rating: 5, label: 'Great', emoji: '😄' },
 ] as const;
 
 // ───────────────────────── Sessions ─────────────────────────

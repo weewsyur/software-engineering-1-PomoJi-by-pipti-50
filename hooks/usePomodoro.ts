@@ -20,6 +20,8 @@ export interface Session {
   date: string;
   durationMinutes: number;
   mode: "focus" | "short" | "long";
+  moodRating?: 1 | 2 | 3 | 4 | 5;
+  moodLabel?: "Very Bad" | "Bad" | "Okay" | "Good" | "Great";
 }
 
 export function useTasks() {

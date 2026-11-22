@@ -38,14 +38,14 @@ export function getMoodLabel(rating: number): MoodLabel | null {
   return getMoodOption(rating)?.label ?? null;
 }
 
-/** Only completed WORK sessions may prompt. Breaks and unknown types never do. */
+/** Only completed focus or break sessions may prompt. */
 export function shouldPromptMoodCheckIn(
   sessionId: string | null | undefined,
   sessionType: unknown,
   fieldMap: SessionFieldMap = DEFAULT_FIELD_MAP,
 ): boolean {
   if (typeof sessionId !== 'string' || sessionId.trim() === '') return false;
-  return classifySessionKind(sessionType, fieldMap) === 'work';
+  return classifySessionKind(sessionType, fieldMap) !== 'unknown';
 }
 
 /**
@@ -97,8 +97,8 @@ export async function saveMoodToSession(
       const snap = await tx.get(ref);
       if (!snap.exists()) throw new MoodCheckInError('missing-session', 'That session could not be found.');
       const data = snap.data() as Record<string, unknown>;
-      if (classifySessionKind(data[fieldMap.typeField], fieldMap) !== 'work') {
-        throw new MoodCheckInError('not-work-session', 'Mood can only be recorded for work sessions.');
+      if (classifySessionKind(data[fieldMap.typeField], fieldMap) === 'unknown') {
+        throw new MoodCheckInError('not-work-session', 'Mood can only be recorded for a completed timer session.');
       }
       if (isValidMoodRating(data[fieldMap.moodRatingField])) {
         throw new MoodCheckInError('already-recorded', 'A mood was already recorded for this session.');

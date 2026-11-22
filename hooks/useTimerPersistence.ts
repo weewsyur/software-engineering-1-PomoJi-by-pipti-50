@@ -139,14 +139,7 @@ export function useTimerPersistence() {
           state.timeLeft = Math.max(0, state.timeLeft - elapsed);
         }
 
-        if (state.isRunning && state.timeLeft === 0) {
-          state.isRunning = false;
-          state.hasStarted = false;
-          state.timeLeft = durationInSeconds(state.mode, state);
-          state.startTime = null;
-          state.pausedAt = null;
-          state.pausedAccumulated = 0;
-        } else if (!state.hasStarted && !state.isRunning) {
+        if (!state.hasStarted && !state.isRunning) {
           state.timeLeft = durationInSeconds(state.mode, state);
         }
 

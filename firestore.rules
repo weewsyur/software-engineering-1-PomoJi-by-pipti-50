@@ -81,24 +81,30 @@ service cloud.firestore {
 
     function validActivity(userId) {
       let data = request.resource.data;
-      return data.keys().hasOnly([
-          "title", "description", "sessions", "totalTime", "images", "category",
-          "createdAt", "uid", "userId", "totalMinutes", "timestamp", "date"
-        ]) &&
-        data.title is string &&
+      return data.title is string &&
+        data.title.size() > 0 &&
         data.sessions is int &&
         data.sessions >= 0 &&
         (
           (
+            data.keys().hasOnly([
+              "title", "description", "sessions", "totalTime", "images",
+              "category", "createdAt", "uid"
+            ]) &&
             "uid" in data &&
             data.uid == userId &&
             data.totalTime is number &&
             data.totalTime >= 0 &&
             data.description is string &&
-            data.category is string &&
-            data.images is list
+            data.category in ["work", "study", "personal", "health", "other"] &&
+            data.images is list &&
+            data.images.size() <= 5 &&
+            data.createdAt is string
           ) ||
           (
+            data.keys().hasOnly([
+              "title", "sessions", "totalMinutes", "timestamp", "date", "userId"
+            ]) &&
             "userId" in data &&
             data.userId == userId &&
             data.totalMinutes is number &&
@@ -109,17 +115,111 @@ service cloud.firestore {
         );
     }
 
+    function validNewTask() {
+      let data = request.resource.data;
+      return validTask() &&
+        data.keys().hasAll([
+          "title", "description", "dueDate", "reminderEnabled", "category",
+          "completed", "totalTime", "createdAt"
+        ]);
+    }
+
+    function validTask() {
+      let data = request.resource.data;
+      return data.keys().hasOnly([
+          "title", "description", "dueDate", "reminderEnabled", "category",
+          "completed", "totalTime", "createdAt", "reminderNotificationId"
+        ]) &&
+        data.title is string &&
+        data.title.size() > 0 &&
+        (!("description" in data) || data.description is string) &&
+        (!("dueDate" in data) || data.dueDate is string) &&
+        (!("reminderEnabled" in data) || data.reminderEnabled is bool) &&
+        (!("category" in data) ||
+          data.category in ["work", "study", "personal", "health", "other"]) &&
+        (!("completed" in data) || data.completed is bool) &&
+        (!("totalTime" in data) || (data.totalTime is number && data.totalTime >= 0)) &&
+        (!("createdAt" in data) || data.createdAt is string) &&
+        (!("reminderNotificationId" in data) ||
+          data.reminderNotificationId == null ||
+          data.reminderNotificationId is string);
+    }
+
     function validSession() {
       let data = request.resource.data;
       return data.keys().hasOnly([
-          "taskTitle", "taskId", "date", "durationMinutes", "mode"
+          "taskTitle", "taskId", "date", "durationMinutes", "mode",
+          "completedAt", "moodRating", "moodLabel", "moodRecordedAt"
         ]) &&
         data.taskTitle is string &&
         (data.taskId == null || data.taskId is string) &&
         data.date is string &&
         data.durationMinutes is number &&
         data.durationMinutes >= 0 &&
-        data.mode in ["focus", "short", "long"];
+        data.mode in ["focus", "short", "long"] &&
+        (!("completedAt" in data) || data.completedAt is timestamp) &&
+        (
+          (!("moodRating" in data) && !("moodLabel" in data) && !("moodRecordedAt" in data)) ||
+          (
+            data.moodRating in [1, 2, 3, 4, 5] &&
+            data.moodLabel in ["Very Bad", "Bad", "Okay", "Good", "Great"] &&
+            data.moodRecordedAt is timestamp
+          )
+        );
+    }
+
+    function validStats(userId) {
+      let data = request.resource.data;
+      return data.keys().hasOnly([
+          "userId", "totalActivities", "totalFocusMinutes", "lastUpdated"
+        ]) &&
+        data.userId == userId &&
+        data.totalActivities is int &&
+        data.totalActivities >= 0 &&
+        data.totalFocusMinutes is number &&
+        data.totalFocusMinutes >= 0 &&
+        data.lastUpdated is timestamp;
+    }
+
+    function validStreak(userId) {
+      let data = request.resource.data;
+      return data.keys().hasOnly([
+          "userId", "currentStreak", "highestStreak", "lastActiveDate",
+          "timezone", "createdAt", "updatedAt", "longestStreak",
+          "lastActivityDate", "totalActivities"
+        ]) &&
+        data.userId == userId &&
+        (!("currentStreak" in data) ||
+          (data.currentStreak is int && data.currentStreak >= 0)) &&
+        (!("highestStreak" in data) ||
+          (data.highestStreak is int && data.highestStreak >= 0)) &&
+        (!("longestStreak" in data) ||
+          (data.longestStreak is int && data.longestStreak >= 0)) &&
+        (!("totalActivities" in data) ||
+          (data.totalActivities is int && data.totalActivities >= 0)) &&
+        (!("lastActiveDate" in data) ||
+          data.lastActiveDate == null || data.lastActiveDate is timestamp) &&
+        (!("lastActivityDate" in data) ||
+          data.lastActivityDate == null || data.lastActivityDate is timestamp) &&
+        (!("timezone" in data) || data.timezone is string) &&
+        (!("createdAt" in data) || data.createdAt is timestamp) &&
+        (!("updatedAt" in data) || data.updatedAt is timestamp);
+    }
+
+    function validRootActivity(userId) {
+      let data = request.resource.data;
+      return data.keys().hasOnly([
+          "userId", "type", "duration", "completedAt", "createdAt",
+          "updatedAt", "tags"
+        ]) &&
+        data.userId == userId &&
+        data.type in ["pomodoro", "break", "focus"] &&
+        data.duration is number &&
+        data.duration >= 0 &&
+        data.createdAt is timestamp &&
+        (!("completedAt" in data) || data.completedAt is timestamp) &&
+        (!("updatedAt" in data) || data.updatedAt is timestamp) &&
+        (!("tags" in data) || (data.tags is list && data.tags.size() <= 20));
     }
 
     function validConnection(data) {
@@ -187,27 +287,43 @@ service cloud.firestore {
 
       match /activities/{activityId} {
         allow read: if isMutualConnection(userId);
-        allow create, update: if isOwner(userId) && validActivity(userId);
+        allow create: if isOwner(userId) && validActivity(userId);
+        allow update: if isOwner(userId) &&
+          validActivity(userId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            "title", "description", "sessions", "totalTime", "images", "category"
+          ]);
         allow delete: if isOwner(userId);
       }
 
       match /sessions/{sessionId} {
         allow read: if isOwner(userId);
-        allow create, update: if isOwner(userId) && validSession();
+        allow create: if isOwner(userId) && validSession();
+        allow update: if isOwner(userId) &&
+          validSession() &&
+          !("moodRating" in resource.data) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            "moodRating", "moodLabel", "moodRecordedAt"
+          ]);
         allow delete: if isOwner(userId);
       }
 
       match /tasks/{taskId} {
-        allow read, create, update, delete: if isOwner(userId);
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && validNewTask();
+        allow update: if isOwner(userId) &&
+          validTask() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            "title", "description", "dueDate", "reminderEnabled", "category",
+            "completed", "totalTime", "reminderNotificationId"
+          ]);
       }
 
       match /stats/{statsId} {
         allow read: if isOwner(userId);
         allow create, update: if isOwner(userId) &&
-          request.resource.data.userId == userId &&
-          request.resource.data.keys().hasOnly([
-            "userId", "totalActivities", "totalFocusMinutes", "lastUpdated"
-          ]);
+          statsId == "overall" &&
+          validStats(userId);
         allow delete: if isOwner(userId);
       }
     }
@@ -220,15 +336,22 @@ service cloud.firestore {
 
     match /activities/{activityId} {
       allow read: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId) &&
+        validRootActivity(request.resource.data.userId);
       allow update: if isOwner(resource.data.userId) &&
-        request.resource.data.userId == resource.data.userId;
+        request.resource.data.userId == resource.data.userId &&
+        validRootActivity(resource.data.userId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "type", "duration", "completedAt", "updatedAt", "tags"
+        ]);
       allow delete: if isOwner(resource.data.userId);
     }
 
     match /following/{userId}/list/{targetId} {
       allow read: if isSignedIn();
-      allow create, update: if isOwner(userId) && validConnection(request.resource.data);
+      allow create, update: if isOwner(userId) &&
+        targetId != userId &&
+        validConnection(request.resource.data);
       allow delete: if isOwner(userId);
     }
 
@@ -236,6 +359,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create, update: if isSignedIn() &&
         request.auth.uid == followerId &&
+        userId != followerId &&
         validConnection(request.resource.data) &&
         existsAfter(/databases/$(database)/documents/following/$(followerId)/list/$(userId));
       allow delete: if isOwner(userId) ||
@@ -254,12 +378,13 @@ service cloud.firestore {
 
     match /streaks/{userId} {
       allow read: if isOwner(userId);
-      allow create, update: if isOwner(userId) &&
-        request.resource.data.userId == userId &&
-        request.resource.data.keys().hasOnly([
-          "userId", "currentStreak", "longestStreak", "highestStreak",
-          "lastActiveDate", "lastActivityDate", "totalActivities",
-          "timezone", "createdAt", "updatedAt"
+      allow create: if isOwner(userId) && validStreak(userId);
+      allow update: if isOwner(userId) &&
+        validStreak(userId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "currentStreak", "highestStreak", "lastActiveDate", "timezone",
+          "updatedAt", "longestStreak", "lastActivityDate",
+          "totalActivities"
         ]);
       allow delete: if isOwner(userId);
     }

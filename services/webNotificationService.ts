@@ -18,7 +18,7 @@ class WebNotificationService {
       return false;
     }
 
-    if (this.permission === 'granted') {
+    if (this.getPermissionStatus() === 'granted') {
       return true;
     }
 
@@ -40,12 +40,27 @@ class WebNotificationService {
     requireInteraction?: boolean;
     data?: any;
   }): Promise<void> {
-    if (!this.isSupported || this.permission !== 'granted') {
+    if (!this.isSupported || this.getPermissionStatus() !== 'granted') {
       console.warn('Notification permission not granted');
       return;
     }
 
     try {
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration) {
+          await registration.showNotification(options.title, {
+            body: options.body,
+            icon: options.icon || '/icon-192x192.png',
+            badge: options.badge || '/icon-192x192.png',
+            tag: options.tag,
+            requireInteraction: options.requireInteraction || false,
+            data: options.data,
+          });
+          return;
+        }
+      }
+
       const notification = new Notification(options.title, {
         body: options.body,
         icon: options.icon || '/icon-192x192.png',
@@ -96,6 +111,9 @@ class WebNotificationService {
   }
 
   getPermissionStatus(): NotificationPermission {
+    if (this.isSupported && typeof Notification !== 'undefined') {
+      this.permission = Notification.permission;
+    }
     return this.permission;
   }
 

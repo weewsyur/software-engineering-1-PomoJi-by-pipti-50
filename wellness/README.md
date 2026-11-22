@@ -1,6 +1,6 @@
 # PomoJI Wellness Features (standalone)
 
-Nothing here modifies or imports into your app. Copy the folder in and wire it up manually.
+The timer and Analytics screens use this shared wellness module for session mood check-ins and scoring.
 
 ## Files
 
@@ -8,12 +8,12 @@ Nothing here modifies or imports into your app. Copy the folder in and wire it u
 |---|---|
 | `types/wellness.ts` | Types, `MOOD_OPTIONS`, default config, and `DEFAULT_FIELD_MAP` (**your session field names go here**) |
 | `utils/wellnessScore.ts` | Pure score maths, session normalisation, status bands |
-| `utils/moodCheckIn.ts` | Work-only prompt check, duplicate-prompt guard, transactional Firestore write |
+| `utils/moodCheckIn.ts` | Focus/break prompt check, duplicate-prompt guard, transactional Firestore write |
 | `utils/counselingTrigger.ts` | Threshold/cooldown logic and dismissal stores |
 | `hooks/useMoodCheckIn.ts` | Modal state + safe `requestMoodCheckIn()` |
 | `hooks/useWellnessScore.ts` | Live Firestore subscription returning `WellnessScoreState` |
 | `hooks/useCounselingTrigger.ts` | Visibility + dismissal cooldown |
-| `components/MoodCheckInModal.tsx` | "How are you feeling?" modal (Lucide icons, no emoji) |
+| `components/MoodCheckInModal.tsx` | "How did that session feel?" modal (accessible emoji choices) |
 | `components/WellnessScoreCard.tsx` | Score card (matches your mock-up) with loading / empty / error states |
 | `components/CounselingSmartTrigger.tsx` | Prominent counseling prompt below a threshold |
 | `index.ts` | Optional barrel export |
@@ -45,7 +45,7 @@ import { MoodCheckInModal } from '<path>/generated-wellness-features';
 const mood = useMoodCheckIn({ firestore: db, userId: auth.currentUser?.uid });
 
 // In your timer-completion handler, AFTER the session doc has been saved:
-mood.requestMoodCheckIn(savedSessionId, sessionType); // safe to call repeatedly; ignores breaks
+mood.requestMoodCheckIn(savedSessionId, sessionType); // safe to call repeatedly; ignores unknown types
 
 // Render once on the timer screen:
 <MoodCheckInModal
@@ -98,7 +98,7 @@ All defaults are overridable via the `config` option (`periodDays`, `dailySessio
 
 ## Firestore
 
-- **Fields added to the session doc:** `moodRating` (1-5), `moodLabel`, `moodRecordedAt` (server timestamp). Skipping writes nothing.
+- **Fields added to the session doc:** `moodRating` (1-5), `moodLabel`, `moodRecordedAt` (server timestamp). Skipping writes nothing. Mood is offered for completed focus and break sessions; wellness scoring still uses focus-session ratings.
 - **Indexes:** none. The score query is a single-field range on `completedAt` (auto-indexed).
 - **Security rules:** users must be able to `update` their own session docs, and the update should be limited to these fields if you validate field-level, e.g.
   ```

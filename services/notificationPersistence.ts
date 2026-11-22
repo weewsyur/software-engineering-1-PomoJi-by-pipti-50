@@ -117,6 +117,7 @@ export async function createSessionCompleteNotification(params: {
   taskTitle: string;
   durationSeconds: number;
   sessionsCompleted: number;
+  systemNotificationAlreadyScheduled?: boolean;
 }) {
   const currentUid = auth.currentUser?.uid;
   if (!currentUid) return null;
@@ -151,11 +152,13 @@ export async function createSessionCompleteNotification(params: {
     );
 
     // Also schedule system notification
-    await scheduleSystemNotification({
-      taskId: params.taskId,
-      taskTitle: params.taskTitle,
-      durationSeconds: params.durationSeconds,
-    }).catch(() => null);
+    if (!params.systemNotificationAlreadyScheduled) {
+      await scheduleSystemNotification({
+        taskId: params.taskId,
+        taskTitle: params.taskTitle,
+        durationSeconds: params.durationSeconds,
+      }).catch(() => null);
+    }
 
     return docRef.id;
   } catch (error) {

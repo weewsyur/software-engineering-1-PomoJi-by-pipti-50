@@ -41,6 +41,8 @@ import {
   type DailyPoint,
 } from "../components/AreaChart";
 import { StreakSection, type StreakData } from "../components/StreakSection";
+import { useSessions } from "@/hooks/usePomodoro";
+import { MOOD_OPTIONS } from "@/wellness";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -67,6 +69,7 @@ function fmtDate(iso: string): string {
 
 export default function HistoryScreen() {
   const { activities, isLoading } = useActivities();
+  const { sessions } = useSessions();
   const { isDarkMode } = useTheme();
   const colors = useColors(isDarkMode);
   const [viewMode, setViewMode] = useState<"weekly" | "monthly" | "yearly">(
@@ -534,6 +537,65 @@ export default function HistoryScreen() {
             </TouchableOpacity>
           ))
         )}
+
+        <Text
+          style={StyleSheet.flatten([
+            SharedStyles.sectionLabel,
+            { marginHorizontal: 4, marginTop: 8, color: colors.textMuted },
+          ])}
+        >
+          Timer Session History
+        </Text>
+        {sessions.length === 0 ? (
+          <View
+            style={StyleSheet.flatten([
+              SharedStyles.card,
+              styles.emptyCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ])}
+          >
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+              Completed timer sessions will appear here.
+            </Text>
+          </View>
+        ) : (
+          sessions.map((session) => {
+            const mood = MOOD_OPTIONS.find(
+              (option) => option.rating === session.moodRating,
+            );
+            return (
+              <View
+                key={session.id}
+                style={StyleSheet.flatten([
+                  SharedStyles.card,
+                  styles.activityItem,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ])}
+              >
+                <View style={styles.activityContent}>
+                  <Text style={[styles.historyTitle, { color: colors.text }]}>
+                    {session.taskTitle}
+                  </Text>
+                  <Text style={[styles.historyDate, { color: colors.textMuted }]}>
+                    {fmtDate(session.date)}
+                  </Text>
+                  <Text style={[styles.activityMeta, { color: colors.primary }]}>
+                    {session.mode === "focus" ? "Focus" : "Break"} ·{" "}
+                    {session.durationMinutes} min
+                  </Text>
+                </View>
+                {mood ? (
+                  <Text
+                    style={[styles.sessionMood, { color: colors.textSecondary }]}
+                    accessibilityLabel={`Mood: ${mood.label}`}
+                  >
+                    {mood.emoji} {mood.label}
+                  </Text>
+                ) : null}
+              </View>
+            );
+          })
+        )}
       </ScrollView>
 
       <ActivityDetailModal
@@ -678,6 +740,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontWeight: "600",
   },
+  sessionMood: { fontSize: 13, fontWeight: "600" },
   activityImage: {
     width: 52,
     height: 52,

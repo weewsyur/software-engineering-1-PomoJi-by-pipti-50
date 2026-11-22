@@ -177,4 +177,26 @@ self.addEventListener('message', (event) => {
   }
 });
 
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = new URL(
+    event.notification.data?.url || '/timer',
+    self.location.origin
+  ).href;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      const client = clients.find((candidate) =>
+        new URL(candidate.url).origin === self.location.origin
+      );
+      if (client) {
+        return client.navigate(targetUrl).then((navigatedClient) =>
+          (navigatedClient || client).focus()
+        );
+      }
+      return self.clients.openWindow(targetUrl);
+    })
+  );
+});
+
 console.log('✓ Service Worker initialized');

@@ -11,25 +11,36 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { getLocalISODateTime } from "@/utils/dateHelpers";
 import {
+  AppState,
   Alert,
   Animated,
   Easing,
   FlatList,
   ScrollView,
   Platform,
+  Pressable,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { TaskModal } from "@/app/components/timer/TaskModal";
 import { TaskRow } from "@/app/components/timer/TaskRow";
 import { BreakBanner } from "@/app/components/timer/BreakBanner";
 import { TaskPicker } from "@/app/components/timer/TaskPicker";
-import { initializeNotifications } from "@/services/notificationService";
+import {
+  cancelBackgroundSessionNotification,
+  cancelTimerNotifications,
+  getNotificationPermissionStatus,
+  initializeNotifications,
+  requestTimerNotificationPermission,
+  scheduleBackgroundSessionNotification,
+  scheduleTimerNotifications,
+} from "@/services/notificationService";
 import { createSessionCompleteNotification } from "@/services/notificationPersistence";
 import { db } from "@/services/firebase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -46,6 +57,17 @@ const MODES: { key: TimerMode; label: string }[] = [
 
 const MIN_DURATION_MINUTES = 1;
 const MAX_DURATION_MINUTES = 180;
+const INACTIVITY_DELAY_MS = 15_000;
+const MOTIVATIONAL_QUOTES = [
+  "Small steps every day add up to big results.",
+  "Focus on progress, not perfection.",
+  "You are capable of more than you know.",
+  "One focused moment can change your whole day.",
+  "The secret of getting ahead is getting started.",
+  "Stay patient and trust your journey.",
+  "Your future is created by what you do today.",
+  "Make this moment count.",
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -72,6 +94,7 @@ export default function TimerScreen() {
   const colors = useColors(isDarkMode);
   const { user } = useAuth();
   const mood = useMoodCheckIn({ firestore: db, userId: user?.uid });
+  const { requestMoodCheckIn, visible: moodVisible } = mood;
 
   // ── Timer state ──────────────────────────────────────────────────────────
   const [mode, setMode] = useState<TimerMode>("focus");
@@ -87,7 +110,23 @@ export default function TimerScreen() {
   const [focusDurationDraft, setFocusDurationDraft] = useState("30");
   const [breakDurationDraft, setBreakDurationDraft] = useState("5");
   const [durationError, setDurationError] = useState<string | null>(null);
+  const [quoteVisible, setQuoteVisible] = useState(false);
+  const [quote, setQuote] = useState("");
+  const [interactionVersion, setInteractionVersion] = useState(0);
+  const [notificationsEnabled, setNotificationsEnabled] = useState<
+    boolean | null
+  >(null);
+  const [appIsActive, setAppIsActive] = useState(
+    AppState.currentState === "active" || AppState.currentState == null,
+  );
   const timerStateRestoredRef = useRef(false);
+  const lastQuoteIndexRef = useRef(-1);
+  const timerCompletionNotificationRef = useRef(false);
+  const notificationWarningShownRef = useRef(false);
+  const quoteOpacity = useRef(new Animated.Value(0)).current;
+  const quoteFloat = useRef(new Animated.Value(0)).current;
+  const timeLeftRef = useRef(timeLeft);
+  timeLeftRef.current = timeLeft;
 
   // ── Timer persistence ─────────────────────────────────────────────────────
   const {
@@ -138,8 +177,196 @@ export default function TimerScreen() {
   }, [timerLoaded, focusDurationMinutes, breakDurationMinutes]);
 
   useEffect(() => {
-    initializeNotifications().catch(() => null);
+    initializeNotifications()
+      .then(setNotificationsEnabled)
+      .catch((error: unknown) => {
+        console.error("Failed to initialize notifications:", error);
+        setNotificationsEnabled(false);
+      });
   }, []);
+
+  const alertForDisabledNotifications = useCallback(
+    (force = false) => {
+      if (
+        (!force && notificationsEnabled !== false) ||
+        notificationWarningShownRef.current
+      ) {
+        return;
+      }
+      notificationWarningShownRef.current = true;
+
+      const message =
+        "PomoJI can only send session alerts when notifications are allowed. Enable them in your browser's site settings.";
+      if (Platform.OS === "web") {
+        if (typeof window !== "undefined") window.alert(message);
+        return;
+      }
+
+      Alert.alert(
+        "Notifications are disabled",
+        "PomoJI can only alert you about a running or completed session when notifications are allowed. Enable them in your device settings.",
+        [
+          { text: "Not now", style: "cancel" },
+          {
+            text: "Open Settings",
+            onPress: () => {
+              Linking.openSettings().catch((error: unknown) => {
+                console.error("Failed to open notification settings:", error);
+              });
+            },
+          },
+        ],
+      );
+    },
+    [notificationsEnabled],
+  );
+
+  const requestNotificationsForTimer = useCallback(() => {
+    if (Platform.OS !== "web") {
+      alertForDisabledNotifications();
+      return;
+    }
+
+    requestTimerNotificationPermission()
+      .then((enabled) => {
+        setNotificationsEnabled(enabled);
+        if (enabled) {
+          notificationWarningShownRef.current = false;
+        } else {
+          alertForDisabledNotifications(true);
+        }
+      })
+      .catch((error: unknown) => {
+        console.error("Failed to request browser notifications:", error);
+      });
+  }, [alertForDisabledNotifications]);
+
+  const resetQuoteInactivity = useCallback(() => {
+    if (!isRunning || !appIsActive) return;
+    setQuoteVisible(false);
+    setInteractionVersion((version) => version + 1);
+  }, [appIsActive, isRunning]);
+
+  useEffect(() => {
+    if (!isRunning || !appIsActive || quoteVisible) return;
+
+    const timeout = setTimeout(() => {
+      let nextIndex = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
+      if (
+        MOTIVATIONAL_QUOTES.length > 1 &&
+        nextIndex === lastQuoteIndexRef.current
+      ) {
+        nextIndex = (nextIndex + 1) % MOTIVATIONAL_QUOTES.length;
+      }
+      lastQuoteIndexRef.current = nextIndex;
+      setQuote(MOTIVATIONAL_QUOTES[nextIndex]);
+      setQuoteVisible(true);
+    }, INACTIVITY_DELAY_MS);
+
+    return () => clearTimeout(timeout);
+  }, [appIsActive, interactionVersion, isRunning, quoteVisible]);
+
+  useEffect(() => {
+    if (!quoteVisible) return;
+
+    quoteOpacity.setValue(0);
+    quoteFloat.setValue(0);
+    const floating = Animated.loop(
+      Animated.sequence([
+        Animated.timing(quoteFloat, {
+          toValue: 1,
+          duration: 1800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(quoteFloat, {
+          toValue: 0,
+          duration: 1800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    Animated.timing(quoteOpacity, {
+      toValue: 1,
+      duration: 350,
+      useNativeDriver: true,
+    }).start();
+    floating.start();
+
+    return () => {
+      floating.stop();
+      quoteOpacity.stopAnimation();
+      quoteFloat.stopAnimation();
+    };
+  }, [quoteFloat, quoteOpacity, quoteVisible]);
+
+  useEffect(() => {
+    const handleVisibility = (active: boolean) => {
+      setAppIsActive(active);
+      if (active) {
+        cancelBackgroundSessionNotification().catch((error: unknown) => {
+          console.error("Failed to cancel background session notice:", error);
+        });
+        getNotificationPermissionStatus()
+          .then((enabled) => {
+            setNotificationsEnabled(enabled);
+            if (enabled) {
+              notificationWarningShownRef.current = false;
+            } else if (isRunning) {
+              alertForDisabledNotifications(true);
+            }
+          })
+          .catch((error: unknown) => {
+            console.error("Failed to refresh notification permission:", error);
+          });
+      } else {
+        setQuoteVisible(false);
+        if (isRunning) {
+          scheduleBackgroundSessionNotification(
+            activeTaskRef.current?.title ?? "Your focus session",
+          ).catch((error: unknown) => {
+            console.error("Failed to schedule background session notice:", error);
+          });
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      handleVisibility(nextState === "active");
+    });
+    const handleDocumentVisibility = () => {
+      handleVisibility(document.visibilityState === "visible");
+    };
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", handleDocumentVisibility);
+    }
+
+    return () => {
+      subscription.remove();
+      if (Platform.OS === "web" && typeof document !== "undefined") {
+        document.removeEventListener(
+          "visibilitychange",
+          handleDocumentVisibility,
+        );
+      }
+    };
+  }, [alertForDisabledNotifications, isRunning]);
+
+  useEffect(() => {
+    if (!timerLoaded || !isRunning) return;
+
+    scheduleTimerNotifications({
+      taskTitle: activeTaskRef.current?.title ?? "Your focus session",
+      durationSeconds: timeLeftRef.current,
+    })
+      .then((scheduled) => {
+        timerCompletionNotificationRef.current = scheduled;
+      })
+      .catch((error: unknown) => {
+        console.error("Failed to schedule timer notifications:", error);
+      });
+  }, [isRunning, notificationsEnabled, timerLoaded]);
 
   // Save timer state on changes
   useEffect(() => {
@@ -186,12 +413,19 @@ export default function TimerScreen() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showTasks, setShowTasks] = useState(false);
   const [postActivityVisible, setPostActivityVisible] = useState(false);
+  const pendingActivityAfterMoodRef = useRef(false);
   const [postActivityDraft, setPostActivityDraft] = useState({
     title: "Focus Session",
     sessions: 0,
     totalTimeSeconds: 0,
   });
   const [canRecordSession, setCanRecordSession] = useState(false);
+  const [isRecordingSession, setIsRecordingSession] = useState(false);
+  const pendingSessionRef = useRef<{
+    mode: TimerMode;
+    durationSeconds: number;
+  } | null>(null);
+  const sessionRecordingRef = useRef(false);
   const { createActivity } = useActivities();
   const { taskId } = useLocalSearchParams<{ taskId?: string }>();
 
@@ -250,6 +484,79 @@ export default function TimerScreen() {
     setActiveDurationMinutes(null);
   }, [focusDurationMinutes]);
 
+  const saveCompletedSession = useCallback(
+    (completedMode: TimerMode, durationSeconds: number) => {
+      void createSession({
+        taskTitle: activeTaskRef.current?.title ?? "Unassigned Session",
+        taskId: activeTaskRef.current?.id ?? null,
+        date: getLocalISODateTime(),
+        durationMinutes: Math.max(1, Math.round(durationSeconds / 60)),
+        mode: completedMode,
+      })
+        .then((savedSessionId) => {
+          if (!savedSessionId) {
+            throw new Error("Unable to save the session. Please try again.");
+          }
+          requestMoodCheckIn(savedSessionId, completedMode);
+        })
+        .catch((error: unknown) => {
+          console.error("Failed to save completed timer session:", error);
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Unable to save the session. Please try again.";
+          Alert.alert("Session not recorded", message);
+        });
+    },
+    [createSession, requestMoodCheckIn],
+  );
+
+  const handleRecordSession = useCallback(async () => {
+    const pendingSession = pendingSessionRef.current;
+    if (!pendingSession || sessionRecordingRef.current) return;
+
+    sessionRecordingRef.current = true;
+    setIsRecordingSession(true);
+    try {
+      const savedSessionId = await createSession({
+        taskTitle: activeTaskRef.current?.title ?? "Unassigned Session",
+        taskId: activeTaskRef.current?.id ?? null,
+        date: getLocalISODateTime(),
+        durationMinutes: Math.max(1, Math.round(pendingSession.durationSeconds / 60)),
+        mode: pendingSession.mode,
+      });
+
+      if (!savedSessionId) {
+        throw new Error("Unable to save the session. Please try again.");
+      }
+
+      pendingSessionRef.current = null;
+      setCanRecordSession(false);
+      const promptOpened = requestMoodCheckIn(savedSessionId, pendingSession.mode);
+      if (!promptOpened) {
+        setPostActivityVisible(true);
+      } else {
+        pendingActivityAfterMoodRef.current = true;
+      }
+    } catch (error: unknown) {
+      console.error("Failed to record timer session:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to save the session. Please try again.";
+      Alert.alert("Session not recorded", message);
+    } finally {
+      sessionRecordingRef.current = false;
+      setIsRecordingSession(false);
+    }
+  }, [createSession, requestMoodCheckIn]);
+
+  useEffect(() => {
+    if (moodVisible || !pendingActivityAfterMoodRef.current) return;
+    pendingActivityAfterMoodRef.current = false;
+    setPostActivityVisible(true);
+  }, [moodVisible]);
+
   // ── Countdown tick ───────────────────────────────────────────────────────
   useEffect(() => {
     if (isRunning) {
@@ -266,52 +573,42 @@ export default function TimerScreen() {
             clearInterval(intervalRef.current!);
             setIsRunning(false);
             lastTickAtRef.current = null;
+            const completionNotificationScheduled =
+              timerCompletionNotificationRef.current;
+            timerCompletionNotificationRef.current = false;
 
             if (mode === "focus") {
               soundService.playSessionComplete();
               // ── Record the completed session ──────────────────────────
-              const durationMinutes = sessionStartTimeRef.current
-                ? Math.round(
-                    Math.max(
-                      60000,
-                      Date.now() -
-                        sessionStartTimeRef.current -
-                        pausedAccumulatedMsRef.current,
-                    ) / 60000,
-                  )
-                  : currentDurationMinutes;
+              const expectedDurationSeconds =
+                Math.max(1, activeDurationMinutes ?? currentDurationMinutes) *
+                60;
               const durationSeconds = sessionStartTimeRef.current
-                ? Math.max(
-                    60,
-                    Math.round(
-                      (Date.now() -
-                        sessionStartTimeRef.current -
-                        pausedAccumulatedMsRef.current) /
-                        1000,
+                ? Math.min(
+                    expectedDurationSeconds,
+                    Math.max(
+                      60,
+                      Math.round(
+                        (Date.now() -
+                          sessionStartTimeRef.current -
+                          pausedAccumulatedMsRef.current) /
+                          1000,
+                      ),
                     ),
                   )
-                : currentDurationMinutes * 60;
-
-              void createSession({
-                taskTitle: activeTaskRef.current?.title ?? "Unassigned Session",
-                taskId: activeTaskRef.current?.id ?? null,
-                date: getLocalISODateTime(),
-                durationMinutes,
-                mode: "focus",
-              })
-                .then((savedSessionId) => {
-                  if (savedSessionId) {
-                    mood.requestMoodCheckIn(savedSessionId, "focus");
-                  }
-                })
-                .catch((error: unknown) => {
-                  console.error("Failed to save completed focus session:", error);
-                });
+                : expectedDurationSeconds;
 
               // If there was an active task, add focus time to it
               if (activeTaskRef.current) {
                 addTimeToTask(activeTaskRef.current.id, durationSeconds);
               }
+
+              pendingSessionRef.current = {
+                mode: "focus",
+                durationSeconds,
+              };
+              sessionRecordingRef.current = false;
+              setIsRecordingSession(false);
 
               sessionStartTimeRef.current = null;
               pauseStartedAtRef.current = null;
@@ -326,32 +623,21 @@ export default function TimerScreen() {
                 totalTimeSeconds: durationSeconds,
               });
               setCanRecordSession(true);
-              setPostActivityVisible(true);
-
-              // Show confirmation Alert with session results
-              const taskName =
-                activeTaskRef.current?.title ?? "Unassigned Session";
-              const durationText = `${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}s`;
-
               createSessionCompleteNotification({
                 taskId: activeTaskRef.current?.id ?? null,
-                taskTitle: taskName,
+                taskTitle:
+                  activeTaskRef.current?.title ?? "Unassigned Session",
                 durationSeconds,
                 sessionsCompleted: newSessions,
+                systemNotificationAlreadyScheduled:
+                  completionNotificationScheduled,
               }).catch(() => null);
-
-              Alert.alert(
-                "🎉 Session Complete!",
-                `Task: ${taskName}\nDuration: ${durationText}\nSessions completed: ${newSessions}`,
-                [
-                  {
-                    text: "OK",
-                    style: "cancel",
-                  },
-                ],
-              );
             } else {
               soundService.playBreakOver();
+              saveCompletedSession(
+                mode,
+                Math.max(1, activeDurationMinutes ?? currentDurationMinutes) * 60,
+              );
               endBreak();
             }
             return 0;
@@ -366,8 +652,16 @@ export default function TimerScreen() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRunning, mode]);
+  }, [
+    isRunning,
+    mode,
+    currentDurationMinutes,
+    activeDurationMinutes,
+    sessions,
+    addTimeToTask,
+    saveCompletedSession,
+    endBreak,
+  ]);
 
   // ── Glow animation ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -396,7 +690,9 @@ export default function TimerScreen() {
   // ── FR-04: Timer Controls ───────────────────────────────────────────────
 
   const handleStart = useCallback(() => {
+    requestNotificationsForTimer();
     setCanRecordSession(false);
+    pendingSessionRef.current = null;
     setActiveDurationMinutes(currentDurationMinutes);
     if (mode === "focus") {
       sessionStartTimeRef.current = Date.now();
@@ -408,9 +704,13 @@ export default function TimerScreen() {
     }
     setHasStarted(true);
     setIsRunning(true);
-  }, [mode, currentDurationMinutes]);
+  }, [requestNotificationsForTimer, mode, currentDurationMinutes]);
 
   const handlePause = useCallback(() => {
+    cancelTimerNotifications().catch((error: unknown) => {
+      console.error("Failed to cancel paused timer notifications:", error);
+    });
+    timerCompletionNotificationRef.current = false;
     if (
       mode === "focus" &&
       sessionStartTimeRef.current &&
@@ -422,14 +722,19 @@ export default function TimerScreen() {
   }, [mode]);
 
   const handleResume = useCallback(() => {
+    requestNotificationsForTimer();
     if (mode === "focus" && pauseStartedAtRef.current) {
       pausedAccumulatedMsRef.current += Date.now() - pauseStartedAtRef.current;
       pauseStartedAtRef.current = null;
     }
     setIsRunning(true);
-  }, [mode]);
+  }, [requestNotificationsForTimer, mode]);
 
   const handleStop = useCallback(() => {
+    cancelTimerNotifications().catch((error: unknown) => {
+      console.error("Failed to cancel stopped timer notifications:", error);
+    });
+    timerCompletionNotificationRef.current = false;
     setIsRunning(false);
     setHasStarted(false);
     if (mode === "focus" && sessionStartTimeRef.current) {
@@ -447,6 +752,10 @@ export default function TimerScreen() {
         sessions,
         totalTimeSeconds: elapsedSeconds,
       });
+      pendingSessionRef.current = {
+        mode: "focus",
+        durationSeconds: elapsedSeconds,
+      };
       setCanRecordSession(true);
     }
     setTimeLeft(currentDurationMinutes * 60);
@@ -457,6 +766,11 @@ export default function TimerScreen() {
   }, [mode, activeTask, sessions, currentDurationMinutes]);
 
   const handleModeSwitch = useCallback((m: TimerMode) => {
+    cancelTimerNotifications().catch((error: unknown) => {
+      console.error("Failed to cancel switched timer notifications:", error);
+    });
+    timerCompletionNotificationRef.current = false;
+    pendingSessionRef.current = null;
     setMode(m);
     setIsRunning(false);
     setHasStarted(false);
@@ -471,6 +785,11 @@ export default function TimerScreen() {
   }, [focusDurationMinutes, breakDurationMinutes]);
 
   const handleSkipBreak = useCallback(() => {
+    cancelTimerNotifications().catch((error: unknown) => {
+      console.error("Failed to cancel skipped timer notifications:", error);
+    });
+    timerCompletionNotificationRef.current = false;
+    pendingSessionRef.current = null;
     setMode("focus");
     setTimeLeft(focusDurationMinutes * 60);
     setIsRunning(false);
@@ -557,6 +876,18 @@ export default function TimerScreen() {
     [tasks, updateTask, createTaskRaw],
   );
 
+  const dismissQuote = useCallback(() => {
+    Animated.timing(quoteOpacity, {
+      toValue: 0,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (!finished) return;
+      setQuoteVisible(false);
+      setInteractionVersion((version) => version + 1);
+    });
+  }, [quoteOpacity]);
+
   const handleToggleTask = useCallback(
     async (id: string) => {
       try {
@@ -609,6 +940,7 @@ export default function TimerScreen() {
         styles.safe,
         { backgroundColor: colors.background },
       ])}
+      onTouchStart={resetQuoteInactivity}
     >
       <ScrollView
         contentContainerStyle={{ paddingBottom: 32 }}
@@ -931,13 +1263,17 @@ export default function TimerScreen() {
             style={[
               styles.recordSessionBtn,
               { backgroundColor: colors.primary },
+              isRecordingSession && styles.recordSessionBtnDisabled,
             ]}
-            onPress={() => setPostActivityVisible(true)}
+            onPress={handleRecordSession}
+            disabled={isRecordingSession}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isRecordingSession, busy: isRecordingSession }}
           >
             <Text
               style={[styles.recordSessionBtnText, { color: colors.surface }]}
             >
-              Record Session
+              {isRecordingSession ? "Recording…" : "Record Session"}
             </Text>
           </TouchableOpacity>
         )}
@@ -1099,6 +1435,54 @@ export default function TimerScreen() {
           }}
         />
       </ScrollView>
+      {quoteVisible && appIsActive && isRunning && (
+        <Animated.View
+          accessibilityViewIsModal
+          style={[
+            styles.quoteOverlay,
+            {
+              opacity: quoteOpacity,
+              backgroundColor: "rgba(25, 19, 15, 0.62)",
+            },
+          ]}
+          onTouchStart={(event) => event.stopPropagation()}
+        >
+          <Animated.View
+            style={{
+              transform: [
+                {
+                  translateY: quoteFloat.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [6, -6],
+                  }),
+                },
+              ],
+            }}
+          >
+            <Pressable
+              style={[
+                styles.quoteCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.primary,
+                  shadowColor: colors.primary,
+                },
+              ]}
+              onPress={dismissQuote}
+              accessibilityRole="button"
+              accessibilityLabel={quote}
+              accessibilityHint="Dismiss this motivational quote"
+            >
+              <Text style={[styles.quoteText, { color: colors.text }]}>
+                {quote}
+              </Text>
+              <Text style={[styles.quoteHint, { color: colors.textMuted }]}>
+                Tap to continue
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
@@ -1107,6 +1491,36 @@ export default function TimerScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+  quoteOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  quoteCard: {
+    width: "100%",
+    maxWidth: 420,
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 24,
+    paddingHorizontal: 28,
+    paddingVertical: 32,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.55,
+    shadowRadius: 26,
+    elevation: 16,
+  },
+  quoteText: {
+    fontSize: 22,
+    lineHeight: 32,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  quoteHint: {
+    marginTop: 18,
+    fontSize: 13,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -1219,6 +1633,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
+  },
+  recordSessionBtnDisabled: {
+    opacity: 0.55,
   },
   recordSessionBtnText: {
     fontSize: 13,

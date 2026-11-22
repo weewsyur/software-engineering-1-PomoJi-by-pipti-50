@@ -93,6 +93,67 @@ From the Expo terminal, you can run the app in:
 - an iOS simulator
 - the web browser
 
+## Native timer notifications and deployment
+
+The timer remains based on timestamps and persisted state; it does not keep a
+background service running. Native local notifications are scheduled for an
+approaching session end, completion, and (after one minute) a session that
+continues while PomoJI is in the background. Returning to the app cancels the
+background reminder. The timer catches up from its saved timestamp after the
+app is reopened, including when it expired while closed.
+
+Notification access is requested by Expo at runtime. Android 13 and later
+require notification permission, and iOS requires the user to allow
+notifications. If access is disabled, the timer offers a shortcut to the
+device's app settings. No Firebase configuration or database rules are needed
+for these local notifications.
+
+The inactivity quote is shown only while the timer screen is visible and the
+timer is running. It uses a lightweight dimmed overlay rather than a GPU blur,
+and suspends while the app is inactive. Android and iOS may delay or suppress
+notifications under battery saver, Focus, or other system restrictions; PomoJI
+does not use a persistent service or request privileged battery exemptions.
+If Android delays alerts, check **Settings → Apps → PomoJI → Battery** and the
+device manufacturer's background-use controls (names vary by device); allowing
+background use is optional and is not required for timer accuracy. On iOS,
+check PomoJI's notification settings and Focus modes. The app does not have a
+reliable API for detecting every vendor-specific battery restriction.
+
+### PWA timer notifications
+
+On supported browsers, the PWA requests notification permission when a session
+starts and uses its service worker to display the approaching-end, completion,
+and background-session alerts. This is best effort: the timer relies on the
+browser page remaining scheduled, so browser throttling, closing the browser,
+or shutting down the device can delay or prevent an alert. Reliable delivery
+after the PWA is closed requires a web-push server and VAPID/FCM setup, which
+this project does not currently have. Install the PWA and allow notifications
+for the site to use browser notifications; the timer still reconciles from its
+saved timestamp when reopened.
+
+For native builds, install EAS CLI and sign in once:
+
+```bash
+npm install --global eas-cli
+eas login
+```
+
+Use Node.js 20.18.3 for local Expo SDK 52 commands. Newer Node releases currently
+fail while loading Expo's TypeScript modules in this project.
+
+Then build either platform from this directory:
+
+```bash
+npm run build:android
+npm run build:ios
+```
+
+The notification config plugin is applied during native prebuild, so rebuild
+the app after changing its notification configuration. iOS distribution
+requires an Apple Developer account; EAS will guide you through signing
+credentials. Local notifications can also be exercised in Expo Go, but a
+development or production build is recommended for deployment testing.
+
 ## Useful scripts
 
 ```bash
