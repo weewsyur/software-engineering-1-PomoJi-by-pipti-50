@@ -19,7 +19,7 @@ export interface DailyPointByMonth {
 
 export type DailyPoint = DailyPointByDay | DailyPointByWeek | DailyPointByMonth;
 
-interface ChartPoint {
+export interface ChartPoint {
   x: number;
   y: number;
 }
@@ -34,7 +34,7 @@ export const CHART_HEIGHT = 140;
 export const LABEL_AREA = 22;
 export const CHART_PAD_X = 16;
 
-function buildStrokePath(points: ChartPoint[]): string {
+export function buildStrokePath(points: ChartPoint[]): string {
   if (points.length === 0) return "";
   if (points.length === 1) {
     const p = points[0];
@@ -90,7 +90,7 @@ function buildStrokePath(points: ChartPoint[]): string {
   return linePath;
 }
 
-function buildAreaPath(points: ChartPoint[], bottomY: number): string {
+export function buildAreaPath(points: ChartPoint[], bottomY: number): string {
   if (points.length === 0) return "";
   if (points.length === 1) {
     const p = points[0];
