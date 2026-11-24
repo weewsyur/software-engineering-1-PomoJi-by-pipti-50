@@ -4,14 +4,62 @@
  */
 import { doc, runTransaction, serverTimestamp, type Firestore } from 'firebase/firestore';
 import {
-  DEFAULT_FIELD_MAP,
   MOOD_OPTIONS,
   type MoodLabel,
   type MoodOption,
   type MoodRating,
-  type SessionFieldMap,
-} from '../types/wellness';
-import { classifySessionKind, isValidMoodRating } from './wellnessScore';
+} from '@/constants/mood';
+
+// ───────────────────────── Sessions ─────────────────────────
+
+/** Maps session document field names/values to the normalised shape. */
+export interface SessionFieldMap {
+  /** Field holding the session type, e.g. "work" | "shortBreak" | "longBreak". */
+  typeField: string;
+  /** Optional boolean field, true when the session finished successfully. */
+  completedField: string;
+  /** Optional string field, e.g. "completed" | "cancelled". */
+  statusField: string;
+  /** Timestamp field set when the session finished. */
+  completedAtField: string;
+  moodRatingField: string;
+  /** Matched case-insensitively after stripping spaces, "_" and "-". */
+  workTypes: readonly string[];
+  breakTypes: readonly string[];
+  completedStatuses: readonly string[];
+}
+
+export const DEFAULT_FIELD_MAP: SessionFieldMap = {
+  typeField: 'mode',
+  completedField: 'completed',
+  statusField: 'status',
+  completedAtField: 'completedAt',
+  moodRatingField: 'moodRating',
+  workTypes: ['focus'],
+  breakTypes: ['short', 'long'],
+  completedStatuses: ['completed', 'complete', 'done'],
+};
+
+export type SessionKind = 'work' | 'break' | 'unknown';
+
+const squash = (s: string): string => s.toLowerCase().replace(/[\s_-]+/g, '');
+
+export function classifySessionKind(
+  rawType: unknown,
+  fieldMap: SessionFieldMap = DEFAULT_FIELD_MAP,
+): SessionKind {
+  if (typeof rawType !== 'string') return 'unknown';
+  const t = squash(rawType);
+  if (fieldMap.breakTypes.some((b) => squash(b) === t)) return 'break';
+  if (fieldMap.workTypes.some((w) => squash(w) === t)) return 'work';
+  return 'unknown';
+}
+
+export function isValidMoodRating(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 1 && value <= 5;
+}
+
+// ───────────────────────── Mood helpers ─────────────────────────
 
 export type MoodCheckInErrorCode =
   | 'unauthenticated'

@@ -24,8 +24,9 @@ export default function CounselingScreen() {
           ]}
         >
           <Text style={[styles.message, { color: colors.text }]}>
-            Your wellness score is a productivity indicator based on recent
-            sessions. It is not a diagnosis or a measure of your personal worth.
+            The daily readiness check is a screening tool based on recent
+            self-reported answers. It is not a diagnosis or a measure of your
+            personal worth.
           </Text>
           <Text style={[styles.message, { color: colors.textSecondary }]}>
             If you would like to talk with someone, consider reaching out to a

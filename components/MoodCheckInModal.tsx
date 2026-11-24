@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/constants/colors';
 import { useTheme } from '@/contexts/ThemeContext';
-import { MOOD_OPTIONS, type MoodRating } from '../types/wellness';
+import MoodRating from '@/components/MoodRating';
+import type { MoodRating as MoodRatingValue } from '@/constants/mood';
 
 export interface MoodCheckInModalProps {
   visible: boolean;
@@ -10,7 +11,7 @@ export interface MoodCheckInModalProps {
   saving?: boolean;
   /** Shown inline when saving failed; user can retry or skip. */
   errorMessage?: string | null;
-  onSelect: (rating: MoodRating) => void;
+  onSelect: (rating: MoodRatingValue) => void;
   onSkip: () => void;
 }
 
@@ -21,7 +22,7 @@ export default function MoodCheckInModal({
   onSelect,
   onSkip,
 }: MoodCheckInModalProps) {
-  const [selected, setSelected] = useState<MoodRating | null>(null);
+  const [selected, setSelected] = useState<MoodRatingValue | null>(null);
   const { isDarkMode } = useTheme();
   const colors = useColors(isDarkMode);
 
@@ -29,10 +30,10 @@ export default function MoodCheckInModal({
     if (!visible) setSelected(null);
   }, [visible]);
 
-  const handleSelect = (rating: MoodRating) => {
+  const handleSelect = (rating: number) => {
     if (saving) return;
-    setSelected(rating);
-    onSelect(rating);
+    setSelected(rating as MoodRatingValue);
+    onSelect(rating as MoodRatingValue);
   };
 
   return (
@@ -49,32 +50,7 @@ export default function MoodCheckInModal({
           <Text style={[styles.title, { color: colors.text }]}>How did that session feel?</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Nice work finishing that session.</Text>
 
-          <View style={styles.row}>
-            {MOOD_OPTIONS.map((option) => {
-              const isSelected = selected === option.rating;
-              return (
-                <Pressable
-                  key={option.rating}
-                  onPress={() => handleSelect(option.rating)}
-                  disabled={saving}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${option.label}, ${option.rating} of 5`}
-                  accessibilityState={{ selected: isSelected, disabled: saving }}
-                  style={({ pressed }) => [
-                    styles.option,
-                    { backgroundColor: colors.background },
-                    isSelected && { borderColor: colors.primary, backgroundColor: colors.primaryMuted },
-                    pressed && styles.optionPressed,
-                  ]}
-                >
-                  <Text style={styles.emoji} accessible={false}>{option.emoji}</Text>
-                  <Text style={[styles.optionLabel, { color: colors.textSecondary }, isSelected && { color: colors.primary, fontWeight: '700' }]} numberOfLines={1}>
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <MoodRating value={selected} onChange={handleSelect} disabled={saving} />
 
           {saving ? <ActivityIndicator style={styles.status} color={colors.primary} /> : null}
           {errorMessage ? (
@@ -103,22 +79,6 @@ const styles = StyleSheet.create({
   card: { borderRadius: 24, padding: 20 },
   title: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
   subtitle: { fontSize: 14, textAlign: 'center', marginTop: 4, marginBottom: 18 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
-  option: {
-    flex: 1,
-    minWidth: 48,
-    minHeight: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 2,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  optionPressed: { opacity: 0.7 },
-  emoji: { fontSize: 25 },
-  optionLabel: { fontSize: 11, marginTop: 4, fontWeight: '500' },
   status: { marginTop: 14, textAlign: 'center' },
   error: { color: '#C8402F', fontSize: 13 },
   skip: { marginTop: 12, alignItems: 'center', justifyContent: 'center', minHeight: 44 },

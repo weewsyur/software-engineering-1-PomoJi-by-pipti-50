@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Firestore } from 'firebase/firestore';
-import { DEFAULT_FIELD_MAP, type SessionFieldMap } from '../types/wellness';
+import {
+  DEFAULT_FIELD_MAP,
+  type SessionFieldMap,
+} from '@/utils/moodCheckIn';
 import {
   MoodCheckInError,
   createMoodPromptGuard,
   saveMoodToSession,
   shouldPromptMoodCheckIn,
-} from '../utils/moodCheckIn';
+} from '@/utils/moodCheckIn';
 
 export interface UseMoodCheckInOptions {
   firestore: Firestore;

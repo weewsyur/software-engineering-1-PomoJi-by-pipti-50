@@ -8,7 +8,7 @@ import { LucideIcon } from "@/components/LucideIcon";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Settings2 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { getLocalISODateTime } from "@/utils/dateHelpers";
 import {
   AppState,
@@ -46,7 +46,15 @@ import { db } from "@/services/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { soundService } from "@/services/soundService";
 import { shadowStyle } from "@/utils/shadowStyle";
-import { MoodCheckInModal, useMoodCheckIn } from "@/wellness";
+import MoodCheckInModal from "@/components/MoodCheckInModal";
+import { useMoodCheckIn } from "@/hooks/useMoodCheckIn";
+import { useStartSessionFlow } from "@/hooks/useStartSessionFlow";
+import WarningModal from "@/components/WarningModal";
+import {
+  getBeforeSessionPayload,
+  selectReadyToStart,
+  useSessionFlowStore,
+} from "@/store/sessionFlowStore";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -95,6 +103,9 @@ export default function TimerScreen() {
   const { user } = useAuth();
   const mood = useMoodCheckIn({ firestore: db, userId: user?.uid });
   const { requestMoodCheckIn, visible: moodVisible } = mood;
+  const router = useRouter();
+  const sessionFlow = useStartSessionFlow();
+  const checksReady = useSessionFlowStore(selectReadyToStart);
 
   // ── Timer state ──────────────────────────────────────────────────────────
   const [mode, setMode] = useState<TimerMode>("focus");
@@ -427,7 +438,10 @@ export default function TimerScreen() {
   } | null>(null);
   const sessionRecordingRef = useRef(false);
   const { createActivity } = useActivities();
-  const { taskId } = useLocalSearchParams<{ taskId?: string }>();
+  const { taskId, autostart } = useLocalSearchParams<{
+    taskId?: string;
+    autostart?: string;
+  }>();
 
   // Track when focus session started so we can record real elapsed time
   const sessionStartTimeRef = useRef<number | null>(null);
@@ -492,11 +506,13 @@ export default function TimerScreen() {
         date: getLocalISODateTime(),
         durationMinutes: Math.max(1, Math.round(durationSeconds / 60)),
         mode: completedMode,
+        ...(completedMode === "focus" ? getBeforeSessionPayload() : {}),
       })
         .then((savedSessionId) => {
           if (!savedSessionId) {
             throw new Error("Unable to save the session. Please try again.");
           }
+          useSessionFlowStore.getState().resetBeforeCheck();
           requestMoodCheckIn(savedSessionId, completedMode);
         })
         .catch((error: unknown) => {
@@ -524,12 +540,14 @@ export default function TimerScreen() {
         date: getLocalISODateTime(),
         durationMinutes: Math.max(1, Math.round(pendingSession.durationSeconds / 60)),
         mode: pendingSession.mode,
+        ...(pendingSession.mode === "focus" ? getBeforeSessionPayload() : {}),
       });
 
       if (!savedSessionId) {
         throw new Error("Unable to save the session. Please try again.");
       }
 
+      useSessionFlowStore.getState().resetBeforeCheck();
       pendingSessionRef.current = null;
       setCanRecordSession(false);
       const promptOpened = requestMoodCheckIn(savedSessionId, pendingSession.mode);
@@ -689,22 +707,51 @@ export default function TimerScreen() {
 
   // ── FR-04: Timer Controls ───────────────────────────────────────────────
 
-  const handleStart = useCallback(() => {
-    requestNotificationsForTimer();
-    setCanRecordSession(false);
-    pendingSessionRef.current = null;
-    setActiveDurationMinutes(currentDurationMinutes);
-    if (mode === "focus") {
-      sessionStartTimeRef.current = Date.now();
-      pauseStartedAtRef.current = null;
-      pausedAccumulatedMsRef.current = 0;
-      soundService.playSessionStart();
+  const handleStart = useCallback(
+    (overrideMode?: TimerMode) => {
+      const startMode = overrideMode ?? mode;
+      const startDuration =
+        startMode === "focus" ? focusDurationMinutes : breakDurationMinutes;
+      requestNotificationsForTimer();
+      setCanRecordSession(false);
+      pendingSessionRef.current = null;
+      setActiveDurationMinutes(startDuration);
+      if (startMode === "focus") {
+        sessionStartTimeRef.current = Date.now();
+        pauseStartedAtRef.current = null;
+        pausedAccumulatedMsRef.current = 0;
+        soundService.playSessionStart();
+      } else {
+        soundService.playBreakStart();
+      }
+      setHasStarted(true);
+      setIsRunning(true);
+    },
+    [
+      requestNotificationsForTimer,
+      mode,
+      focusDurationMinutes,
+      breakDurationMinutes,
+    ],
+  );
+
+  // Auto-start after the before-session check navigates back here with
+  // ?autostart=1. Only runs when both checks passed (selectReadyToStart).
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (autostart !== "1" || autoStartedRef.current) return;
+    if (!checksReady || hasStarted || isRunning) return;
+    autoStartedRef.current = true;
+    router.setParams({ autostart: undefined });
+    if (mode !== "focus") {
+      handleModeSwitch("focus");
+      // handleModeSwitch resets state; start on the next tick with focus mode.
+      setTimeout(() => handleStart("focus"), 0);
     } else {
-      soundService.playBreakStart();
+      handleStart("focus");
     }
-    setHasStarted(true);
-    setIsRunning(true);
-  }, [requestNotificationsForTimer, mode, currentDurationMinutes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autostart, checksReady, hasStarted, isRunning, mode, router]);
 
   const handlePause = useCallback(() => {
     cancelTimerNotifications().catch((error: unknown) => {
@@ -1201,8 +1248,20 @@ export default function TimerScreen() {
           {!hasStarted ? (
             <Animated.View style={{ transform: [{ scale: timerButtonScale }] }}>
               <TouchableOpacity
-                style={[styles.playBtn, { backgroundColor: colors.primary }]}
-                onPress={handleStart}
+                style={[
+                  styles.playBtn,
+                  { backgroundColor: colors.primary },
+                  mode === "focus" && sessionFlow.checking && { opacity: 0.6 },
+                ]}
+                onPress={() => {
+                  if (mode === "focus") {
+                    // Focus sessions require today's DASS-21 + before-check.
+                    void sessionFlow.start();
+                  } else {
+                    handleStart();
+                  }
+                }}
+                disabled={mode === "focus" && sessionFlow.checking}
                 onPressIn={() => animatePressScale(timerButtonScale, true)}
                 onPressOut={() => animatePressScale(timerButtonScale, false)}
                 accessibilityRole="button"
@@ -1385,6 +1444,17 @@ export default function TimerScreen() {
           errorMessage={mood.error}
           onSelect={mood.submit}
           onSkip={mood.skip}
+        />
+
+        {/* Offline gate: can't verify today's readiness check */}
+        <WarningModal
+          visible={sessionFlow.offline}
+          title="Connect to continue"
+          message={`We need to check today's readiness test before you can start. Please connect to the internet.${
+            sessionFlow.offlineError ? `\n\nDebug: ${sessionFlow.offlineError}` : ""
+          }`}
+          primaryLabel="OK"
+          onPrimary={sessionFlow.dismissOffline}
         />
 
         {/* Task modal */}

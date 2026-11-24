@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 const lightColors = {
-  primary: '#F4512C',
+  primary: '#FF6B35',
   primaryLight: '#FF8A65',
   primaryMuted: '#FDE3DC',
   background: '#F5F3EE',
@@ -22,7 +22,7 @@ const lightColors = {
 };
 
 const darkColors = {
-  primary: '#F4512C',
+  primary: '#FF6B35',
   primaryLight: '#FF7043',
   primaryMuted: '#4A241C',
   background: '#1A1A1A',

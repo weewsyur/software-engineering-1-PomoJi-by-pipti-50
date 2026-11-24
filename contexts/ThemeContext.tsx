@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { colorScheme } from 'nativewind';
 
 interface ThemeContextType {
   isDarkMode: boolean;
@@ -12,6 +13,12 @@ const THEME_STORAGE_KEY = '@pomoji_dark_mode';
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Keep NativeWind's colorScheme in sync so `dark:` className variants in
+  // NativeWind-styled components follow the app's manual theme toggle.
+  useEffect(() => {
+    colorScheme.set(isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
 
   useEffect(() => {
     // Load dark mode preference from storage

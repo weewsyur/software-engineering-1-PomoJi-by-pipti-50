@@ -10,6 +10,7 @@ import {
 } from "firebase/firestore";
 import { useTasks as useGlobalTasks } from "@/hooks/useTasks";
 import type { Task as StoreTask, TaskCategory } from "@/store/taskStore";
+import { withBeforeSessionDefaults } from "@/utils/sessionCompat";
 export type { TaskCategory, Task as StoreTask };
 export type Task = StoreTask;
 
@@ -22,6 +23,9 @@ export interface Session {
   mode: "focus" | "short" | "long";
   moodRating?: 1 | 2 | 3 | 4 | 5;
   moodLabel?: "Very Bad" | "Bad" | "Okay" | "Good" | "Great";
+  before_mood?: number | null;
+  distractions?: string[];
+  cause_category?: string | null;
 }
 
 export function useTasks() {
@@ -72,7 +76,9 @@ export function useSessions() {
     const unsubscribe = onSnapshot(sessionsQuery, (snapshot) => {
       const nextSessions = snapshot.docs.map((snapshotDoc) => ({
         id: snapshotDoc.id,
-        ...(snapshotDoc.data() as Omit<Session, "id">),
+        ...withBeforeSessionDefaults(
+          snapshotDoc.data() as Omit<Session, "id">,
+        ),
       }));
       setSessionsState(nextSessions);
     });

@@ -3,7 +3,7 @@
     "name": "PomoJI",
     "slug": "pomoji",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/POMOJI.png",
     "userInterfaceStyle": "automatic",
     "splash": {
