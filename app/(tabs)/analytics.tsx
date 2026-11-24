@@ -41,6 +41,7 @@ import {
   type DailyPoint,
 } from "../components/AreaChart";
 import { StreakSection, type StreakData } from "../components/StreakSection";
+import DassReadinessSummary from "@/components/dass/DassReadinessSummary";
 import { useSessions } from "@/hooks/usePomodoro";
 import { MOOD_OPTIONS } from "@/constants/mood";
 
@@ -466,6 +467,17 @@ export default function HistoryScreen() {
             ))
           )}
         </View>
+
+        {/* ── Readiness Check (compact DASS-21 summary) ── */}
+        <Text
+          style={StyleSheet.flatten([
+            SharedStyles.sectionLabel,
+            { marginHorizontal: 4, marginTop: 8, color: colors.textMuted },
+          ])}
+        >
+          Readiness Check
+        </Text>
+        <DassReadinessSummary />
 
         {/* ── Activity History ── */}
         <Text
