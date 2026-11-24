@@ -52,7 +52,7 @@ import { useStartSessionFlow } from "@/hooks/useStartSessionFlow";
 import WarningModal from "@/components/WarningModal";
 import {
   getBeforeSessionPayload,
-  selectReadyToStart,
+  selectFocusPlayAction,
   useSessionFlowStore,
 } from "@/store/sessionFlowStore";
 
@@ -105,7 +105,8 @@ export default function TimerScreen() {
   const { requestMoodCheckIn, visible: moodVisible } = mood;
   const router = useRouter();
   const sessionFlow = useStartSessionFlow();
-  const checksReady = useSessionFlowStore(selectReadyToStart);
+  const focusPlayAction = useSessionFlowStore(selectFocusPlayAction);
+  const checksReady = focusPlayAction === "start";
 
   // ── Timer state ──────────────────────────────────────────────────────────
   const [mode, setMode] = useState<TimerMode>("focus");
@@ -435,6 +436,7 @@ export default function TimerScreen() {
   const pendingSessionRef = useRef<{
     mode: TimerMode;
     durationSeconds: number;
+    beforePayload: ReturnType<typeof getBeforeSessionPayload>;
   } | null>(null);
   const sessionRecordingRef = useRef(false);
   const { createActivity } = useActivities();
@@ -540,7 +542,7 @@ export default function TimerScreen() {
         date: getLocalISODateTime(),
         durationMinutes: Math.max(1, Math.round(pendingSession.durationSeconds / 60)),
         mode: pendingSession.mode,
-        ...(pendingSession.mode === "focus" ? getBeforeSessionPayload() : {}),
+        ...pendingSession.beforePayload,
       });
 
       if (!savedSessionId) {
@@ -621,10 +623,18 @@ export default function TimerScreen() {
                 addTimeToTask(activeTaskRef.current.id, durationSeconds);
               }
 
-              pendingSessionRef.current = {
-                mode: "focus",
-                durationSeconds,
-              };
+              // Updaters can run twice in StrictMode: only snapshot the
+              // before-check payload + reset the flag on the first pass.
+              if (!pendingSessionRef.current) {
+                pendingSessionRef.current = {
+                  mode: "focus",
+                  durationSeconds,
+                  beforePayload: getBeforeSessionPayload(),
+                };
+                // Session ended: the next session start needs a fresh check.
+                // The payload above keeps the check data for "Record Session".
+                useSessionFlowStore.getState().resetBeforeCheck();
+              }
               sessionRecordingRef.current = false;
               setIsRecordingSession(false);
 
@@ -735,13 +745,15 @@ export default function TimerScreen() {
     ],
   );
 
-  // Auto-start after the before-session check navigates back here with
-  // ?autostart=1. Only runs when both checks passed (selectReadyToStart).
-  const autoStartedRef = useRef(false);
+  // Auto-start after the before-session check navigates back here. The check
+  // screen passes a fresh ?autostart=<nonce> param per submission; each nonce
+  // is consumed at most once so later session starts can auto-start again.
+  // Only runs when both checks passed (selectReadyToStart).
+  const consumedAutostartRef = useRef<string | null>(null);
   useEffect(() => {
-    if (autostart !== "1" || autoStartedRef.current) return;
+    if (!autostart || autostart === consumedAutostartRef.current) return;
     if (!checksReady || hasStarted || isRunning) return;
-    autoStartedRef.current = true;
+    consumedAutostartRef.current = autostart;
     router.setParams({ autostart: undefined });
     if (mode !== "focus") {
       handleModeSwitch("focus");
@@ -802,8 +814,11 @@ export default function TimerScreen() {
       pendingSessionRef.current = {
         mode: "focus",
         durationSeconds: elapsedSeconds,
+        beforePayload: getBeforeSessionPayload(),
       };
       setCanRecordSession(true);
+      // Session cancelled/reset: the next session start needs a fresh check.
+      useSessionFlowStore.getState().resetBeforeCheck();
     }
     setTimeLeft(currentDurationMinutes * 60);
     setActiveDurationMinutes(null);
@@ -829,7 +844,12 @@ export default function TimerScreen() {
     sessionStartTimeRef.current = null;
     pauseStartedAtRef.current = null;
     pausedAccumulatedMsRef.current = 0;
-  }, [focusDurationMinutes, breakDurationMinutes]);
+    // Switching mode mid-session abandons it: next start needs a fresh check.
+    // (Skipped while idle so the pre-start autostart path keeps its check.)
+    if (hasStarted || isRunning) {
+      useSessionFlowStore.getState().resetBeforeCheck();
+    }
+  }, [focusDurationMinutes, breakDurationMinutes, hasStarted, isRunning]);
 
   const handleSkipBreak = useCallback(() => {
     cancelTimerNotifications().catch((error: unknown) => {
@@ -1254,10 +1274,11 @@ export default function TimerScreen() {
                   mode === "focus" && sessionFlow.checking && { opacity: 0.6 },
                 ]}
                 onPress={() => {
-                  if (mode === "focus") {
+                  if (mode === "focus" && focusPlayAction === "checks") {
                     // Focus sessions require today's DASS-21 + before-check.
                     void sessionFlow.start();
                   } else {
+                    // Checks already done for this session start (or Break).
                     handleStart();
                   }
                 }}

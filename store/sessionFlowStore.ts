@@ -68,6 +68,12 @@ export const selectDassPassedToday = (s: SessionFlowState) =>
 export const selectReadyToStart = (s: SessionFlowState) =>
   selectDassPassedToday(s) && s.beforeCheckDone && s.beforeMood !== null && s.causeCategory !== null;
 
+export type FocusPlayAction = 'start' | 'checks';
+
+/** Play-button decision in Focus mode: 'start' once today's checks are done. */
+export const selectFocusPlayAction = (s: SessionFlowState): FocusPlayAction =>
+  selectReadyToStart(s) ? 'start' : 'checks';
+
 /** Fields to merge into the session document when a session is saved.
  *  Nulls are omitted so Firestore rules (which reject null before_mood) pass. */
 export function getBeforeSessionPayload() {
