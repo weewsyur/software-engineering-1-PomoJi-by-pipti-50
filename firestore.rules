@@ -310,42 +310,30 @@ service cloud.firestore {
       ];
     }
 
-    function validSeverity(s) {
-      return s in ["normal", "mild", "moderate", "severe", "extremely_severe"];
-    }
-
-    // Scores are (sum of 7 items) * 2, so they are even integers 0..42
-    function validDassScore(n) {
-      return n is int && n >= 0 && n <= 42 && n % 2 == 0;
-    }
-
-    function validDassAnswer(n) {
-      return n is int && n >= 0 && n <= 3;
-    }
-
     function validDassResponses(responses) {
       return responses is list && responses.size() == 21 &&
-        validDassAnswer(responses[0]) &&
-        validDassAnswer(responses[1]) &&
-        validDassAnswer(responses[2]) &&
-        validDassAnswer(responses[3]) &&
-        validDassAnswer(responses[4]) &&
-        validDassAnswer(responses[5]) &&
-        validDassAnswer(responses[6]) &&
-        validDassAnswer(responses[7]) &&
-        validDassAnswer(responses[8]) &&
-        validDassAnswer(responses[9]) &&
-        validDassAnswer(responses[10]) &&
-        validDassAnswer(responses[11]) &&
-        validDassAnswer(responses[12]) &&
-        validDassAnswer(responses[13]) &&
-        validDassAnswer(responses[14]) &&
-        validDassAnswer(responses[15]) &&
-        validDassAnswer(responses[16]) &&
-        validDassAnswer(responses[17]) &&
-        validDassAnswer(responses[18]) &&
-        validDassAnswer(responses[19]) &&
-        validDassAnswer(responses[20]);
+        responses.hasOnly([0, 1, 2, 3]) &&
+        responses[0] is int &&
+        responses[1] is int &&
+        responses[2] is int &&
+        responses[3] is int &&
+        responses[4] is int &&
+        responses[5] is int &&
+        responses[6] is int &&
+        responses[7] is int &&
+        responses[8] is int &&
+        responses[9] is int &&
+        responses[10] is int &&
+        responses[11] is int &&
+        responses[12] is int &&
+        responses[13] is int &&
+        responses[14] is int &&
+        responses[15] is int &&
+        responses[16] is int &&
+        responses[17] is int &&
+        responses[18] is int &&
+        responses[19] is int &&
+        responses[20] is int;
     }
 
     function hasDassConsent(userId) {
@@ -371,11 +359,11 @@ service cloud.firestore {
     }
 
     function validStressSeverity(score, severity) {
-      return (score <= 14 && severity == "normal") ||
-        (score >= 15 && score <= 18 && severity == "mild") ||
-        (score >= 19 && score <= 25 && severity == "moderate") ||
-        (score >= 26 && score <= 33 && severity == "severe") ||
-        (score >= 34 && severity == "extremely_severe");
+      return score <= 14 ? severity == "normal" :
+        score <= 18 ? severity == "mild" :
+        score <= 25 ? severity == "moderate" :
+        score <= 33 ? severity == "severe" :
+        severity == "extremely_severe";
     }
 
     function validDassResult(userId, docId) {
@@ -393,8 +381,9 @@ service cloud.firestore {
         d.responses[8] + d.responses[14] + d.responses[18] + d.responses[19];
       let stressRaw = d.responses[0] + d.responses[5] + d.responses[7] +
         d.responses[10] + d.responses[11] + d.responses[13] + d.responses[17];
+      // Response bounds and score equalities imply final scores are even integers in range.
       return d.keys().hasOnly(keys) &&
-        d.keys().hasAll(keys) &&
+        d.keys().size() == keys.size() &&
         d.user_id == userId &&
         d.date is string &&
         d.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
@@ -410,15 +399,12 @@ service cloud.firestore {
         d.anxiety_raw_score == anxietyRaw &&
         d.stress_raw_score is int &&
         d.stress_raw_score == stressRaw &&
-        validDassScore(d.depression_score) &&
-        validDassScore(d.anxiety_score) &&
-        validDassScore(d.stress_score) &&
+        d.depression_score is int &&
+        d.anxiety_score is int &&
+        d.stress_score is int &&
         d.depression_score == depressionRaw * 2 &&
         d.anxiety_score == anxietyRaw * 2 &&
         d.stress_score == stressRaw * 2 &&
-        validSeverity(d.depression_severity) &&
-        validSeverity(d.anxiety_severity) &&
-        validSeverity(d.stress_severity) &&
         validDepressionSeverity(d.depression_score, d.depression_severity) &&
         validAnxietySeverity(d.anxiety_score, d.anxiety_severity) &&
         validStressSeverity(d.stress_score, d.stress_severity) &&
