@@ -69,9 +69,13 @@ export default function BeforeSessionScreen() {
       return t ? `other: ${t}` : 'other';
     });
     completeBeforeCheck({ beforeMood: mood, distractions, causeCategory: cause });
-    // TIMER is the same screen as the Timer tab; the autostart param tells it
-    // to begin the focus countdown (checks already passed to get here).
-    router.replace({ pathname: ROUTES.TIMER, params: { autostart: '1' } } as never);
+    // TIMER is the same screen as the Timer tab; a fresh nonce per submission
+    // tells it to begin the focus countdown (checks already passed to get here)
+    // and lets each session start auto-start exactly once.
+    router.replace({
+      pathname: ROUTES.TIMER,
+      params: { autostart: String(Date.now()) },
+    } as never);
   };
 
   return (
