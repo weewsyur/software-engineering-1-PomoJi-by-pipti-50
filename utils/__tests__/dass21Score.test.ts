@@ -72,6 +72,7 @@ describe('scoreDass21', () => {
 
   test('multiplies each subscale sum by 2', () => {
     const r = scoreDass21(build(5, 4, 7));
+    expect(r.rawScores).toEqual({ depression: 5, anxiety: 4, stress: 7 });
     expect(r.scores).toEqual({ depression: 10, anxiety: 8, stress: 14 });
   });
 

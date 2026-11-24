@@ -29,17 +29,22 @@ function Indicator({ subscale, severity, score }: { subscale: DassSubscale; seve
   const st = SEVERITY_STYLE[severity];
   const filled = SEVERITY_ORDER.indexOf(severity) + 1;
   return (
-    <View className="flex-1 rounded-xl bg-warm dark:bg-warmDark p-3">
-      <Text className="text-base font-semibold text-ink dark:text-inkDark">{SUBSCALE_LABELS[subscale]}</Text>
-      <View className={`mt-2 self-start rounded-full px-3 py-1 ${st.pill}`}>
-        <Text className={`text-sm font-semibold ${st.text}`}>{SEVERITY_LABELS[severity]}</Text>
+    <View className="rounded-2xl border border-line bg-card p-4 dark:border-lineDark dark:bg-cardDark">
+      <View className="flex-row items-center justify-between">
+        <Text className="text-lg font-semibold text-ink dark:text-inkDark">{SUBSCALE_LABELS[subscale]}</Text>
+        <Text className="text-base font-bold text-ink dark:text-inkDark">{score}</Text>
       </View>
-      <View className="mt-3 flex-row gap-1">
+      <View className="mt-2 flex-row items-center justify-between">
+        <Text className="text-xs text-ink3 dark:text-ink3Dark">Score</Text>
+        <View className={`rounded-full px-3 py-1 ${st.pill}`}>
+          <Text className={`text-sm font-semibold ${st.text}`}>{SEVERITY_LABELS[severity]}</Text>
+        </View>
+      </View>
+      <View className="mt-3 flex-row gap-1.5">
         {SEVERITY_ORDER.map((_, i) => (
           <View key={i} className={`h-2 flex-1 rounded-full ${i < filled ? st.bar : 'bg-track dark:bg-trackDark'}`} />
         ))}
       </View>
-      <Text className="mt-2 text-xs text-ink3 dark:text-ink3Dark">Score {score}</Text>
     </View>
   );
 }
@@ -91,13 +96,13 @@ export default function DassResultView({ result, blocked, pendingSync, onContinu
           {blocked ? 'Let’s pause the focus session for now' : 'You’re ready to focus'}
         </Text>
 
-        <View className="mt-3 flex-row gap-3">
-          <Indicator subscale="stress" severity={sev.stress} score={result.stress_score} />
-          <Indicator subscale="anxiety" severity={sev.anxiety} score={result.anxiety_score} />
+        <View className="mt-4 gap-3">
           <Indicator subscale="depression" severity={sev.depression} score={result.depression_score} />
+          <Indicator subscale="anxiety" severity={sev.anxiety} score={result.anxiety_score} />
+          <Indicator subscale="stress" severity={sev.stress} score={result.stress_score} />
         </View>
-        <Text className="mt-2 text-xs text-ink3 dark:text-ink3Dark">
-          Completed {formatDate(result.date)}. This is a screening tool, not a diagnosis. Results are private to you.
+        <Text className="mt-3 text-sm leading-5 text-ink2 dark:text-ink2Dark">
+          Completed {formatDate(result.date)}. Scores shown are each subscale’s raw total multiplied by 2. Severity bands are screening indicators, not a clinical diagnosis. Results are private to you.
         </Text>
         {pendingSync ? (
           <Text className="mt-1 text-xs text-ink3 dark:text-ink3Dark">

@@ -52,6 +52,7 @@ export default function DassStatusCard({ style }: { style?: object }) {
   const flowResult = useSessionFlowStore((s) =>
     s.dassDate === getLocalDateString() ? s.dassResult : null,
   );
+  const dassRevision = useSessionFlowStore((s) => s.dassRevision);
   const result = flowResult ?? fetched;
 
   const load = useCallback(async () => {
@@ -74,7 +75,7 @@ export default function DassStatusCard({ style }: { style?: object }) {
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, dassRevision]);
 
   const severities = result ? storedSeverities(result) : null;
   const blocked = severities ? isBlocked(severities) : false;

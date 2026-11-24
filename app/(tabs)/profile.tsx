@@ -508,8 +508,9 @@ export default function ProfileScreen() {
   const handleSettingPress = (label: string) => {
     if (label === "Sign Out") {
       setSignOutModalVisible(true);
+    } else if (label === "Privacy") {
+      router.push("/privacy");
     }
-    // Add other settings handlers here
   };
 
   const handleToggleChange = (label: string, value: boolean) => {

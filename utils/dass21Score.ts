@@ -15,6 +15,8 @@ export interface DassScores {
 }
 
 export interface DassResult {
+  /** Raw 0-21 sum for each seven-item subscale */
+  rawScores: DassScores;
   /** Already multiplied by 2 */
   scores: DassScores;
   severities: Record<DassSubscale, DassSeverity>;
@@ -55,6 +57,7 @@ export function scoreDass21(answers: readonly number[]): DassResult {
     stress: sums.stress * 2,
   };
   return {
+    rawScores: sums,
     scores,
     severities: {
       depression: getSeverity('depression', scores.depression),

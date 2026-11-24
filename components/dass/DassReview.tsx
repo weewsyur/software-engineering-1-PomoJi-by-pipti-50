@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { DASS21_ITEMS } from '@/constants/dass21';
+import { ANSWER_OPTIONS, DASS21_ITEMS } from '@/constants/dass21';
 
 interface Props {
   answers: (number | null)[];
@@ -23,7 +23,7 @@ export default function DassReview({ answers, submitting, error, onChange, onSub
         </Pressable>
       </View>
       <Text className="text-sm text-ink2 dark:text-ink2Dark">
-        0 = not at all · 1 = sometimes · 2 = often · 3 = most of the time. Tap a number to change it. You can only submit once today.
+        Review each response below. You can change any answer before submitting. You can only submit once today.
       </Text>
 
       <ScrollView className="mt-2 flex-1">
@@ -34,20 +34,23 @@ export default function DassReview({ answers, submitting, error, onChange, onSub
                 <Text className="text-sm leading-5 text-ink dark:text-inkDark">
                   {item.id}. {item.text}
                 </Text>
-                <View className="mt-2 flex-row gap-2">
-                  {[0, 1, 2, 3].map((v) => {
-                    const selected = answers[i] === v;
+                <View accessibilityRole="radiogroup" accessibilityLabel={`Response for question ${item.id}`} className="mt-2 gap-2">
+                  {ANSWER_OPTIONS.map((option) => {
+                    const selected = answers[i] === option.value;
                     return (
                       <Pressable
-                        key={v}
-                        onPress={() => onChange(i, v)}
-                        accessibilityRole="button"
+                        key={option.value}
+                        onPress={() => onChange(i, option.value)}
+                        accessibilityRole="radio"
+                        accessibilityLabel={option.label}
                         accessibilityState={{ selected }}
-                        className={`h-11 w-14 items-center justify-center rounded-lg border ${
-                          selected ? 'border-primary bg-primary' : 'border-line dark:border-lineDark bg-card dark:bg-cardDark'
+                        className={`min-h-[44px] flex-row items-center rounded-lg border px-3 py-2 ${
+                          selected ? 'border-primary bg-primaryMuted dark:bg-primaryMutedDark' : 'border-line dark:border-lineDark bg-card dark:bg-cardDark'
                         }`}
                       >
-                        <Text className={`text-base font-semibold ${selected ? 'text-white' : 'text-ink dark:text-inkDark'}`}>{v}</Text>
+                        <Text className={`flex-1 text-sm leading-5 ${selected ? 'font-semibold text-primary dark:text-primaryLightDark' : 'text-ink dark:text-inkDark'}`}>
+                          {option.label}
+                        </Text>
                       </Pressable>
                     );
                   })}

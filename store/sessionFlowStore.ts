@@ -14,6 +14,7 @@ interface SessionFlowState {
   dassStatus: DassStatus;
   dassDate: string | null; // local date the status was confirmed from the server
   dassResult: StoredDassResult | null;
+  dassRevision: number;
 
   beforeCheckDone: boolean;
   beforeMood: number | null;
@@ -21,6 +22,7 @@ interface SessionFlowState {
   causeCategory: CauseId | null;
 
   setDass: (status: DassStatus, result: StoredDassResult | null) => void;
+  clearDass: () => void;
   completeBeforeCheck: (p: { beforeMood: number; distractions: string[]; causeCategory: CauseId }) => void;
   /** Call after a session ends or is abandoned: next session needs a fresh mood check. */
   resetBeforeCheck: () => void;
@@ -38,10 +40,19 @@ export const useSessionFlowStore = create<SessionFlowState>((set) => ({
   dassStatus: 'unknown',
   dassDate: null,
   dassResult: null,
+  dassRevision: 0,
   ...emptyBefore,
 
   setDass: (status, result) =>
     set({ dassStatus: status, dassDate: status === 'unknown' ? null : getLocalDateString(), dassResult: result }),
+
+  clearDass: () =>
+    set((state) => ({
+      dassStatus: 'unknown',
+      dassDate: null,
+      dassResult: null,
+      dassRevision: state.dassRevision + 1,
+    })),
 
   completeBeforeCheck: ({ beforeMood, distractions, causeCategory }) =>
     set({ beforeCheckDone: true, beforeMood, distractions, causeCategory }),

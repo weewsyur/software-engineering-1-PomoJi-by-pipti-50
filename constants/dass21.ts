@@ -122,9 +122,9 @@ export const DASS_BLOCK_THRESHOLD: DassSeverity = 'severe';
 /** A support line is shown at or above this severity (independent of the gate). */
 export const DASS_SUPPORT_LINE_MIN_SEVERITY: DassSeverity = 'severe';
 
-/** Shown above the test. Frames the items academically WITHOUT changing item wording. */
-export const DASS_ACADEMIC_INSTRUCTION =
-  'Think about your studies and school life over the past week. For each statement, choose how much it applied to you because of your schoolwork, exams, or deadlines.';
+/** Standard timeframe instruction; keep the validated item context unchanged. */
+export const DASS_INSTRUCTION =
+  'For each statement, choose how much it applied to you over the past week.';
 
 /**
  * SUPPORT LINE CONFIG.

@@ -7,7 +7,7 @@
 @layer components {
   /* Primary filled button */
   .btn-primary {
-    background-color: #c94c3c;
+    background-color: #FF6B35;
     border-radius: 9999px;
     padding-top: 0.875rem;
     padding-bottom: 0.875rem;
@@ -18,7 +18,7 @@
 
   /* Outline / ghost button */
   .btn-outline {
-    border: 2px solid #c94c3c;
+    border: 2px solid #FF6B35;
     border-radius: 9999px;
     padding-top: 0.875rem;
     padding-bottom: 0.875rem;
@@ -50,7 +50,7 @@
 
   /* Uppercase field label */
   .input-label {
-    color: #c94c3c;
+    color: #FF6B35;
     font-size: 0.625rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -68,12 +68,12 @@
 @layer utilities {
   /* Text color shortcuts */
   .text-primary {
-    color: #c94c3c;
+    color: #FF6B35;
   }
 
   /* Background color shortcuts */
   .bg-primary {
-    background-color: #c94c3c;
+    background-color: #FF6B35;
   }
 
   .bg-beige {
@@ -82,6 +82,6 @@
 
   /* Border color */
   .border-primary {
-    border-color: #c94c3c;
+    border-color: #FF6B35;
   }
 }

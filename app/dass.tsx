@@ -1,14 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, BackHandler, Text, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-// ADAPT: import `auth` from your firebase.config.ts
-import { auth } from '@/firebase.config';
 import { DASS_ITEM_COUNT } from '@/constants/dass21';
 import { ROUTES } from '@/constants/sessionFlow';
 import {
   DassAlreadyTakenError,
   fetchTodayDass,
-  hasDassConsent,
+  formatDassError,
+  isDassNetworkError,
   saveDassConsent,
   storedSeverities,
   submitDassResult,
@@ -17,7 +16,6 @@ import {
 import {
   buildLocalResult,
   getLocalAssessment,
-  hasLocalConsent,
   markLocalConsent,
   saveLocalAssessment,
   syncPendingDass,
@@ -28,13 +26,12 @@ import { isBlocked } from '@/utils/dass21Score';
 import WarningModal from '@/components/WarningModal';
 import { Redirect } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
-import ConsentNotice from '@/components/dass/ConsentNotice';
 import DassIntro from '@/components/dass/DassIntro';
 import DassTest from '@/components/dass/DassTest';
 import DassReview from '@/components/dass/DassReview';
 import DassResultView from '@/components/dass/DassResultView';
 
-type Step = 'loading' | 'intro' | 'consent' | 'test' | 'review' | 'result';
+type Step = 'loading' | 'unavailable' | 'intro' | 'test' | 'review' | 'result';
 
 export default function DassScreen() {
   const router = useRouter();
@@ -42,59 +39,94 @@ export default function DassScreen() {
   const setDass = useSessionFlowStore((s) => s.setDass);
 
   const [step, setStep] = useState<Step>('loading');
-  // Partial answers live ONLY in this component's state: leaving the screen discards them.
   const [answers, setAnswers] = useState<(number | null)[]>(() => new Array(DASS_ITEM_COUNT).fill(null));
   const [stored, setStored] = useState<StoredDassResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingSync, setPendingSync] = useState(false);
   const [confirmExit, setConfirmExit] = useState(false);
+  const [consentGiven, setConsentGiven] = useState(false);
+  const [offlineMode, setOfflineMode] = useState(false);
+  const [availabilityAttempt, setAvailabilityAttempt] = useState(0);
 
   const showResult = useCallback(
-    (r: StoredDassResult, pending = false) => {
-      setStored(r);
+    (result: StoredDassResult, pending = false) => {
+      setStored(result);
       setPendingSync(pending);
-      setDass(isBlocked(storedSeverities(r)) ? 'blocked' : 'passed', r);
+      setDass(isBlocked(storedSeverities(result)) ? 'blocked' : 'passed', result);
       setStep('result');
     },
     [setDass],
   );
 
-  // On open: check the SERVER for today's result, but never let connectivity
-  // block the questionnaire — fall back to the on-device store when offline.
   useEffect(() => {
     if (initializing) return;
     let cancelled = false;
     (async () => {
-      const uid = auth.currentUser?.uid;
+      const uid = user?.uid;
       if (!uid) return router.replace(ROUTES.HOME);
-      void syncPendingDass(uid).catch(() => {}); // flush pending saves, best effort
-      const res = await fetchTodayDass(uid);
+
+      try {
+        await syncPendingDass(uid);
+      } catch (syncError) {
+        console.error('[dass] pending assessment sync failed:', syncError);
+      }
+
+      const lookup = await fetchTodayDass(uid);
       if (cancelled) return;
-      if (res.state === 'exists') return showResult(res.result);
-      if (res.state === 'unavailable') {
-        // Offline: a locally completed check for today wins; otherwise the
-        // survey itself runs fully offline (questions + scoring are local).
-        const local = await getLocalAssessment(uid, getLocalDateString());
-        if (cancelled) return;
-        if (local) return showResult(local, true);
-        const consented = await hasLocalConsent(uid);
-        if (!cancelled) setStep(consented ? 'test' : 'intro');
+      if (lookup.state === 'exists') {
+        showResult(lookup.result);
         return;
       }
-      // 'none': server reachable, no result today. Local consent covers users
-      // who consented while offline.
-      const consented = (await hasDassConsent(uid)) || (await hasLocalConsent(uid));
-      if (!cancelled) setStep(consented ? 'test' : 'intro');
-    })();
+
+      if (lookup.state === 'unavailable') {
+        if (!isDassNetworkError(lookup.error)) {
+          console.error('[dass] unable to verify assessment availability:', lookup.error);
+          setStep('unavailable');
+          return;
+        }
+        try {
+          const local = await getLocalAssessment(uid, getLocalDateString());
+          if (cancelled) return;
+          if (local) {
+            showResult(local, true);
+            return;
+          }
+          setOfflineMode(true);
+          setStep('intro');
+        } catch (localError) {
+          console.error('[dass] unable to load local assessment:', localError);
+          setStep('unavailable');
+        }
+        return;
+      }
+
+      try {
+        const local = await getLocalAssessment(uid, getLocalDateString());
+        if (cancelled) return;
+        if (local) {
+          showResult(local, true);
+          return;
+        }
+      } catch (localError) {
+        console.error('[dass] unable to load local assessment:', localError);
+        setStep('unavailable');
+        return;
+      }
+      setOfflineMode(false);
+      setStep('intro');
+    })().catch((availabilityError) => {
+      if (cancelled) return;
+      console.error('[dass] assessment availability check failed:', availabilityError);
+      setStep('unavailable');
+    });
     return () => {
       cancelled = true;
     };
-  }, [router, showResult, initializing]);
+  }, [router, showResult, initializing, user?.uid, availabilityAttempt]);
 
   const inProgress = step === 'test' || step === 'review';
 
-  // Android hardware back: ask before discarding answers.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (inProgress) {
@@ -107,58 +139,82 @@ export default function DassScreen() {
   }, [inProgress]);
 
   const leave = () => {
-    setAnswers(new Array(DASS_ITEM_COUNT).fill(null)); // discard partial answers
+    setAnswers(new Array(DASS_ITEM_COUNT).fill(null));
     setConfirmExit(false);
     router.replace(ROUTES.FOCUS);
   };
 
-  const setAnswer = (i: number, v: number) =>
-    setAnswers((prev) => {
-      const next = [...prev];
-      next[i] = v;
+  const setAnswer = (index: number, value: number) =>
+    setAnswers((previous) => {
+      const next = [...previous];
+      next[index] = value;
       return next;
     });
 
   const accept = async () => {
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
+    const uid = user?.uid;
+    if (!uid || !consentGiven || busy) return;
     setBusy(true);
     setError(null);
-    // Server consent is best-effort; the local flag covers offline consent and
-    // syncPendingDass() writes the server flag once connectivity returns.
     try {
-      await saveDassConsent(uid);
-    } catch {
-      // offline — continue anyway
+      if (offlineMode) {
+        await markLocalConsent(uid, true);
+      } else {
+        try {
+          await saveDassConsent(uid, true);
+        } catch (saveError) {
+          if (!isDassNetworkError(saveError)) throw saveError;
+          await markLocalConsent(uid, true);
+          setOfflineMode(true);
+        }
+      }
+      setStep('test');
+    } catch (saveError) {
+      console.error('[dass] unable to save consent:', saveError);
+      setError('We could not save your consent. Please try again when you are online.');
+    } finally {
+      setBusy(false);
     }
-    await markLocalConsent(uid);
-    setStep('test');
-    setBusy(false);
   };
 
   const submit = async () => {
-    const uid = auth.currentUser?.uid;
-    if (!uid || answers.some((a) => a === null)) return;
+    const uid = user?.uid;
+    if (!uid || !consentGiven || answers.some((answer) => answer === null) || busy) return;
     setBusy(true);
     setError(null);
+    const completeAnswers = answers.filter((answer): answer is number => answer !== null);
+    const assessmentDate = getLocalDateString();
+    const completedAt = new Date().toISOString();
     try {
-      const saved = await submitDassResult(uid, answers as number[]);
+      const saved = await submitDassResult(uid, completeAnswers, assessmentDate, completedAt);
       showResult(saved);
-      void syncPendingDass(uid).catch(() => {}); // flush any older pending saves
-    } catch (e) {
-      if (e instanceof DassAlreadyTakenError) {
-        const res = await fetchTodayDass(uid);
-        if (res.state === 'exists') {
-          showResult(res.result);
-          setBusy(false);
+      void syncPendingDass(uid).catch((syncError) => {
+        console.error('[dass] pending assessment sync failed:', syncError);
+      });
+    } catch (submitError) {
+      if (submitError instanceof DassAlreadyTakenError) {
+        const lookup = await fetchTodayDass(uid);
+        if (lookup.state === 'exists') {
+          showResult(lookup.result);
           return;
         }
+        setError('Today’s assessment could not be verified. Please retry while connected.');
+        return;
       }
-      // Offline / server unreachable: score locally, store on device, and mark
-      // pending — the result is real, just not yet confirmed by the server.
-      const local = buildLocalResult(uid, getLocalDateString(), answers as number[]);
-      await saveLocalAssessment(uid, local);
-      showResult(local, true);
+
+      if (isDassNetworkError(submitError)) {
+        try {
+          const local = buildLocalResult(uid, assessmentDate, completeAnswers, completedAt);
+          await saveLocalAssessment(uid, local);
+          showResult(local, true);
+        } catch (localError) {
+          console.error('[dass] unable to save offline assessment:', localError);
+          setError('We could not save this assessment on your device. Your answers are still available here; please retry.');
+        }
+      } else {
+        console.error('[dass] assessment submission failed:', submitError);
+        setError(`We could not submit your assessment. ${formatDassError(submitError)}`);
+      }
     } finally {
       setBusy(false);
     }
@@ -181,15 +237,30 @@ export default function DassScreen() {
         </View>
       )}
 
-      {step === 'intro' && (
-        <DassIntro onContinue={() => setStep('consent')} onDecline={() => router.replace(ROUTES.FOCUS)} />
+      {step === 'unavailable' && (
+        <View className="flex-1 items-center justify-center px-6">
+          <Text className="text-center text-base leading-6 text-ink2 dark:text-ink2Dark">
+            We could not verify whether an assessment is available right now. Please check your connection and account, then retry.
+          </Text>
+          <Pressable
+            onPress={() => setAvailabilityAttempt((attempt) => attempt + 1)}
+            accessibilityRole="button"
+            className="mt-4 min-h-[48px] items-center justify-center rounded-xl bg-primary px-6"
+          >
+            <Text className="font-semibold text-white">Retry</Text>
+          </Pressable>
+        </View>
       )}
 
-      {step === 'consent' && (
-        <>
-          <ConsentNotice busy={busy} onAccept={accept} onDecline={() => router.replace(ROUTES.FOCUS)} />
-          {error ? <Text className="px-6 pb-2 text-sm text-[#C94C3C]">{error}</Text> : null}
-        </>
+      {step === 'intro' && (
+        <DassIntro
+          busy={busy}
+          consentGiven={consentGiven}
+          error={error}
+          onConsentChange={setConsentGiven}
+          onContinue={accept}
+          onDecline={() => router.replace(ROUTES.FOCUS)}
+        />
       )}
 
       {step === 'test' && (
