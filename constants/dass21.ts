@@ -137,3 +137,32 @@ export const SUPPORT_LINE = {
   hours: '', // optional, e.g. "24/7"
   note: 'You can also talk to your school guidance counselor or someone you trust.',
 } as const;
+
+/**
+ * Copy for the Home "Daily readiness check" card. Keep all user-facing text
+ * here so tone stays gentle and consistent.
+ */
+export const DASS_STATUS_COPY = {
+  title: 'Daily readiness check',
+  loading: 'Loading…',
+  emptyTitle: 'Ready when you are',
+  emptyBody: 'Take the short DASS-21 check before your first focus session each day.',
+  emptyCta: 'Take readiness check',
+  blockedHeadline: 'A lighter day: rest first',
+  passedHeadline: "You're ready to focus",
+  blockedNote: 'Your check suggests taking it easy today. Sessions are paused until tomorrow’s check.',
+  passedNote: 'Today’s check is complete. This is a screening tool, not a diagnosis.',
+  pausePointLabel: 'pause point',
+  /** {threshold} is replaced with the gate severity label, e.g. "Severe". */
+  gateHint: 'Sessions pause when any area reaches {threshold} or above.',
+  scoreOutOf: '/ 42',
+  viewHistory: 'View history',
+  /** Short labels for the 5-step axis (avoids "Extremely Severe" wrapping). */
+  axisLabels: {
+    normal: 'Normal',
+    mild: 'Mild',
+    moderate: 'Moderate',
+    severe: 'Severe',
+    extremely_severe: 'Extreme',
+  } as Record<DassSeverity, string>,
+} as const;

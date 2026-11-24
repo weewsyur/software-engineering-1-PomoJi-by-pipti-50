@@ -5,6 +5,21 @@ module.exports = {
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
+      fontFamily: {
+        // Body: Figtree. `medium`/`semibold`/`bold` intentionally share names
+        // with Tailwind's weight utilities so font-medium etc. resolve to the
+        // correct per-weight family on native (fontWeight alone is ignored
+        // there) while staying correct on web.
+        sans: ["Figtree_400Regular", "sans-serif"],
+        medium: ["Figtree_500Medium", "sans-serif"],
+        semibold: ["Figtree_600SemiBold", "sans-serif"],
+        bold: ["Figtree_600SemiBold", "sans-serif"],
+        extrabold: ["Figtree_600SemiBold", "sans-serif"],
+        black: ["Figtree_600SemiBold", "sans-serif"],
+        // Display: Bricolage Grotesque — headings, card headlines, big numbers.
+        display: ["BricolageGrotesque_700Bold", "sans-serif"],
+        "display-semibold": ["BricolageGrotesque_600SemiBold", "sans-serif"],
+      },
       colors: {
         // Mirrors constants/colors.ts — keep in sync.
         primary: "#FF6B35",

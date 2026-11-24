@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: "500", fontFamily: "Figtree_500Medium",
     color: "#4b5563",
   },
 });

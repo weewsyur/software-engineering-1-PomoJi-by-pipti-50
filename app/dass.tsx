@@ -248,7 +248,7 @@ export default function DassScreen() {
 
       {step === 'unavailable' && (
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-center text-base leading-6 text-ink2 dark:text-ink2Dark">
+          <Text className="font-sans text-center text-base leading-6 text-ink2 dark:text-ink2Dark">
             We could not verify whether an assessment is available right now. Please check your connection and account, then retry.
           </Text>
           <Pressable

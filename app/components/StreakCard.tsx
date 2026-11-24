@@ -170,7 +170,7 @@ export const StreakCard = memo<StreakCardProps>(
                         { color: colors.textMuted },
                         isActive && {
                           color: colors.primary,
-                          fontWeight: "700",
+                          fontWeight: "700", fontFamily: "Figtree_600SemiBold",
                         },
                       ])}
                     >
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
     marginBottom: 14,
     letterSpacing: 0.1,
   },
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: "500", fontFamily: "Figtree_500Medium",
   },
   errorContainer: {
     paddingVertical: 12,
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: "500", fontFamily: "Figtree_500Medium",
   },
   body: {
     flexDirection: "row",
@@ -274,12 +274,12 @@ const styles = StyleSheet.create({
   },
   flameCount: {
     color: Colors.surface,
-    fontWeight: "800",
+    fontWeight: "800", fontFamily: "BricolageGrotesque_700Bold",
     fontSize: 16,
   },
   streakUnit: {
     fontSize: 11,
-    fontWeight: "500",
+    fontWeight: "500", fontFamily: "Figtree_500Medium",
   },
   daysRow: {
     flex: 1,
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   },
   dayLabel: {
     fontSize: 11,
-    fontWeight: "500",
+    fontWeight: "500", fontFamily: "Figtree_500Medium",
   },
   dayCircle: {
     width: 26,
@@ -303,6 +303,6 @@ const styles = StyleSheet.create({
   },
   dayNumber: {
     fontSize: 11,
-    fontWeight: "600",
+    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
   },
 });

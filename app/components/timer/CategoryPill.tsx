@@ -50,5 +50,5 @@ const pillStyles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   dot: { width: 6, height: 6, borderRadius: 3 },
-  label: { fontSize: 10, fontWeight: "600" },
+  label: { fontSize: 10, fontWeight: "600", fontFamily: "Figtree_600SemiBold" },
 });

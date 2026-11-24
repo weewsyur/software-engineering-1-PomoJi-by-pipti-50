@@ -32,10 +32,10 @@ function Indicator({ subscale, severity, score }: { subscale: DassSubscale; seve
     <View className="rounded-2xl border border-line bg-card p-4 dark:border-lineDark dark:bg-cardDark">
       <View className="flex-row items-center justify-between">
         <Text className="text-lg font-semibold text-ink dark:text-inkDark">{SUBSCALE_LABELS[subscale]}</Text>
-        <Text className="text-base font-bold text-ink dark:text-inkDark">{score}</Text>
+        <Text className="text-base font-bold text-ink dark:text-inkDark" style={{ fontVariant: ['tabular-nums'] }}>{score}</Text>
       </View>
       <View className="mt-2 flex-row items-center justify-between">
-        <Text className="text-xs text-ink3 dark:text-ink3Dark">Score</Text>
+        <Text className="font-sans text-xs text-ink3 dark:text-ink3Dark">Score</Text>
         <View className={`rounded-full px-3 py-1 ${st.pill}`}>
           <Text className={`text-sm font-semibold ${st.text}`}>{SEVERITY_LABELS[severity]}</Text>
         </View>
@@ -92,7 +92,7 @@ export default function DassResultView({ result, blocked, pendingSync, onContinu
   return (
     <View className="flex-1 px-6 py-3">
       <ScrollView className="flex-1">
-        <Text className="text-xl font-bold text-ink dark:text-inkDark">
+        <Text className="text-xl font-display font-bold text-ink dark:text-inkDark">
           {blocked ? 'Let’s pause the focus session for now' : 'You’re ready to focus'}
         </Text>
 
@@ -101,18 +101,18 @@ export default function DassResultView({ result, blocked, pendingSync, onContinu
           <Indicator subscale="anxiety" severity={sev.anxiety} score={result.anxiety_score} />
           <Indicator subscale="stress" severity={sev.stress} score={result.stress_score} />
         </View>
-        <Text className="mt-3 text-sm leading-5 text-ink2 dark:text-ink2Dark">
+        <Text className="font-sans mt-3 text-sm leading-5 text-ink2 dark:text-ink2Dark">
           Completed {formatDate(result.date)}. Scores shown are each subscale’s raw total multiplied by 2. Severity bands are screening indicators, not a clinical diagnosis. Results are private to you.
         </Text>
         {pendingSync ? (
-          <Text className="mt-1 text-xs text-ink3 dark:text-ink3Dark">
+          <Text className="font-sans mt-1 text-xs text-ink3 dark:text-ink3Dark">
             Saved on this device — it will sync to your account when you’re back online.
           </Text>
         ) : null}
 
         <View className="mt-3 gap-1">
           {(Object.keys(SUBSCALE_NOTES) as DassSubscale[]).map((key) => (
-            <Text key={key} className="text-sm leading-5 text-ink2 dark:text-ink2Dark">
+            <Text key={key} className="font-sans text-sm leading-5 text-ink2 dark:text-ink2Dark">
               <Text className="font-semibold text-ink dark:text-inkDark">{SUBSCALE_LABELS[key]}: </Text>
               {SUBSCALE_NOTES[key]}
             </Text>
@@ -125,7 +125,7 @@ export default function DassResultView({ result, blocked, pendingSync, onContinu
             {WELLNESS_TIPS.map(({ icon: Icon, label }) => (
               <View key={label} className="flex-row items-center gap-2">
                 <Icon size={18} color={colors.primary} />
-                <Text className="flex-1 text-sm leading-5 text-ink2 dark:text-ink2Dark">{label}</Text>
+                <Text className="font-sans flex-1 text-sm leading-5 text-ink2 dark:text-ink2Dark">{label}</Text>
               </View>
             ))}
           </View>
@@ -133,7 +133,7 @@ export default function DassResultView({ result, blocked, pendingSync, onContinu
 
         {depressionHigh ? (
           <View className="mt-3 rounded-xl bg-primaryMuted dark:bg-primaryMutedDark p-3">
-            <Text className="text-base leading-6 text-primary dark:text-primaryLightDark">
+            <Text className="font-sans text-base leading-6 text-primary dark:text-primaryLightDark">
               Feeling this low can be heavy. Please consider talking to a guidance counselor or someone you trust. You don’t have to handle it alone.
             </Text>
           </View>
@@ -143,12 +143,12 @@ export default function DassResultView({ result, blocked, pendingSync, onContinu
           <View className="mt-3 rounded-xl border border-line dark:border-lineDark p-3">
             <Text className="text-base font-semibold text-ink dark:text-inkDark">Need someone to talk to?</Text>
             {SUPPORT_LINE.phone ? (
-              <Text className="mt-1 text-base text-ink dark:text-inkDark">
+              <Text className="font-sans mt-1 text-base text-ink dark:text-inkDark">
                 {SUPPORT_LINE.name}: {SUPPORT_LINE.phone}
                 {SUPPORT_LINE.hours ? ` (${SUPPORT_LINE.hours})` : ''}
               </Text>
             ) : null}
-            <Text className="mt-1 text-sm leading-5 text-ink2 dark:text-ink2Dark">{SUPPORT_LINE.note}</Text>
+            <Text className="font-sans mt-1 text-sm leading-5 text-ink2 dark:text-ink2Dark">{SUPPORT_LINE.note}</Text>
           </View>
         ) : null}
 

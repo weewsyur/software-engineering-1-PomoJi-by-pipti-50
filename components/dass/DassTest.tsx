@@ -35,12 +35,12 @@ export default function DassTest({ answers, onChange, onFinish, onExit }: Props)
   return (
     <View className="flex-1 px-5 pb-4 pt-3">
       <View className="flex-row items-center justify-between">
-        <Text className="text-lg font-bold text-ink dark:text-inkDark">DASS-21</Text>
+        <Text className="text-lg font-display font-bold text-ink dark:text-inkDark">DASS-21</Text>
         <Pressable onPress={onExit} accessibilityRole="button" className="min-h-[44px] justify-center px-2">
           <Text className="text-base font-semibold text-ink2 dark:text-ink2Dark">Exit</Text>
         </Pressable>
       </View>
-      <Text className="mt-1 text-sm leading-5 text-ink2 dark:text-ink2Dark">{DASS_INSTRUCTION}</Text>
+      <Text className="font-sans mt-1 text-sm leading-5 text-ink2 dark:text-ink2Dark">{DASS_INSTRUCTION}</Text>
 
       <View className="mt-4 flex-row items-center justify-between">
         <Text className="text-sm font-semibold text-ink dark:text-inkDark">Question {index + 1} of {DASS_ITEM_COUNT}</Text>

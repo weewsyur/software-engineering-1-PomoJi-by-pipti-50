@@ -38,7 +38,7 @@ export const WebPullToRefreshIndicator: FC<
             style={[
               styles.text,
               isReady
-                ? { color, fontWeight: "600" }
+                ? { color, fontWeight: "600", fontFamily: "Figtree_600SemiBold" }
                 : { color: "#888" },
             ]}
           >
@@ -64,6 +64,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   text: {
+    fontFamily: "Figtree_400Regular",
     fontSize: 13,
     marginLeft: 6,
   },

@@ -31,7 +31,7 @@ export default function DateTimePickerWeb({
       type={inputType}
       value={formatted}
       onChange={handleChange}
-      style={Object.assign({ fontSize: 14 }, style as any)}
+      style={Object.assign({ fontFamily: "Figtree_400Regular", fontSize: 14 }, style as any)}
     />
   );
 }

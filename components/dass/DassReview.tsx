@@ -19,12 +19,12 @@ export default function DassReview({ answers, submitting, error, errorRetryable 
   return (
     <View className="flex-1 px-6 py-3">
       <View className="flex-row items-center justify-between">
-        <Text className="text-xl font-bold text-ink dark:text-inkDark">Check your answers</Text>
+        <Text className="text-xl font-display font-bold text-ink dark:text-inkDark">Check your answers</Text>
         <Pressable onPress={onExit} accessibilityRole="button" className="min-h-[44px] justify-center px-3">
           <Text className="text-base font-semibold text-ink2 dark:text-ink2Dark">Exit</Text>
         </Pressable>
       </View>
-      <Text className="text-sm text-ink2 dark:text-ink2Dark">
+      <Text className="font-sans text-sm text-ink2 dark:text-ink2Dark">
         Review each response below. You can change any answer before submitting. You can only submit once today.
       </Text>
 
@@ -33,7 +33,7 @@ export default function DassReview({ answers, submitting, error, errorRetryable 
           {DASS21_ITEMS.map((item, i) => (
             <View key={item.id} className="w-full p-1 md:w-1/2">
               <View className="rounded-xl bg-warm dark:bg-warmDark p-2">
-                <Text className="text-sm leading-5 text-ink dark:text-inkDark">
+                <Text className="font-sans text-sm leading-5 text-ink dark:text-inkDark">
                   {item.id}. {item.text}
                 </Text>
                 <View accessibilityRole="radiogroup" accessibilityLabel={`Response for question ${item.id}`} className="mt-2 gap-2">
@@ -65,7 +65,7 @@ export default function DassReview({ answers, submitting, error, errorRetryable 
 
       {error ? (
         <View className="mt-2">
-          <Text className="text-sm text-[#C94C3C]">{error}</Text>
+          <Text className="font-sans text-sm text-[#C94C3C]">{error}</Text>
           {errorRetryable && onRetryError ? (
             <Pressable
               onPress={onRetryError}

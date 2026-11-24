@@ -227,21 +227,21 @@ export default function PrivacyScreen() {
           <ChevronLeft size={22} />
           <Text className="text-base font-semibold text-ink dark:text-inkDark">Back</Text>
         </Pressable>
-        <Text className="flex-1 text-center text-lg font-bold text-ink dark:text-inkDark">Privacy</Text>
+        <Text className="flex-1 text-center text-lg font-display font-bold text-ink dark:text-inkDark">Privacy</Text>
         <View className="w-16" />
       </View>
 
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
-        <Text className="text-sm leading-5 text-ink2 dark:text-ink2Dark">
+        <Text className="font-sans text-sm leading-5 text-ink2 dark:text-ink2Dark">
           Control your DASS-21 participation and the assessment data saved to your account.
         </Text>
 
         <View className="mt-4 rounded-2xl border border-line bg-card p-4 dark:border-lineDark dark:bg-cardDark">
           <Text className="text-base font-bold text-ink dark:text-inkDark">Assessment data</Text>
-          <Text className="mt-2 text-sm leading-5 text-ink2 dark:text-ink2Dark">
+          <Text className="font-sans mt-2 text-sm leading-5 text-ink2 dark:text-ink2Dark">
             New assessments store your 21 numeric responses, raw and doubled Depression, Anxiety, and Stress scores, severity labels, assessment version, consent, and completion time in your private Firestore account. Older records may not include raw scores or an exact completion time. If completed offline, new records are stored on this device until they can sync.
           </Text>
-          <Text className="mt-2 text-sm leading-5 text-ink2 dark:text-ink2Dark">
+          <Text className="font-sans mt-2 text-sm leading-5 text-ink2 dark:text-ink2Dark">
             Security rules restrict these records to your signed-in account. Assessment history is not included in public profiles.
           </Text>
         </View>
@@ -251,7 +251,7 @@ export default function PrivacyScreen() {
           {loading ? (
             <ActivityIndicator className="mt-3 self-start" />
           ) : (
-            <Text className="mt-2 text-sm text-ink2 dark:text-ink2Dark">
+            <Text className="font-sans mt-2 text-sm text-ink2 dark:text-ink2Dark">
               {consent === null
                 ? 'No active consent is recorded, or the status could not be verified.'
                 : `${consent ? 'Consent is active' : 'No active consent'}${                consentSource === 'device' ? ' on this device' : ' for your account'}.`}
@@ -270,11 +270,11 @@ export default function PrivacyScreen() {
               </Text>
             </Pressable>
           ) : (
-            <Text className="mt-3 text-sm text-ink3 dark:text-ink3Dark">
+            <Text className="font-sans mt-3 text-sm text-ink3 dark:text-ink3Dark">
               You can choose to participate and grant consent before starting a future assessment.
             </Text>
           )}
-          <Text className="mt-2 text-xs leading-5 text-ink3 dark:text-ink3Dark">
+          <Text className="font-sans mt-2 text-xs leading-5 text-ink3 dark:text-ink3Dark">
             Withdrawing consent stops future participation; it does not delete existing results.
           </Text>
         </View>
@@ -306,14 +306,14 @@ export default function PrivacyScreen() {
           >
             <Text className="font-semibold text-red-700 dark:text-red-300">Delete all assessment records</Text>
           </Pressable>
-          <Text className="mt-2 text-xs leading-5 text-ink3 dark:text-ink3Dark">
+          <Text className="font-sans mt-2 text-xs leading-5 text-ink3 dark:text-ink3Dark">
             Export includes account history and unsynced on-device records and requires a connection. Deleting account history also requires a connection.
           </Text>
         </View>
 
         {dassError.message ? (
           <View className="mt-3">
-            <Text accessibilityRole="alert" className="text-sm leading-5 text-[#C94C3C]">{dassError.message}</Text>
+            <Text accessibilityRole="alert" className="font-sans text-sm leading-5 text-[#C94C3C]">{dassError.message}</Text>
             {dassError.retryable ? (
               <Pressable
                 onPress={() => retryAction.current?.()}
@@ -327,7 +327,7 @@ export default function PrivacyScreen() {
             ) : null}
           </View>
         ) : null}
-        {notice ? <Text accessibilityLiveRegion="polite" className="mt-3 text-sm leading-5 text-primary">{notice}</Text> : null}
+        {notice ? <Text accessibilityLiveRegion="polite" className="font-sans mt-3 text-sm leading-5 text-primary">{notice}</Text> : null}
       </ScrollView>
 
       <Modal
@@ -343,7 +343,7 @@ export default function PrivacyScreen() {
             <Text className="text-lg font-bold text-ink dark:text-inkDark">
               {confirmAction === 'delete' ? 'Delete all assessment records?' : 'Withdraw DASS-21 consent?'}
             </Text>
-            <Text className="mt-2 text-sm leading-5 text-ink2 dark:text-ink2Dark">
+            <Text className="font-sans mt-2 text-sm leading-5 text-ink2 dark:text-ink2Dark">
               {confirmAction === 'delete'
                 ? 'This permanently removes all of your DASS-21 history from your account and this device. This cannot be undone.'
                 : 'You will no longer be able to start an assessment until you consent again. Your existing results will remain.'}

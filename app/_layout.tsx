@@ -3,9 +3,18 @@ import { Stack } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { useEffect, useState } from "react";
-import { Image, Platform, StyleSheet, Text, View } from "react-native";
-import * as Font from "expo-font";
+import { Image, Platform, StyleSheet, Text, TextInput, View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
+import {
+  BricolageGrotesque_600SemiBold,
+  BricolageGrotesque_700Bold,
+} from "@expo-google-fonts/bricolage-grotesque";
+import {
+  Figtree_400Regular,
+  Figtree_500Medium,
+  Figtree_600SemiBold,
+} from "@expo-google-fonts/figtree";
+import { useFonts } from "expo-font";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { SyncingIndicator } from "@/components/SyncingIndicator";
@@ -103,66 +112,76 @@ function registerServiceWorker() {
   }
 }
 
+const FONT_FALLBACK_MS = 3000;
+
 export default function RootLayout() {
-  const [localFontsLoaded, setLocalFontsLoaded] = useState(false);
+  const [fontsLoaded, fontError] = useFonts({
+    BricolageGrotesque_600SemiBold,
+    BricolageGrotesque_700Bold,
+    Figtree_400Regular,
+    Figtree_500Medium,
+    Figtree_600SemiBold,
+  });
+  // Never block the app forever: fall back to system fonts on error or timeout.
+  const [fontTimedOut, setFontTimedOut] = useState(false);
+  const fontsReady = fontsLoaded || fontError != null || fontTimedOut;
 
   useEffect(() => {
     registerServiceWorker();
   }, []);
 
-  // Try to load local font files (if you've placed them in assets/fonts/)
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        await Font.loadAsync({
-          "OpenSans-Regular": require("../assets/fonts/OpenSans-Regular.ttf"),
-          "OpenSans-SemiBold": require("../assets/fonts/OpenSans-SemiBold.ttf"),
-          "OpenSans-Bold": require("../assets/fonts/OpenSans-Bold.ttf"),
-        });
-        if (mounted) setLocalFontsLoaded(true);
-      } catch (e) {
-        // If local fonts aren't present, fall back to system fonts
-        const errorMessage = e instanceof Error ? e.message : String(e);
-        console.warn(
-          "Local Open Sans fonts not found or failed to load. Using system fonts.",
-          errorMessage,
-        );
-        if (mounted) setLocalFontsLoaded(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    if (fontsLoaded || fontError != null) return;
+    const timer = setTimeout(() => setFontTimedOut(true), FONT_FALLBACK_MS);
+    return () => clearTimeout(timer);
+  }, [fontsLoaded, fontError]);
 
-  // Apply a global default Text style to use Open Sans when fonts are loaded.
+  // Apply a global default Text style to use Figtree when fonts are ready.
   useEffect(() => {
-    if (localFontsLoaded) {
+    if (!fontsReady) return;
+    try {
+      // Ensure defaultProps exists
+      const textComponent = Text as any;
+      textComponent.defaultProps = textComponent.defaultProps || {};
+      // Prefer the bundled font family names; harmless if fonts failed to load.
+      textComponent.defaultProps.style = {
+        ...(textComponent.defaultProps.style || {}),
+        fontFamily: "Figtree_400Regular",
+      };
+      const inputComponent = TextInput as any;
+      inputComponent.defaultProps = inputComponent.defaultProps || {};
+      inputComponent.defaultProps.style = {
+        ...(inputComponent.defaultProps.style || {}),
+        fontFamily: "Figtree_400Regular",
+      };
+    } catch {
+      // Silently fail if can't set Text defaults
+    }
+
+    // Also set a web body font-family for web platform to use the Figtree face
+    if (typeof document !== "undefined" && Platform.OS === "web") {
       try {
-        // Ensure defaultProps exists
-        const textComponent = Text as any;
-        textComponent.defaultProps = textComponent.defaultProps || {};
-        // Prefer local font family names if available
-        textComponent.defaultProps.style = {
-          ...(textComponent.defaultProps.style || {}),
-          fontFamily: "OpenSans-Regular",
-        };
+        document.body.style.fontFamily =
+          "'Figtree_400Regular', 'Figtree', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial";
       } catch {
-        // Silently fail if can't set Text defaults
-      }
-
-      // Also set a web body font-family for web platform to use the Open Sans face
-      if (typeof document !== "undefined" && Platform.OS === "web") {
-        try {
-          document.body.style.fontFamily =
-            "'Open Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial";
-        } catch {
-          /* ignore */
-        }
+        /* ignore */
       }
     }
-  }, [localFontsLoaded]);
+  }, [fontsReady]);
+
+  // Hold the splash until fonts settle so the first paint uses the right family.
+  if (!fontsReady) {
+    return (
+      <View style={styles.startupSplash}>
+        <Image
+          source={require("../assets/images/POMOJI.png")}
+          style={styles.logo}
+          resizeMode="contain"
+          accessibilityLabel="PomoJI"
+        />
+      </View>
+    );
+  }
 
   return (
     <ThemeProvider>

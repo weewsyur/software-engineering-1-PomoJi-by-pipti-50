@@ -77,11 +77,11 @@ export default function MoodCheckInModal({
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 20 },
   card: { borderRadius: 24, padding: 20 },
-  title: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
-  subtitle: { fontSize: 14, textAlign: 'center', marginTop: 4, marginBottom: 18 },
-  status: { marginTop: 14, textAlign: 'center' },
-  error: { color: '#C8402F', fontSize: 13 },
+  title: { fontSize: 20, fontWeight: '700', fontFamily: "BricolageGrotesque_700Bold", textAlign: 'center' },
+  subtitle: { fontFamily: "Figtree_400Regular", fontSize: 14, textAlign: 'center', marginTop: 4, marginBottom: 18 },
+  status: { marginTop: 14, textAlign: 'center', fontFamily: 'Figtree_400Regular' },
+  error: { color: '#C8402F', fontFamily: "Figtree_400Regular", fontSize: 13 },
   skip: { marginTop: 12, alignItems: 'center', justifyContent: 'center', minHeight: 44 },
-  skipText: { fontSize: 14, fontWeight: '600' },
+  skipText: { fontSize: 14, fontWeight: '600', fontFamily: "Figtree_600SemiBold" },
   skipDisabled: { opacity: 0.4 },
 });

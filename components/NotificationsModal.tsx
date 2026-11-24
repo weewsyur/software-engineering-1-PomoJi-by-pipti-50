@@ -197,7 +197,11 @@ const NotificationRow = ({
           <Text
             style={[
               styles.rowTitle,
-              { color: colors.text, fontWeight: unread ? "700" : "500" },
+              {
+                color: colors.text,
+                fontWeight: unread ? "700" : "500",
+                fontFamily: unread ? "Figtree_600SemiBold" : "Figtree_500Medium",
+              },
             ]}
             numberOfLines={2}
           >
@@ -217,6 +221,7 @@ const NotificationRow = ({
               {
                 color: unread ? colors.primary : colors.textMuted,
                 fontWeight: unread ? "700" : "500",
+                fontFamily: unread ? "Figtree_600SemiBold" : "Figtree_500Medium",
               },
             ]}
           >
@@ -416,8 +421,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  title: { flex: 1, fontSize: 22, fontWeight: "800", letterSpacing: -0.4 },
-  markAllText: { fontSize: 13, fontWeight: "700" },
+  title: { flex: 1, fontSize: 22, fontWeight: "800", fontFamily: "BricolageGrotesque_700Bold", letterSpacing: -0.4 },
+  markAllText: { fontSize: 13, fontWeight: "700", fontFamily: "Figtree_600SemiBold" },
   markAllSpacer: { width: 1 },
   tabs: {
     flexDirection: "row",
@@ -426,11 +431,11 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   tab: { borderRadius: 18, paddingHorizontal: 16, paddingVertical: 8 },
-  tabText: { fontSize: 13, fontWeight: "700" },
+  tabText: { fontSize: 13, fontWeight: "700", fontFamily: "Figtree_600SemiBold" },
   list: { paddingBottom: 24, flexGrow: 1 },
   sectionLabel: {
     fontSize: 17,
-    fontWeight: "800",
+    fontWeight: "800", fontFamily: "Figtree_600SemiBold",
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 6,
@@ -449,7 +454,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: { fontSize: 17, fontWeight: "800" },
+  avatarText: { fontSize: 17, fontWeight: "800", fontFamily: "Figtree_600SemiBold" },
   typeBadge: {
     position: "absolute",
     right: -2,
@@ -462,10 +467,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   rowContent: { flex: 1, gap: 2 },
-  rowTitle: { fontSize: 14, lineHeight: 19 },
-  rowPreview: { fontSize: 12, fontWeight: "500" },
-  rowTime: { fontSize: 12, marginTop: 2 },
+  rowTitle: { fontFamily: "Figtree_400Regular", fontSize: 14, lineHeight: 19 },
+  rowPreview: { fontSize: 12, fontWeight: "500", fontFamily: "Figtree_500Medium" },
+  rowTime: { fontFamily: "Figtree_400Regular", fontSize: 12, marginTop: 2 },
   unreadDot: { width: 10, height: 10, borderRadius: 5 },
   centered: { paddingVertical: 60, alignItems: "center", gap: 10 },
-  emptyText: { fontSize: 14, fontWeight: "500" },
+  emptyText: { fontSize: 14, fontWeight: "500", fontFamily: "Figtree_500Medium" },
 });

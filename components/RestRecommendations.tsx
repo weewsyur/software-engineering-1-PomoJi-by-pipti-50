@@ -23,7 +23,7 @@ export default function RestRecommendations({ variant }: Props) {
   const colors = useColors(isDarkMode);
   return (
     <View>
-      <Text className="text-base leading-6 text-ink2 dark:text-ink2Dark">
+      <Text className="font-sans text-base leading-6 text-ink2 dark:text-ink2Dark">
         {variant === 'dass'
           ? 'The focus technique works poorly when emotions are running high. Take a break first, then come back and try again tomorrow.'
           : 'Feeling low right now? The focus technique works best when you feel settled. Take a cool-down, then come back to review.'}
@@ -35,11 +35,11 @@ export default function RestRecommendations({ variant }: Props) {
               <Icon size={18} color={colors.primary} />
               <Text className="flex-1 text-base font-semibold text-ink dark:text-inkDark">{title}</Text>
             </View>
-            <Text className="mt-1 text-sm leading-5 text-ink2 dark:text-ink2Dark">{body}</Text>
+            <Text className="font-sans mt-1 text-sm leading-5 text-ink2 dark:text-ink2Dark">{body}</Text>
           </View>
         ))}
       </View>
-      <Text className="mt-3 text-sm leading-5 text-ink3 dark:text-ink3Dark">
+      <Text className="font-sans mt-3 text-sm leading-5 text-ink3 dark:text-ink3Dark">
         If the timer doesn’t seem to help, check these first. Sleep, food, and mood affect focus more than any technique.
       </Text>
     </View>

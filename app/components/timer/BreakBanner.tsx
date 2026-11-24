@@ -32,6 +32,6 @@ const bannerStyles = StyleSheet.create({
     paddingVertical: 8,
     gap: 8,
   },
-  text: { flex: 1, fontSize: 12, color: "#856404", fontWeight: "500" },
-  skip: { fontSize: 12, fontWeight: "700", color: "#C94C3C" },
+  text: { flex: 1, fontSize: 12, color: "#856404", fontWeight: "500", fontFamily: "Figtree_500Medium" },
+  skip: { fontSize: 12, fontWeight: "700", fontFamily: "Figtree_600SemiBold", color: "#C94C3C" },
 });

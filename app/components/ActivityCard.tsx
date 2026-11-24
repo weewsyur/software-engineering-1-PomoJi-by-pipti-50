@@ -85,18 +85,19 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '700', fontFamily: "Figtree_600SemiBold",
     color: Colors.text,
     letterSpacing: 0.1,
   },
   timestamp: {
+    fontFamily: "Figtree_400Regular",
     fontSize: 11,
     color: Colors.textMuted,
     marginTop: 1,
   },
   title: {
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '800', fontFamily: "Figtree_600SemiBold",
     color: Colors.text,
     letterSpacing: 0.3,
     marginBottom: 12,
@@ -117,11 +118,11 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 11,
     color: Colors.textMuted,
-    fontWeight: '500',
+    fontWeight: '500', fontFamily: "Figtree_500Medium",
   },
   statValue: {
     fontSize: 20,
-    fontWeight: '800',
+    fontWeight: '800', fontFamily: "BricolageGrotesque_700Bold",
     color: Colors.text,
     letterSpacing: -0.5,
   },

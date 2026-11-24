@@ -65,7 +65,7 @@ export const Avatar = memo<AvatarProps>(({
           resizeMode="cover"
         />
       ) : (
-        <Text style={StyleSheet.flatten([styles.text, { fontSize, color: textColor }])}>
+        <Text style={StyleSheet.flatten([styles.text, { fontFamily: "Figtree_400Regular", fontSize, color: textColor }])}>
           {initials}
         </Text>
       )}
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   text: {
-    fontWeight: '700',
+    fontWeight: '700', fontFamily: "Figtree_600SemiBold",
     letterSpacing: 0.5,
   },
 });

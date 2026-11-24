@@ -77,7 +77,7 @@ export default function BeforeSessionScreen() {
   return (
     <View className="flex-1 bg-canvas dark:bg-canvasDark">
       <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 16 }}>
-        <Text className="text-2xl font-bold text-ink dark:text-inkDark">Quick check before you focus</Text>
+        <Text className="text-2xl font-display font-bold text-ink dark:text-inkDark">Quick check before you focus</Text>
 
         <Text className="mt-4 text-base font-semibold text-ink dark:text-inkDark">How are you feeling right now?</Text>
         <View className="mt-2">

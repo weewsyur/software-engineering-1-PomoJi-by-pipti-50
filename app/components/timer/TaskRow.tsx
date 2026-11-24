@@ -174,10 +174,10 @@ const taskRowStyles = StyleSheet.create({
   },
   check: { padding: 2 },
   body: { flex: 1, gap: 4 },
-  title: { fontSize: 14, fontWeight: "600", color: "#1A0808" },
+  title: { fontSize: 14, fontWeight: "600", fontFamily: "Figtree_600SemiBold", color: "#1A0808" },
   done: { textDecorationLine: "line-through", color: "#9A7070" },
   meta: { flexDirection: "row", alignItems: "center", gap: 8 },
-  due: { fontSize: 10, color: "#9A7070" },
+  due: { fontFamily: "Figtree_400Regular", fontSize: 10, color: "#9A7070" },
   icon: { padding: 4 },
 });
 
@@ -205,13 +205,14 @@ const modalStyles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
     color: "#1A0808",
   },
   closeBtn: {
     padding: 4,
   },
   message: {
+    fontFamily: "Figtree_400Regular",
     fontSize: 14,
     color: "#1A0808",
     lineHeight: 20,
@@ -231,7 +232,7 @@ const modalStyles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
     color: "#9A7070",
   },
   deleteButton: {
@@ -244,7 +245,7 @@ const modalStyles = StyleSheet.create({
   },
   deleteButtonText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
     color: "#FFFFFF",
   },
 });

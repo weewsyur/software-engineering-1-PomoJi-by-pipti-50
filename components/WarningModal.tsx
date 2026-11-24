@@ -26,8 +26,8 @@ export default function WarningModal({
       <View className="flex-1 items-center justify-center bg-black/50 px-6">
         <View className="w-full max-w-[560px] max-h-[92%] rounded-2xl border border-line bg-card p-5 dark:border-lineDark dark:bg-cardDark">
           <ScrollView>
-            <Text className="text-xl font-bold text-ink dark:text-inkDark">{title}</Text>
-            {message ? <Text className="mt-2 text-base leading-6 text-ink2 dark:text-ink2Dark">{message}</Text> : null}
+            <Text className="text-xl font-display font-bold text-ink dark:text-inkDark">{title}</Text>
+            {message ? <Text className="font-sans mt-2 text-base leading-6 text-ink2 dark:text-ink2Dark">{message}</Text> : null}
             {children ? <View className="mt-3">{children}</View> : null}
           </ScrollView>
           <View className={`mt-4 flex-row gap-3 ${secondaryLabel && onSecondary ? 'justify-end' : 'justify-center'}`}>

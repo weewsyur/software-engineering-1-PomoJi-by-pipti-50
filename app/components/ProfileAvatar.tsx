@@ -45,7 +45,7 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = memo(
             <Text
               style={StyleSheet.flatten([
                 styles.avatarInitials,
-                { fontSize: size * 0.32 },
+                { fontFamily: "Figtree_400Regular", fontSize: size * 0.32 },
               ])}
             >
               {initials}
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   avatarInitials: {
-    fontWeight: "700",
+    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
     color: Colors.avatarText,
   },
   cameraBadge: {

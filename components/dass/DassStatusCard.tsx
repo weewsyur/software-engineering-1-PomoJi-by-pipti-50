@@ -7,7 +7,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useColors } from '@/constants/colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
+  DASS_BLOCK_THRESHOLD,
+  DASS_STATUS_COPY,
   SEVERITY_LABELS,
+  SEVERITY_ORDER,
   SUBSCALE_LABELS,
   type DassSeverity,
   type DassSubscale,
@@ -22,12 +25,13 @@ import { useSessionFlowStore } from '@/store/sessionFlowStore';
 import { getLocalDateString } from '@/utils/localDate';
 import { isBlocked } from '@/utils/dass21Score';
 
+// Soft, calm severity hues — shared with the result screen's indicator bars.
 const SEVERITY_COLORS: Record<DassSeverity, string> = {
-  normal: '#2E9E5B',
-  mild: '#7CB518',
+  normal: '#3E9B6B',
+  mild: '#8AA92C',
   moderate: '#C98A12',
   severe: '#D96C2C',
-  extremely_severe: '#C94C3C',
+  extremely_severe: '#C25B5B',
 };
 
 const SUBSCALES: { key: DassSubscale; scoreKey: 'stress_score' | 'anxiety_score' | 'depression_score' }[] = [
@@ -35,6 +39,59 @@ const SUBSCALES: { key: DassSubscale; scoreKey: 'stress_score' | 'anxiety_score'
   { key: 'anxiety', scoreKey: 'anxiety_score' },
   { key: 'depression', scoreKey: 'depression_score' },
 ];
+
+// Gate sits at the START of the threshold band (e.g. Severe = index 3 of 5).
+const GATE_FRACTION = SEVERITY_ORDER.indexOf(DASS_BLOCK_THRESHOLD) / SEVERITY_ORDER.length;
+
+function SubscaleRow({
+  label,
+  score,
+  severity,
+  colors,
+}: {
+  label: string;
+  score: number;
+  severity: DassSeverity;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const color = SEVERITY_COLORS[severity];
+  const filled = SEVERITY_ORDER.indexOf(severity) + 1;
+  return (
+    <View>
+      <View style={styles.rowLine}>
+        <Text style={[styles.subscaleLabel, { color: colors.text }]}>{label}</Text>
+        <Text style={[styles.score, { color: colors.textSecondary }]}>
+          {score}
+          <Text style={styles.scoreMax}>{DASS_STATUS_COPY.scoreOutOf}</Text>
+        </Text>
+      </View>
+      <View style={[styles.pill, { backgroundColor: `${color}1F` }]}>
+        <Text style={[styles.pillText, { color }]}>{SEVERITY_LABELS[severity]}</Text>
+      </View>
+      <View style={styles.track}>
+        {SEVERITY_ORDER.map((level, i) => (
+          <View
+            key={level}
+            style={[
+              styles.segment,
+              {
+                backgroundColor: i < filled ? color : colors.border,
+                marginRight: i === SEVERITY_ORDER.length - 1 ? 0 : 4,
+              },
+            ]}
+          />
+        ))}
+        <View
+          pointerEvents="none"
+          style={[
+            styles.gateMarker,
+            { left: `${GATE_FRACTION * 100}%`, backgroundColor: colors.textMuted },
+          ]}
+        />
+      </View>
+    </View>
+  );
+}
 
 /**
  * Shows today's DASS-21 readiness result on Home.
@@ -79,6 +136,10 @@ export default function DassStatusCard({ style }: { style?: object }) {
 
   const severities = result ? storedSeverities(result) : null;
   const blocked = severities ? isBlocked(severities) : false;
+  const gateHint = DASS_STATUS_COPY.gateHint.replace(
+    '{threshold}',
+    SEVERITY_LABELS[DASS_BLOCK_THRESHOLD],
+  );
 
   return (
     <View
@@ -88,57 +149,82 @@ export default function DassStatusCard({ style }: { style?: object }) {
         style,
       ]}
     >
-      <Text style={[styles.title, { color: colors.text }]}>Daily readiness check</Text>
+      <Text style={[styles.title, { color: colors.text }]}>{DASS_STATUS_COPY.title}</Text>
       {!loaded ? (
-        <Text style={[styles.subtitle, { color: colors.textMuted }]}>Loading…</Text>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>{DASS_STATUS_COPY.loading}</Text>
       ) : !result || !severities ? (
         <>
+          <Text style={[styles.headline, { color: colors.text }]}>{DASS_STATUS_COPY.emptyTitle}</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Take the short DASS-21 check before your first focus session each day.
+            {DASS_STATUS_COPY.emptyBody}
           </Text>
           <Pressable
             onPress={() => router.push(ROUTES.DASS)}
             accessibilityRole="button"
             style={[styles.button, { backgroundColor: colors.primary }]}
           >
-            <Text style={styles.buttonText}>Take readiness check</Text>
+            <Text style={styles.buttonText}>{DASS_STATUS_COPY.emptyCta}</Text>
           </Pressable>
         </>
       ) : (
         <>
-          <View style={styles.row}>
+          <Text style={[styles.headline, { color: colors.text }]}>
+            {blocked ? DASS_STATUS_COPY.blockedHeadline : DASS_STATUS_COPY.passedHeadline}
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            {blocked ? DASS_STATUS_COPY.blockedNote : DASS_STATUS_COPY.passedNote}
+          </Text>
+
+          <View style={styles.rows}>
             {SUBSCALES.map(({ key, scoreKey }) => (
-              <View key={key} style={styles.indicator}>
-                <Text style={[styles.indicatorLabel, { color: colors.textMuted }]}>
-                  {SUBSCALE_LABELS[key]}
-                </Text>
-                <Text
-                  style={[
-                    styles.indicatorValue,
-                    { color: SEVERITY_COLORS[severities[key]] },
-                  ]}
-                >
-                  {SEVERITY_LABELS[severities[key]]}
-                </Text>
-                <Text style={[styles.indicatorScore, { color: colors.textMuted }]}>
-                  Score {result[scoreKey]}
-                </Text>
-              </View>
+              <SubscaleRow
+                key={key}
+                label={SUBSCALE_LABELS[key]}
+                score={result[scoreKey]}
+                severity={severities[key]}
+                colors={colors}
+              />
             ))}
           </View>
-          <Text style={[styles.note, { color: colors.textMuted }]}>
-            {blocked
-              ? 'Today’s check suggests resting before a focus session. You can review it again from the check screen.'
-              : 'Today’s check is complete. This is a screening tool, not a diagnosis.'}
-          </Text>
-          <Pressable
-            onPress={() => router.push(ROUTES.DASS_HISTORY)}
-            accessibilityRole="button"
-            accessibilityLabel="View readiness history"
-            style={styles.historyLink}
-          >
-            <Text style={[styles.historyLinkText, { color: colors.primary }]}>View history</Text>
-          </Pressable>
+
+          <View style={styles.axis}>
+            {SEVERITY_ORDER.map((level, i) => (
+              <Text
+                key={level}
+                style={[
+                  styles.axisLabel,
+                  {
+                    color: colors.textMuted,
+                    marginRight: i === SEVERITY_ORDER.length - 1 ? 0 : 4,
+                  },
+                ]}
+              >
+                {DASS_STATUS_COPY.axisLabels[level]}
+              </Text>
+            ))}
+          </View>
+
+          <View style={styles.legendRow}>
+            <View style={[styles.legendMarkerLine, { backgroundColor: colors.textMuted }]} />
+            <Text style={[styles.legendText, { color: colors.textMuted }]}>
+              {DASS_STATUS_COPY.pausePointLabel}
+            </Text>
+          </View>
+          <Text style={[styles.gateHint, { color: colors.textMuted }]}>{gateHint}</Text>
+
+          <View style={styles.footer}>
+            <Text style={[styles.dateText, { color: colors.textMuted }]}>{result.date}</Text>
+            <Pressable
+              onPress={() => router.push(ROUTES.DASS_HISTORY)}
+              accessibilityRole="button"
+              accessibilityLabel="View readiness history"
+              style={styles.historyLink}
+            >
+              <Text style={[styles.historyLinkText, { color: colors.primary }]}>
+                {DASS_STATUS_COPY.viewHistory}
+              </Text>
+            </Pressable>
+          </View>
         </>
       )}
     </View>
@@ -151,27 +237,56 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 16,
   },
-  title: { fontSize: 16, fontWeight: '800' },
-  subtitle: { fontSize: 13, marginTop: 6, lineHeight: 19 },
-  row: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  indicator: {
-    flex: 1,
-    borderRadius: 12,
-    backgroundColor: 'rgba(127,127,127,0.08)',
-    padding: 10,
-    alignItems: 'center',
+  title: { fontSize: 13, fontWeight: '700', fontFamily: "Figtree_600SemiBold", letterSpacing: 0.4, textTransform: 'uppercase' },
+  headline: { fontSize: 19, fontWeight: '800', fontFamily: "BricolageGrotesque_700Bold", marginTop: 8, lineHeight: 24 },
+  subtitle: { fontFamily: "Figtree_400Regular", fontSize: 13, marginTop: 6, lineHeight: 19 },
+  rows: { marginTop: 14, gap: 14 },
+  rowLine: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  subscaleLabel: { fontSize: 14, fontWeight: '700', fontFamily: "Figtree_600SemiBold" },
+  score: { fontSize: 15, fontWeight: '700', fontFamily: "Figtree_600SemiBold", fontVariant: ['tabular-nums'] },
+  scoreMax: { fontSize: 11, fontWeight: '500', fontFamily: "Figtree_500Medium" },
+  pill: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginTop: 4,
   },
-  indicatorLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
-  indicatorValue: { fontSize: 14, fontWeight: '800', marginTop: 4 },
-  indicatorScore: { fontSize: 11, marginTop: 2 },
-  note: { fontSize: 12, lineHeight: 17, marginTop: 10 },
-  historyLink: { marginTop: 8, alignSelf: 'flex-start', paddingVertical: 4 },
-  historyLinkText: { fontSize: 13, fontWeight: '700' },
+  pillText: { fontSize: 11, fontWeight: '700', fontFamily: "Figtree_600SemiBold" },
+  track: {
+    flexDirection: 'row',
+    marginTop: 8,
+    position: 'relative',
+  },
+  segment: { flex: 1, height: 8, borderRadius: 4 },
+  gateMarker: {
+    position: 'absolute',
+    top: -3,
+    bottom: -3,
+    width: 2,
+    borderRadius: 1,
+    marginLeft: -1,
+  },
+  axis: { flexDirection: 'row', marginTop: 4 },
+  axisLabel: { flex: 1, fontFamily: "Figtree_400Regular", fontSize: 9, textAlign: 'center' },
+  legendRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 },
+  legendMarkerLine: { width: 2, height: 10, borderRadius: 1 },
+  legendText: { fontSize: 11, fontWeight: '600', fontFamily: "Figtree_600SemiBold" },
+  gateHint: { fontFamily: "Figtree_400Regular", fontSize: 11, lineHeight: 15, marginTop: 2 },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  dateText: { fontFamily: "Figtree_400Regular", fontSize: 11, fontVariant: ['tabular-nums'] },
+  historyLink: { paddingVertical: 4 },
+  historyLinkText: { fontSize: 13, fontWeight: '700', fontFamily: "Figtree_600SemiBold" },
   button: {
     marginTop: 12,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
   },
-  buttonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  buttonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', fontFamily: "Figtree_600SemiBold" },
 });

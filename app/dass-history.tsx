@@ -28,7 +28,7 @@ export default function DassHistoryScreen() {
           <ChevronLeft size={22} color={colors.text} />
           <Text className="text-base font-semibold text-ink dark:text-inkDark">Back</Text>
         </Pressable>
-        <Text className="flex-1 text-center text-lg font-bold text-ink dark:text-inkDark">
+        <Text className="flex-1 text-center text-lg font-display font-bold text-ink dark:text-inkDark">
           Readiness history
         </Text>
         <View className="w-16" />

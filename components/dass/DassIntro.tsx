@@ -33,7 +33,7 @@ function InfoSection({
       </View>
       <View className="flex-1">
         <Text className="text-base font-semibold text-ink dark:text-inkDark">{title}</Text>
-        <Text className="mt-1 text-sm leading-5 text-ink2 dark:text-ink2Dark">{children}</Text>
+        <Text className="font-sans mt-1 text-sm leading-5 text-ink2 dark:text-ink2Dark">{children}</Text>
       </View>
     </View>
   );
@@ -55,8 +55,8 @@ export default function DassIntro({
     <View className="flex-1 px-5 pb-4 pt-5">
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
         <Text className="text-sm font-semibold uppercase tracking-wide text-primary">Your wellbeing check-in</Text>
-        <Text className="mt-2 text-3xl font-bold leading-9 text-ink dark:text-inkDark">DASS-21 assessment</Text>
-        <Text className="mt-2 text-base leading-6 text-ink2 dark:text-ink2Dark">
+        <Text className="mt-2 text-3xl font-display font-bold leading-9 text-ink dark:text-inkDark">DASS-21 assessment</Text>
+        <Text className="font-sans mt-2 text-base leading-6 text-ink2 dark:text-ink2Dark">
           A voluntary 21-question self-report about how you have felt over the past week. It usually takes about 3–5 minutes.
         </Text>
         <InfoSection icon={ClipboardList} title="Instructions" color={colors.primary}>
@@ -83,13 +83,13 @@ export default function DassIntro({
         <View className={`mr-3 h-6 w-6 items-center justify-center rounded-md border-2 ${consentGiven ? 'border-primary bg-primary' : 'border-line dark:border-lineDark'}`}>
           {consentGiven ? <Text className="font-bold text-white">✓</Text> : null}
         </View>
-        <Text className="flex-1 text-sm leading-5 text-ink dark:text-inkDark">
+        <Text className="font-sans flex-1 text-sm leading-5 text-ink dark:text-inkDark">
           I have read this notice and voluntarily agree to take this assessment and store my responses and results.
         </Text>
       </Pressable>
       {error ? (
         <View className="mt-2">
-          <Text accessibilityRole="alert" className="text-sm text-[#C94C3C]">{error}</Text>
+          <Text accessibilityRole="alert" className="font-sans text-sm text-[#C94C3C]">{error}</Text>
           {errorRetryable && onRetryError ? (
             <Pressable
               onPress={onRetryError}

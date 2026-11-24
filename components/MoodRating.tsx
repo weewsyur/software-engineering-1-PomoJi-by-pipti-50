@@ -45,7 +45,7 @@ export default function MoodRating({ value, onChange, disabled = false }: MoodRa
               style={[
                 styles.optionLabel,
                 { color: colors.textSecondary },
-                isSelected && { color: colors.primary, fontWeight: '700' },
+                isSelected && { color: colors.primary, fontWeight: '700', fontFamily: "Figtree_600SemiBold" },
               ]}
               numberOfLines={1}
             >
@@ -74,6 +74,6 @@ const styles = StyleSheet.create({
   },
   optionPressed: { opacity: 0.7 },
   optionDisabled: { opacity: 0.5 },
-  emoji: { fontSize: 25 },
-  optionLabel: { fontSize: 11, marginTop: 4, fontWeight: '500' },
+  emoji: { fontFamily: "Figtree_400Regular", fontSize: 25 },
+  optionLabel: { fontSize: 11, marginTop: 4, fontWeight: '500', fontFamily: "Figtree_500Medium" },
 });

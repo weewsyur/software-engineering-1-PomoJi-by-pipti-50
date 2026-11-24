@@ -78,7 +78,7 @@ export default function DassHistory() {
   if (failed) {
     return (
       <View className="flex-1 items-center justify-center px-8">
-        <Text className="text-center text-base text-ink2 dark:text-ink2Dark">
+        <Text className="font-sans text-center text-base text-ink2 dark:text-ink2Dark">
           Couldn’t load your history. Check your connection and try again.
         </Text>
       </View>
@@ -94,7 +94,7 @@ export default function DassHistory() {
   if (results.length === 0) {
     return (
       <View className="flex-1 items-center justify-center px-8">
-        <Text className="text-center text-base text-ink2 dark:text-ink2Dark">
+        <Text className="font-sans text-center text-base text-ink2 dark:text-ink2Dark">
           No readiness checks yet. Take today’s DASS-21 check from the Home tab first.
         </Text>
       </View>
@@ -103,7 +103,7 @@ export default function DassHistory() {
 
   return (
     <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
-      <Text className="text-sm leading-5 text-ink3 dark:text-ink3Dark">
+      <Text className="font-sans text-sm leading-5 text-ink3 dark:text-ink3Dark">
         Your screening scores over the past {HISTORY_DAYS} days. Scores naturally vary from day to
         day — this is a screening tool, not a diagnosis.
       </Text>
@@ -115,7 +115,7 @@ export default function DassHistory() {
         >
           <View className="flex-row items-center justify-between">
             <Text className="text-base font-bold text-ink dark:text-inkDark">{SUBSCALE_LABELS[key]}</Text>
-            <Text className="text-xs text-ink3 dark:text-ink3Dark">Score 0–42</Text>
+            <Text className="font-sans text-xs text-ink3 dark:text-ink3Dark">Score 0–42</Text>
           </View>
           <View className="mt-2">
             <TrendChart results={results} scoreKey={scoreKey} width={chartWidth} />
@@ -134,7 +134,7 @@ export default function DassHistory() {
             <Text className="text-sm font-semibold text-ink dark:text-inkDark">{formatDate(r.date)}</Text>
             <View className="mt-2 flex-row flex-wrap gap-x-4 gap-y-1">
               {SUBSCALES.map(({ key, scoreKey }) => (
-                <Text key={key} className="text-sm" style={{ color: SEVERITY_COLORS[sev[key]] }}>
+                <Text key={key} className="font-sans text-sm" style={{ color: SEVERITY_COLORS[sev[key]] }}>
                   {SUBSCALE_LABELS[key]}: {SEVERITY_LABELS[sev[key]]} ({r[scoreKey]})
                 </Text>
               ))}

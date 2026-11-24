@@ -127,7 +127,7 @@ function ProfileAvatar({
           <Text
             style={StyleSheet.flatten([
               styles.avatarInitials,
-              { fontSize: size * 0.32 },
+              { fontFamily: "Figtree_400Regular", fontSize: size * 0.32 },
             ])}
           >
             {initials}
@@ -1466,7 +1466,7 @@ const styles = StyleSheet.create({
   },
   headerLabel: {
     fontSize: 10,
-    fontWeight: "700",
+    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
     letterSpacing: 2,
     color: Colors.textMuted,
     textTransform: "uppercase",
@@ -1482,7 +1482,7 @@ const styles = StyleSheet.create({
   },
   editChipText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
     color: Colors.primary,
   },
 
@@ -1505,7 +1505,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   avatarInitials: {
-    fontWeight: "700",
+    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
     color: Colors.avatarText,
   },
   cameraBadge: {
@@ -1523,11 +1523,12 @@ const styles = StyleSheet.create({
   },
   profileName: {
     fontSize: 20,
-    fontWeight: "800",
+    fontWeight: "800", fontFamily: "BricolageGrotesque_700Bold",
     color: Colors.text,
     marginTop: 10,
   },
   profileEmail: {
+    fontFamily: "Figtree_400Regular",
     fontSize: 12,
     color: Colors.textMuted,
     marginBottom: 16,
@@ -1553,14 +1554,14 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 18,
-    fontWeight: "800",
+    fontWeight: "800", fontFamily: "BricolageGrotesque_700Bold",
     color: Colors.text,
     letterSpacing: -0.5,
   },
   statLabel: {
     fontSize: 10,
     color: Colors.textMuted,
-    fontWeight: "500",
+    fontWeight: "500", fontFamily: "Figtree_500Medium",
     textAlign: "center",
   },
 
@@ -1604,7 +1605,7 @@ const styles = StyleSheet.create({
   },
   signOutActionText: {
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
   },
   reminderSheet: {
     backgroundColor: Colors.background,
@@ -1620,8 +1621,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 8,
   },
-  reminderTitle: { fontSize: 14, fontWeight: "800", color: Colors.text },
+  reminderTitle: { fontSize: 14, fontWeight: "800", fontFamily: "Figtree_600SemiBold", color: Colors.text },
   reminderEmpty: {
+    fontFamily: "Figtree_400Regular",
     fontSize: 12,
     color: Colors.textMuted,
     paddingVertical: 10,
@@ -1637,7 +1639,7 @@ const styles = StyleSheet.create({
   },
   reminderRowTitle: {
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
     color: Colors.text,
     flex: 1,
   },
@@ -1652,7 +1654,7 @@ const styles = StyleSheet.create({
   avatarText: {
     color: Colors.surface,
     fontSize: 11,
-    fontWeight: "800",
+    fontWeight: "800", fontFamily: "Figtree_600SemiBold",
   },
 
   // Settings
@@ -1676,13 +1678,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   iconBoxDanger: { backgroundColor: Colors.primaryMuted },
-  settingLabel: { fontSize: 14, fontWeight: "500", color: Colors.text },
+  settingLabel: { fontSize: 14, fontWeight: "500", fontFamily: "Figtree_500Medium", color: Colors.text },
   settingLabelDanger: { color: Colors.primary },
   settingRight: { flexDirection: "row", alignItems: "center", gap: 6 },
-  settingValue: { fontSize: 13, color: Colors.textMuted, fontWeight: "500" },
+  settingValue: { fontSize: 13, color: Colors.textMuted, fontWeight: "500", fontFamily: "Figtree_500Medium" },
 
   version: {
     textAlign: "center",
+    fontFamily: "Figtree_400Regular",
     fontSize: 11,
     color: Colors.textMuted,
     marginTop: 4,
@@ -1706,18 +1709,18 @@ const styles = StyleSheet.create({
   modalNavBtn: { minWidth: 60 },
   modalTitle: {
     fontSize: 15,
-    fontWeight: "700",
+    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
     color: Colors.text,
   },
   cancelText: {
     fontSize: 15,
     color: Colors.textSecondary,
-    fontWeight: "500",
+    fontWeight: "500", fontFamily: "Figtree_500Medium",
   },
   navSaveText: {
     fontSize: 15,
     color: Colors.primary,
-    fontWeight: "700",
+    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
     textAlign: "right",
   },
 
@@ -1734,7 +1737,7 @@ const styles = StyleSheet.create({
   },
   changePhotoText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
     color: Colors.primary,
   },
 
@@ -1746,7 +1749,7 @@ const styles = StyleSheet.create({
 
   fieldLabel: {
     fontSize: 10,
-    fontWeight: "700",
+    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
     letterSpacing: 1.5,
     color: Colors.textMuted,
     textTransform: "uppercase",
@@ -1776,14 +1779,14 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: 15,
-    fontWeight: "500",
+    fontWeight: "500", fontFamily: "Figtree_500Medium",
     color: Colors.text,
     paddingVertical: 0,
   },
   readOnlyText: {
     flex: 1,
     fontSize: 15,
-    fontWeight: "500",
+    fontWeight: "500", fontFamily: "Figtree_500Medium",
     color: Colors.textMuted,
   },
   lockedBadge: {
@@ -1795,6 +1798,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   fieldHint: {
+    fontFamily: "Figtree_400Regular",
     fontSize: 11,
     color: Colors.textMuted,
     marginTop: 6,
@@ -1815,7 +1819,7 @@ const styles = StyleSheet.create({
   },
   saveBtnText: {
     fontSize: 15,
-    fontWeight: "800",
+    fontWeight: "800", fontFamily: "Figtree_600SemiBold",
     color: Colors.surface,
     letterSpacing: 0.3,
   },

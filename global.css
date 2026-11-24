@@ -4,6 +4,13 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  body {
+    font-family: 'Figtree_400Regular', 'Figtree', system-ui, -apple-system,
+      'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+}
+
 @layer components {
   /* Primary filled button */
   .btn-primary {
