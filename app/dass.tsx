@@ -186,6 +186,10 @@ export default function DassScreen() {
     const assessmentDate = getLocalDateString();
     const completedAt = new Date().toISOString();
     try {
+      if (offlineMode) {
+        await saveDassConsent(uid, true);
+        setOfflineMode(false);
+      }
       const saved = await submitDassResult(uid, completeAnswers, assessmentDate, completedAt);
       showResult(saved);
       void syncPendingDass(uid).catch((syncError) => {
