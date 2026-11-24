@@ -3,7 +3,8 @@ import { useRouter } from 'expo-router';
 // ADAPT: import `auth` from your firebase.config.ts
 import { auth } from '@/firebase.config';
 import { ROUTES } from '@/constants/sessionFlow';
-import { fetchTodayDass, formatDassError, storedSeverities } from '@/services/dassService';
+import { fetchTodayDass, storedSeverities } from '@/services/dassService';
+import { resolveDassError } from '@/hooks/useDassErrorMessage';
 import { getLocalAssessment, syncPendingDass } from '@/services/dassOffline';
 import { getLocalDateString } from '@/utils/localDate';
 import { useSessionFlowStore } from '@/store/sessionFlowStore';
@@ -50,7 +51,7 @@ export function useStartSessionFlow() {
       }
       setChecking(false);
       setDass('unknown', null);
-      setOfflineError(__DEV__ && res.error ? formatDassError(res.error) : null);
+      setOfflineError(__DEV__ && res.error ? `code: ${resolveDassError(res.error).code ?? 'unknown'}` : null);
       setOffline(true);
       return;
     }

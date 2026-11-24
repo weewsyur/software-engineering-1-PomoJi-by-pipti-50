@@ -301,12 +301,12 @@ service cloud.firestore {
       return string(t.year()) + '-' + pad2(t.month()) + '-' + pad2(t.day());
     }
 
-    // The student's LOCAL date differs from the UTC completion date by at most 1 day.
-    function dateNearCompletion(d, completedAt) {
+    // The student's LOCAL date differs from the server time by at most 1 day.
+    function dateNearCompletion(d, t) {
       return d in [
-        ymd(completedAt - duration.value(1, 'd')),
-        ymd(completedAt),
-        ymd(completedAt + duration.value(1, 'd'))
+        ymd(t - duration.value(1, 'd')),
+        ymd(t),
+        ymd(t + duration.value(1, 'd'))
       ];
     }
 
@@ -400,7 +400,9 @@ service cloud.firestore {
         d.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
         docId == d.date &&
         d.completedAt is timestamp &&
-        dateNearCompletion(d.date, d.completedAt) &&
+        d.completedAt >= request.time - duration.value(1, 'd') &&
+        d.completedAt <= request.time + duration.value(1, 'd') &&
+        dateNearCompletion(d.date, request.time) &&
         validDassResponses(d.responses) &&
         d.depression_raw_score is int &&
         d.depression_raw_score == depressionRaw &&
@@ -443,7 +445,7 @@ service cloud.firestore {
           !exists(/databases/$(database)/documents/users/$(userId)/dass21_assessments/$(docId)) &&
           validDassResult(userId, docId);
         allow update: if false;
-        allow delete: if isOwner(userId);
+        allow delete: if false;
       }
 
       match /activities/{activityId} {

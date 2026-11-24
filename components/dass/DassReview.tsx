@@ -6,13 +6,15 @@ interface Props {
   answers: (number | null)[];
   submitting: boolean;
   error: string | null;
+  errorRetryable?: boolean;
+  onRetryError?: () => void;
   onChange: (index: number, value: number) => void;
   onSubmit: () => void;
   onExit: () => void;
 }
 
 /** Review step: change any answer before submitting, so a misclick can't lock in today's result. */
-export default function DassReview({ answers, submitting, error, onChange, onSubmit, onExit }: Props) {
+export default function DassReview({ answers, submitting, error, errorRetryable = false, onRetryError, onChange, onSubmit, onExit }: Props) {
   const complete = answers.every((a) => a !== null);
   return (
     <View className="flex-1 px-6 py-3">
@@ -61,7 +63,22 @@ export default function DassReview({ answers, submitting, error, onChange, onSub
         </View>
       </ScrollView>
 
-      {error ? <Text className="mt-2 text-sm text-[#C94C3C]">{error}</Text> : null}
+      {error ? (
+        <View className="mt-2">
+          <Text className="text-sm text-[#C94C3C]">{error}</Text>
+          {errorRetryable && onRetryError ? (
+            <Pressable
+              onPress={onRetryError}
+              disabled={submitting}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: submitting }}
+              className="mt-2 min-h-[44px] items-center justify-center self-start rounded-xl border border-line px-4 dark:border-lineDark"
+            >
+              <Text className="font-semibold text-ink dark:text-inkDark">Retry</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
       <Pressable
         onPress={onSubmit}
         disabled={!complete || submitting}

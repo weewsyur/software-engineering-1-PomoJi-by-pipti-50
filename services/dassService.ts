@@ -43,6 +43,74 @@ export interface StoredDassResult {
   createdAt?: unknown; // Firestore Timestamp (server)
 }
 
+// Dev-only: mirrors the clauses of validDassResult() in firestore.rules so a
+// permission-denied can be traced to the exact failing check. Field names and
+// booleans only — never answers or scores.
+const DASS_RULE_KEYS = [
+  'user_id', 'date',
+  'depression_raw_score', 'anxiety_raw_score', 'stress_raw_score',
+  'depression_score', 'anxiety_score', 'stress_score',
+  'depression_severity', 'anxiety_severity', 'stress_severity',
+  'responses', 'questionnaire_version', 'consent_given', 'completedAt', 'createdAt',
+];
+const DASS_RAW_INDEX: Record<'depression' | 'anxiety' | 'stress', number[]> = {
+  depression: [2, 4, 9, 12, 15, 16, 20],
+  anxiety: [1, 3, 6, 8, 14, 18, 19],
+  stress: [0, 5, 7, 10, 11, 13, 17],
+};
+const DASS_SEVERITIES = ['normal', 'mild', 'moderate', 'severe', 'extremely_severe'];
+const DASS_BANDS: Record<string, [number, number][]> = {
+  depression: [[0, 9], [10, 13], [14, 20], [21, 27], [28, 42]],
+  anxiety: [[0, 7], [8, 9], [10, 14], [15, 19], [20, 42]],
+  stress: [[0, 14], [15, 18], [19, 25], [26, 33], [34, 42]],
+};
+
+function diagnoseDassPayload(payload: Record<string, unknown>, uid: string, date: string) {
+  const d = payload as Record<string, any>;
+  const responses = Array.isArray(d.responses) ? d.responses : [];
+  const rawSum = (idx: number[]) => idx.reduce((s, i) => s + (responses[i] ?? NaN), 0);
+  const bandOk = (sub: string, score: unknown, sev: unknown) => {
+    const s = DASS_BANDS[sub].findIndex(([lo, hi]) => typeof score === 'number' && score >= lo && score <= hi);
+    return s >= 0 && DASS_SEVERITIES[s] === sev;
+  };
+  const completedAtMs = d.completedAt instanceof Timestamp ? d.completedAt.toMillis() : NaN;
+  const nowMs = Date.now();
+  const utcYmd = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  const allowedDates = [utcYmd(nowMs - 86400000), utcYmd(nowMs), utcYmd(nowMs + 86400000)];
+  const checks: Record<string, boolean> = {
+    keysExact: JSON.stringify(Object.keys(d).sort()) === JSON.stringify([...DASS_RULE_KEYS].sort()),
+    userIdMatch: d.user_id === uid,
+    dateFormat: typeof d.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.date),
+    docIdEqualsDate: date === d.date,
+    completedAtIsTimestamp: d.completedAt instanceof Timestamp,
+    completedAtWithinDay: Number.isFinite(completedAtMs) && Math.abs(nowMs - completedAtMs) <= 86400000,
+    dateNearServerTime: allowedDates.includes(d.date),
+    responsesValid: responses.length === 21 && responses.every((n) => Number.isInteger(n) && n >= 0 && n <= 3),
+    rawDepMatch: d.depression_raw_score === rawSum(DASS_RAW_INDEX.depression),
+    rawAnxMatch: d.anxiety_raw_score === rawSum(DASS_RAW_INDEX.anxiety),
+    rawStrMatch: d.stress_raw_score === rawSum(DASS_RAW_INDEX.stress),
+    scoresEvenInRange:
+      [d.depression_score, d.anxiety_score, d.stress_score].every(
+        (n) => Number.isInteger(n) && n >= 0 && n <= 42 && n % 2 === 0,
+      ),
+    finalsEqualRawTimes2:
+      d.depression_score === (d.depression_raw_score as number) * 2 &&
+      d.anxiety_score === (d.anxiety_raw_score as number) * 2 &&
+      d.stress_score === (d.stress_raw_score as number) * 2,
+    severitiesKnown:
+      DASS_SEVERITIES.includes(d.depression_severity) &&
+      DASS_SEVERITIES.includes(d.anxiety_severity) &&
+      DASS_SEVERITIES.includes(d.stress_severity),
+    depBand: bandOk('depression', d.depression_score, d.depression_severity),
+    anxBand: bandOk('anxiety', d.anxiety_score, d.anxiety_severity),
+    strBand: bandOk('stress', d.stress_score, d.stress_severity),
+    versionOk: typeof d.questionnaire_version === 'string' && d.questionnaire_version.length <= 20,
+    consentGiven: d.consent_given === true,
+  };
+  const failed = Object.entries(checks).filter(([, ok]) => !ok).map(([k]) => k);
+  console.warn('[dass-debug] rule check results:', { failed, checks });
+}
+
 export class DassAlreadyTakenError extends Error {
   constructor() {
     super('DASS-21 already recorded for today');
@@ -143,11 +211,36 @@ export async function submitDassResult(
     completedAt: Timestamp.fromDate(completedDate),
     createdAt: serverTimestamp(),
   };
-  await runTransaction(db, async (tx) => {
-    const existing = await tx.get(ref);
-    if (existing.exists()) throw new DassAlreadyTakenError();
-    tx.set(ref, payload);
-  });
+  try {
+    await runTransaction(db, async (tx) => {
+      const existing = await tx.get(ref);
+      if (existing.exists()) throw new DassAlreadyTakenError();
+      tx.set(ref, payload);
+    });
+  } catch (e) {
+    // Dev-only diagnostics for rules denials: field NAMES and flags only,
+    // never answers, scores, or other user data.
+    if (__DEV__ && (e as { code?: unknown })?.code === 'permission-denied') {
+      try {
+        const [userSnap, existSnap] = await Promise.all([
+          getDocFromServer(doc(db, 'users', uid)),
+          getDocFromServer(ref),
+        ]);
+        const userData = userSnap.data();
+        console.warn('[dass-debug] permission-denied diagnostics:', {
+          userDocExists: userSnap.exists(),
+          dassConsent: userData?.dassConsent ?? null,
+          userDocKeys: userData ? Object.keys(userData).sort() : [],
+          assessmentDocExists: existSnap.exists(),
+          payloadKeys: Object.keys(payload).sort(),
+        });
+        diagnoseDassPayload(payload, uid, date);
+      } catch (diagError) {
+        console.warn('[dass-debug] diagnostics failed:', diagError);
+      }
+    }
+    throw e;
+  }
   const { createdAt: _omit, ...rest } = payload;
   return rest as StoredDassResult;
 }
@@ -188,12 +281,27 @@ export async function hasDassConsent(uid: string): Promise<boolean> {
 
 export async function saveDassConsent(uid: string, consented = true): Promise<void> {
   const ref = doc(db, 'users', uid);
-  await runTransaction(db, async (transaction) => {
-    const profile = await transaction.get(ref);
-    if (!profile.exists()) throw new Error('DASS consent profile is missing.');
-    transaction.update(ref, {
-      dassConsent: consented,
-      dassConsentAt: serverTimestamp(),
+  try {
+    await runTransaction(db, async (transaction) => {
+      const profile = await transaction.get(ref);
+      if (!profile.exists()) throw new Error('DASS consent profile is missing.');
+      transaction.update(ref, {
+        dassConsent: consented,
+        dassConsentAt: serverTimestamp(),
+      });
     });
-  });
+  } catch (e) {
+    // Dev-only: on rules denial, log the user doc's field names (never values)
+    // so we can spot fields outside validUserDocument's hasOnly list.
+    if (__DEV__ && (e as { code?: unknown })?.code === 'permission-denied') {
+      try {
+        const snap = await getDocFromServer(ref);
+        console.warn('[dass-debug] consent write denied. userDocKeys:',
+          snap.exists() ? Object.keys(snap.data() ?? {}).sort() : '<missing>');
+      } catch {
+        // ignore diagnostic failures
+      }
+    }
+    throw e;
+  }
 }

@@ -8,6 +8,8 @@ interface Props {
   busy: boolean;
   consentGiven: boolean;
   error: string | null;
+  errorRetryable?: boolean;
+  onRetryError?: () => void;
   onConsentChange: (value: boolean) => void;
   onContinue: () => void;
   onDecline: () => void;
@@ -41,6 +43,8 @@ export default function DassIntro({
   busy,
   consentGiven,
   error,
+  errorRetryable = false,
+  onRetryError,
   onConsentChange,
   onContinue,
   onDecline,
@@ -83,7 +87,22 @@ export default function DassIntro({
           I have read this notice and voluntarily agree to take this assessment and store my responses and results.
         </Text>
       </Pressable>
-      {error ? <Text accessibilityRole="alert" className="mt-2 text-sm text-[#C94C3C]">{error}</Text> : null}
+      {error ? (
+        <View className="mt-2">
+          <Text accessibilityRole="alert" className="text-sm text-[#C94C3C]">{error}</Text>
+          {errorRetryable && onRetryError ? (
+            <Pressable
+              onPress={onRetryError}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: busy }}
+              className="mt-2 min-h-[44px] items-center justify-center self-start rounded-xl border border-line px-4 dark:border-lineDark"
+            >
+              <Text className="font-semibold text-ink dark:text-inkDark">Retry</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
 
       <View className="mt-2 flex-col gap-2">
         <Pressable

@@ -6,13 +6,13 @@ import { ROUTES } from '@/constants/sessionFlow';
 import {
   DassAlreadyTakenError,
   fetchTodayDass,
-  formatDassError,
   isDassNetworkError,
   saveDassConsent,
   storedSeverities,
   submitDassResult,
   type StoredDassResult,
 } from '@/services/dassService';
+import { useDassErrorMessage } from '@/hooks/useDassErrorMessage';
 import {
   buildLocalResult,
   getLocalAssessment,
@@ -42,7 +42,7 @@ export default function DassScreen() {
   const [answers, setAnswers] = useState<(number | null)[]>(() => new Array(DASS_ITEM_COUNT).fill(null));
   const [stored, setStored] = useState<StoredDassResult | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const dassError = useDassErrorMessage();
   const [pendingSync, setPendingSync] = useState(false);
   const [confirmExit, setConfirmExit] = useState(false);
   const [consentGiven, setConsentGiven] = useState(false);
@@ -155,7 +155,7 @@ export default function DassScreen() {
     const uid = user?.uid;
     if (!uid || !consentGiven || busy) return;
     setBusy(true);
-    setError(null);
+    dassError.clearError();
     try {
       if (offlineMode) {
         await markLocalConsent(uid, true);
@@ -171,7 +171,7 @@ export default function DassScreen() {
       setStep('test');
     } catch (saveError) {
       console.error('[dass] unable to save consent:', saveError);
-      setError('We could not save your consent. Please try again when you are online.');
+      dassError.setError(saveError);
     } finally {
       setBusy(false);
     }
@@ -181,7 +181,7 @@ export default function DassScreen() {
     const uid = user?.uid;
     if (!uid || !consentGiven || answers.some((answer) => answer === null) || busy) return;
     setBusy(true);
-    setError(null);
+    dassError.clearError();
     const completeAnswers = answers.filter((answer): answer is number => answer !== null);
     const assessmentDate = getLocalDateString();
     const completedAt = new Date().toISOString();
@@ -202,7 +202,7 @@ export default function DassScreen() {
           showResult(lookup.result);
           return;
         }
-        setError('Today’s assessment could not be verified. Please retry while connected.');
+        dassError.setError("Today's assessment could not be verified. Please retry while connected.");
         return;
       }
 
@@ -213,15 +213,20 @@ export default function DassScreen() {
           showResult(local, true);
         } catch (localError) {
           console.error('[dass] unable to save offline assessment:', localError);
-          setError('We could not save this assessment on your device. Your answers are still available here; please retry.');
+          dassError.setError('We could not save this assessment on your device. Your answers are still available here; please retry.');
         }
       } else {
         console.error('[dass] assessment submission failed:', submitError);
-        setError(`We could not submit your assessment. ${formatDassError(submitError)}`);
+        dassError.setError(submitError);
       }
     } finally {
       setBusy(false);
     }
+  };
+
+  const retryError = () => {
+    if (step === 'intro') void accept();
+    else void submit();
   };
 
   if (initializing) {
@@ -260,7 +265,9 @@ export default function DassScreen() {
         <DassIntro
           busy={busy}
           consentGiven={consentGiven}
-          error={error}
+          error={dassError.message}
+          errorRetryable={dassError.retryable}
+          onRetryError={retryError}
           onConsentChange={setConsentGiven}
           onContinue={accept}
           onDecline={() => router.replace(ROUTES.FOCUS)}
@@ -280,7 +287,9 @@ export default function DassScreen() {
         <DassReview
           answers={answers}
           submitting={busy}
-          error={error}
+          error={dassError.message}
+          errorRetryable={dassError.retryable}
+          onRetryError={retryError}
           onChange={setAnswer}
           onSubmit={submit}
           onExit={() => setConfirmExit(true)}

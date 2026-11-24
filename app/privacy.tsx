@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -16,11 +16,11 @@ import { useSessionFlowStore } from '@/store/sessionFlowStore';
 import {
   deleteAllDass,
   fetchAllDass,
-  formatDassError,
   hasDassConsent,
   isDassNetworkError,
   saveDassConsent,
 } from '@/services/dassService';
+import { useDassErrorMessage } from '@/hooks/useDassErrorMessage';
 import {
   clearLocalAssessments,
   getLocalAssessments,
@@ -39,7 +39,9 @@ export default function PrivacyScreen() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
-  const [error, setError] = useState<string | null>(null);
+  const dassError = useDassErrorMessage();
+  const setErrorMessage = dassError.setError;
+  const retryAction = useRef<(() => void) | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -63,11 +65,11 @@ export default function PrivacyScreen() {
           if (!cancelled) {
             setConsent(localConsent ? true : null);
             setConsentSource(localConsent ? 'device' : null);
-            setError('Account consent status could not be verified. Showing any consent saved on this device.');
+            setErrorMessage('Account consent status could not be verified. Showing any consent saved on this device.');
           }
         } catch (localError) {
           console.error('[privacy] unable to load local consent status:', localError);
-          if (!cancelled) setError('We could not load your consent status. Please retry.');
+          if (!cancelled) setErrorMessage('We could not load your consent status. Please retry.');
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -76,7 +78,7 @@ export default function PrivacyScreen() {
     return () => {
       cancelled = true;
     };
-  }, [initializing, user]);
+  }, [initializing, user, setErrorMessage]);
 
   if (initializing) {
     return (
@@ -89,7 +91,8 @@ export default function PrivacyScreen() {
 
   const withdrawConsent = async () => {
     setBusy(true);
-    setError(null);
+    dassError.clearError();
+    retryAction.current = () => void withdrawConsent();
     setNotice(null);
     try {
       await saveDassConsent(user.uid, false);
@@ -99,7 +102,7 @@ export default function PrivacyScreen() {
         console.error('[privacy] account consent withdrawn but local status update failed:', localError);
         setConsent(false);
         setConsentSource('account');
-        setError('Consent was withdrawn for your account, but this device could not update its saved status.');
+        dassError.setError('Consent was withdrawn for your account, but this device could not update its saved status.');
         return;
       }
       setConsent(false);
@@ -114,11 +117,11 @@ export default function PrivacyScreen() {
           setNotice('Consent is withdrawn on this device and will sync to your account when you are online.');
         } catch (localError) {
           console.error('[privacy] unable to save offline consent withdrawal:', localError);
-          setError('We could not save the withdrawal on this device. Please retry while connected.');
+          dassError.setError('We could not save the withdrawal on this device. Please retry while connected.');
         }
       } else {
         console.error('[privacy] unable to withdraw account consent:', withdrawError);
-        setError(`We could not withdraw consent. ${formatDassError(withdrawError)}`);
+        dassError.setError(withdrawError);
       }
     } finally {
       setBusy(false);
@@ -128,7 +131,8 @@ export default function PrivacyScreen() {
 
   const exportAssessments = async () => {
     setBusy(true);
-    setError(null);
+    dassError.clearError();
+    retryAction.current = () => void exportAssessments();
     setNotice(null);
     try {
       const [accountRecords, localRecords] = await Promise.all([
@@ -171,7 +175,7 @@ export default function PrivacyScreen() {
       }
     } catch (exportError) {
       console.error('[privacy] unable to export assessment records:', exportError);
-      setError(`We could not export your assessment records. ${formatDassError(exportError)}`);
+      dassError.setError(exportError);
     } finally {
       setBusy(false);
     }
@@ -179,13 +183,14 @@ export default function PrivacyScreen() {
 
   const deleteAssessments = async () => {
     setBusy(true);
-    setError(null);
+    dassError.clearError();
+    retryAction.current = () => void deleteAssessments();
     setNotice(null);
     try {
       await deleteAllDass(user.uid);
     } catch (deleteError) {
       console.error('[privacy] unable to delete cloud assessment records:', deleteError);
-      setError(`We could not delete your account’s assessment records. ${formatDassError(deleteError)}`);
+      dassError.setError(deleteError);
       setBusy(false);
       setConfirmAction(null);
       return;
@@ -194,7 +199,7 @@ export default function PrivacyScreen() {
       await clearLocalAssessments(user.uid);
     } catch (localError) {
       console.error('[privacy] cloud records deleted but local assessment cleanup failed:', localError);
-      setError('Cloud history was deleted, but this device could not clear its offline copy. Please retry deletion on this device.');
+      dassError.setError('Cloud history was deleted, but this device could not clear its offline copy. Please retry deletion on this device.');
       setBusy(false);
       setConfirmAction(null);
       return;
@@ -306,7 +311,22 @@ export default function PrivacyScreen() {
           </Text>
         </View>
 
-        {error ? <Text accessibilityRole="alert" className="mt-3 text-sm leading-5 text-[#C94C3C]">{error}</Text> : null}
+        {dassError.message ? (
+          <View className="mt-3">
+            <Text accessibilityRole="alert" className="text-sm leading-5 text-[#C94C3C]">{dassError.message}</Text>
+            {dassError.retryable ? (
+              <Pressable
+                onPress={() => retryAction.current?.()}
+                disabled={busy}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: busy }}
+                className="mt-2 min-h-[44px] items-center justify-center self-start rounded-xl border border-line px-4 dark:border-lineDark"
+              >
+                <Text className="font-semibold text-ink dark:text-inkDark">Retry</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
         {notice ? <Text accessibilityLiveRegion="polite" className="mt-3 text-sm leading-5 text-primary">{notice}</Text> : null}
       </ScrollView>
 
