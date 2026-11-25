@@ -176,6 +176,18 @@ export async function fetchTodayDass(uid: string): Promise<TodayDassLookup> {
   }
 }
 
+/** Reads one assessment by its local date directly from the server. */
+export async function fetchDassAssessment(uid: string, date: string): Promise<TodayDassLookup> {
+  try {
+    const snap = await getDocFromServer(dassRef(uid, date));
+    return snap.exists() ? { state: 'exists', result: snap.data() as StoredDassResult } : { state: 'none' };
+  } catch (e) {
+    lastDassError = e;
+    console.warn('[dass] fetchDassAssessment failed:', e);
+    return { state: 'unavailable', error: e };
+  }
+}
+
 /**
  * Saves the result. Uses a transaction, which only runs ONLINE and aborts if the
  * document already exists. Firestore rules enforce the same on the server.

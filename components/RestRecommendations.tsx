@@ -25,7 +25,7 @@ export default function RestRecommendations({ variant }: Props) {
     <View>
       <Text className="font-sans text-base leading-6 text-ink2 dark:text-ink2Dark">
         {variant === 'dass'
-          ? 'The focus technique works poorly when emotions are running high. Take a break first, then come back and try again tomorrow.'
+          ? 'The focus technique works poorly when emotions are running high. Take a break first, then check in again when your rest period ends.'
           : 'Feeling low right now? The focus technique works best when you feel settled. Take a cool-down, then come back to review.'}
       </Text>
       <View className="mt-3 flex-row flex-wrap gap-2">

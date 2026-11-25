@@ -22,6 +22,7 @@ import {
   type StoredDassResult,
 } from '@/services/dassService';
 import { useSessionFlowStore } from '@/store/sessionFlowStore';
+import { fetchRestGate } from '@/services/restService';
 import { getLocalDateString } from '@/utils/localDate';
 import { isBlocked } from '@/utils/dass21Score';
 
@@ -122,7 +123,9 @@ export default function DassStatusCard({ style }: { style?: object }) {
       const snap = await getDoc(
         doc(db, 'users', uid, DASS_SUBCOLLECTION, getLocalDateString()),
       );
-      setFetched(snap.exists() ? (snap.data() as StoredDassResult) : null);
+      const restGate = await fetchRestGate(uid).catch(() => null);
+      const daily = snap.exists() ? (snap.data() as StoredDassResult) : null;
+      setFetched(restGate?.state === 'passed' ? restGate.checkin : daily);
     } catch {
       setFetched(null);
     } finally {

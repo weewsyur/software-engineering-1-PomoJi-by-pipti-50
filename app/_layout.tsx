@@ -18,6 +18,7 @@ import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { SyncingIndicator } from "@/components/SyncingIndicator";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ToastHost } from "@/components/Toast";
+import RestNotificationListener from "@/components/RestNotificationListener";
 
 if (Platform.OS !== "web") {
   SplashScreen.preventAutoHideAsync().catch((error) => {
@@ -41,6 +42,7 @@ function StartupContent() {
     <View style={styles.root} onLayout={() => setRootLaidOut(true)}>
       <Stack screenOptions={{ headerShown: false }} />
       <ToastHost />
+      <RestNotificationListener />
       {initializing && (
         <View style={styles.startupSplash}>
           <Image

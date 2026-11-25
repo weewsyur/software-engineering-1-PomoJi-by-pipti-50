@@ -15,6 +15,7 @@ const webTimerNotificationIds = new Map<
   "approaching" | "completion" | "background",
   number
 >();
+let webRestNotificationId: number | null = null;
 
 function queueTimerNotificationOperation<T>(
   operation: () => Promise<T>,
@@ -42,6 +43,11 @@ async function ensureAndroidNotificationChannel() {
     importance: Notifications.AndroidImportance.HIGH,
     sound: "default",
   });
+  await notifications.setNotificationChannelAsync("rest", {
+    name: "Rest check-in",
+    importance: Notifications.AndroidImportance.DEFAULT,
+    sound: "default",
+  });
 }
 
 function configureNotificationHandler() {
@@ -49,13 +55,17 @@ function configureNotificationHandler() {
   if (!notifications || handlerConfigured) return;
 
   notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldSetBadge: false,
-    }),
+    handleNotification: async (notification) => {
+      const isRestCheckin =
+        notification.request.content.data?.type === "rest_checkin";
+      return {
+        shouldShowAlert: !isRestCheckin,
+        shouldPlaySound: !isRestCheckin,
+        shouldShowBanner: !isRestCheckin,
+        shouldShowList: !isRestCheckin,
+        shouldSetBadge: false,
+      };
+    },
   });
   handlerConfigured = true;
 }
@@ -83,6 +93,10 @@ export async function requestTimerNotificationPermission() {
     return requestWebPermission();
   }
   return initializeNotifications();
+}
+
+export function requestRestNotificationPermission() {
+  return requestTimerNotificationPermission();
 }
 
 export async function getNotificationPermissionStatus() {
@@ -139,6 +153,98 @@ export async function cancelTaskReminder(notificationId?: string | null) {
   if (!notifications) return;
   if (!notificationId) return;
   await notifications.cancelScheduledNotificationAsync(notificationId).catch(() => null);
+}
+
+const REST_NOTIFICATION_TITLE = "Rest time is over";
+const REST_NOTIFICATION_BODY =
+  "Your rest time is over. How are you feeling now? Tap to check in.";
+
+function toRestDate(restEndTime: Date | string | number) {
+  const date = restEndTime instanceof Date ? restEndTime : new Date(restEndTime);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** Schedules the post-rest check-in reminder and replaces any older one. */
+export async function scheduleRestEndNotification(
+  restEndTime: Date | string | number,
+): Promise<boolean> {
+  const end = toRestDate(restEndTime);
+  if (!end || end.getTime() <= Date.now()) return false;
+
+  if (Platform.OS === "web") {
+    if (!(await getNotificationPermissionStatus())) return false;
+    if (webRestNotificationId !== null) {
+      window.clearTimeout(webRestNotificationId);
+    }
+    const delayMs = Math.max(0, end.getTime() - Date.now());
+    webRestNotificationId = window.setTimeout(() => {
+      webRestNotificationId = null;
+      if (document.visibilityState === "visible") {
+        window.dispatchEvent(new CustomEvent("pomoji:rest-checkin"));
+      } else {
+        void webNotificationService.showNotification({
+          title: REST_NOTIFICATION_TITLE,
+          body: REST_NOTIFICATION_BODY,
+          tag: "pomoji-rest-checkin",
+          requireInteraction: true,
+          data: { type: "rest_checkin", url: "/rest" },
+        });
+      }
+    }, delayMs);
+    return true;
+  }
+
+  const notifications = getNotifications();
+  if (!notifications) return false;
+  const permissions = await notifications.getPermissionsAsync();
+  if (!permissions.granted) return false;
+
+  configureNotificationHandler();
+  await ensureAndroidNotificationChannel();
+  const scheduled = await notifications.getAllScheduledNotificationsAsync();
+  await Promise.all(
+    scheduled
+      .filter(({ content }) => content.data?.type === "rest_checkin")
+      .map(({ identifier }) =>
+        notifications.cancelScheduledNotificationAsync(identifier),
+      ),
+  );
+
+  await notifications.scheduleNotificationAsync({
+    content: {
+      title: REST_NOTIFICATION_TITLE,
+      body: REST_NOTIFICATION_BODY,
+      data: { type: "rest_checkin", url: "/rest" },
+      sound: "default",
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: end,
+      ...(Platform.OS === "android" ? { channelId: "rest" } : {}),
+    },
+  });
+  return true;
+}
+
+export async function cancelRestEndNotifications() {
+  if (Platform.OS === "web") {
+    if (webRestNotificationId !== null) {
+      window.clearTimeout(webRestNotificationId);
+      webRestNotificationId = null;
+    }
+    return;
+  }
+
+  const notifications = getNotifications();
+  if (!notifications) return;
+  const scheduled = await notifications.getAllScheduledNotificationsAsync();
+  await Promise.all(
+    scheduled
+      .filter(({ content }) => content.data?.type === "rest_checkin")
+      .map(({ identifier }) =>
+        notifications.cancelScheduledNotificationAsync(identifier),
+      ),
+  );
 }
 
 export async function scheduleSessionCompletionNotification(params: {

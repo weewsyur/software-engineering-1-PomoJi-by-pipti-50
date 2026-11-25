@@ -1471,7 +1471,7 @@ export default function TimerScreen() {
         <WarningModal
           visible={sessionFlow.offline}
           title="Connect to continue"
-          message={`We need to check today's readiness test before you can start. Please connect to the internet.${
+          message={`We need to check today's readiness test or rest status before you can start. Please connect to the internet.${
             sessionFlow.offlineError ? `\n\nDebug: ${sessionFlow.offlineError}` : ""
           }`}
           primaryLabel="OK"

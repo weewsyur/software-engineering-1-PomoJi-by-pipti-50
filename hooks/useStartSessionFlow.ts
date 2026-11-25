@@ -9,13 +9,14 @@ import { getLocalAssessment, syncPendingDass } from '@/services/dassOffline';
 import { getLocalDateString } from '@/utils/localDate';
 import { useSessionFlowStore } from '@/store/sessionFlowStore';
 import { isBlocked } from '@/utils/dass21Score';
+import { fetchRestGate } from '@/services/restService';
 
 /**
  * Call `start()` from the Focus screen's "Start session" button.
  * Checks today's DASS-21 status, then routes:
  *   no result today  -> /dass (intro -> consent -> test -> review -> result)
  *   passed           -> /before-session
- *   blocked          -> /dass (shows result + recommendations, no retake)
+ *   blocked          -> /rest (choose a rest period, then re-check)
  *   offline, no local result -> `offline` = true -> "connect to continue" modal
  *
  * Offline: pending local results are synced first; a locally completed check
@@ -46,7 +47,8 @@ export function useStartSessionFlow() {
         const blocked = isBlocked(storedSeverities(local));
         setDass(blocked ? 'blocked' : 'passed', local);
         setChecking(false);
-        router.push(blocked ? ROUTES.DASS : ROUTES.BEFORE_SESSION);
+        // A blocked result needs the backend rest period/check-in flow.
+        router.push(blocked ? ROUTES.REST : ROUTES.BEFORE_SESSION);
         return;
       }
       setChecking(false);
@@ -55,6 +57,30 @@ export function useStartSessionFlow() {
       setOffline(true);
       return;
     }
+
+    const restGate = await fetchRestGate(uid);
+    if (restGate.state === 'unavailable') {
+      setChecking(false);
+      setDass('unknown', null);
+      setOfflineError(__DEV__ && restGate.error ? `code: ${resolveDassError(restGate.error).code ?? 'unknown'}` : null);
+      setOffline(true);
+      return;
+    }
+
+    const dailyResult = res.state === 'exists' ? res.result : null;
+    if (restGate.state === 'passed') {
+      setChecking(false);
+      setDass('passed', restGate.checkin);
+      router.push(ROUTES.BEFORE_SESSION);
+      return;
+    }
+    if (restGate.state !== 'none') {
+      setChecking(false);
+      setDass('blocked', dailyResult);
+      router.push(ROUTES.REST);
+      return;
+    }
+
     setChecking(false);
     if (res.state === 'none') {
       setDass('unknown', null);
@@ -63,7 +89,7 @@ export function useStartSessionFlow() {
     }
     const blocked = isBlocked(storedSeverities(res.result));
     setDass(blocked ? 'blocked' : 'passed', res.result);
-    router.push(blocked ? ROUTES.DASS : ROUTES.BEFORE_SESSION);
+    router.push(blocked ? ROUTES.REST : ROUTES.BEFORE_SESSION);
   }, [router]);
 
   return { start, checking, offline, offlineError, dismissOffline: () => setOffline(false) };

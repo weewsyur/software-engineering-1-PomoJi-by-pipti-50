@@ -366,15 +366,7 @@ service cloud.firestore {
         severity == "extremely_severe";
     }
 
-    function validDassResult(userId, docId) {
-      let d = request.resource.data;
-      let keys = [
-        "user_id", "date",
-        "depression_raw_score", "anxiety_raw_score", "stress_raw_score",
-        "depression_score", "anxiety_score", "stress_score",
-        "depression_severity", "anxiety_severity", "stress_severity",
-        "responses", "questionnaire_version", "consent_given", "completedAt", "createdAt"
-      ];
+    function validDassCore(d) {
       let depressionRaw = d.responses[2] + d.responses[4] + d.responses[9] +
         d.responses[12] + d.responses[15] + d.responses[16] + d.responses[20];
       let anxietyRaw = d.responses[1] + d.responses[3] + d.responses[6] +
@@ -382,16 +374,12 @@ service cloud.firestore {
       let stressRaw = d.responses[0] + d.responses[5] + d.responses[7] +
         d.responses[10] + d.responses[11] + d.responses[13] + d.responses[17];
       // Response bounds and score equalities imply final scores are even integers in range.
-      return d.keys().hasOnly(keys) &&
-        d.keys().size() == keys.size() &&
-        d.user_id == userId &&
-        d.date is string &&
+      return d.date is string &&
         d.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
-        docId == d.date &&
+        dateNearCompletion(d.date, request.time) &&
         d.completedAt is timestamp &&
         d.completedAt >= request.time - duration.value(1, 'd') &&
         d.completedAt <= request.time + duration.value(1, 'd') &&
-        dateNearCompletion(d.date, request.time) &&
         validDassResponses(d.responses) &&
         d.depression_raw_score is int &&
         d.depression_raw_score == depressionRaw &&
@@ -409,8 +397,114 @@ service cloud.firestore {
         validAnxietySeverity(d.anxiety_score, d.anxiety_severity) &&
         validStressSeverity(d.stress_score, d.stress_severity) &&
         d.questionnaire_version is string && d.questionnaire_version.size() <= 20 &&
-        d.consent_given == true &&
+        d.consent_given == true;
+    }
+
+    function validDassResult(userId, docId) {
+      let d = request.resource.data;
+      let keys = [
+        "user_id", "date",
+        "depression_raw_score", "anxiety_raw_score", "stress_raw_score",
+        "depression_score", "anxiety_score", "stress_score",
+        "depression_severity", "anxiety_severity", "stress_severity",
+        "responses", "questionnaire_version", "consent_given", "completedAt", "createdAt"
+      ];
+      return d.keys().hasOnly(keys) &&
+        d.keys().size() == keys.size() &&
+        d.user_id == userId &&
+        docId == d.date &&
+        validDassCore(d) &&
         d.createdAt == request.time;
+    }
+
+    function validDassCheckin(userId, checkinId) {
+      let d = request.resource.data;
+      let keys = [
+        "user_id", "date",
+        "depression_raw_score", "anxiety_raw_score", "stress_raw_score",
+        "depression_score", "anxiety_score", "stress_score",
+        "depression_severity", "anxiety_severity", "stress_severity",
+        "responses", "questionnaire_version", "consent_given", "completedAt", "createdAt",
+        "rest_id", "source_assessment_date"
+      ];
+      return d.keys().hasOnly(keys) &&
+        d.keys().size() == keys.size() &&
+        d.user_id == userId &&
+        checkinId == d.rest_id &&
+        d.rest_id is string &&
+        d.rest_id.size() > 8 &&
+        d.rest_id.size() <= 80 &&
+        d.source_assessment_date is string &&
+        d.source_assessment_date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+        dateNearCompletion(d.source_assessment_date, request.time) &&
+        validDassCore(d) &&
+        validRestCheckinContext(userId, d.rest_id) &&
+        d.createdAt == request.time;
+    }
+
+    function validBlockedAssessment(userId, assessmentDate) {
+      let assessmentPath = /databases/$(database)/documents/users/$(userId)/dass21_assessments/$(assessmentDate);
+      return exists(assessmentPath) &&
+        (get(assessmentPath).data.depression_severity in ["severe", "extremely_severe"] ||
+        get(assessmentPath).data.anxiety_severity in ["severe", "extremely_severe"] ||
+        get(assessmentPath).data.stress_severity in ["severe", "extremely_severe"]);
+    }
+
+    function validRestPeriod(userId) {
+      let d = request.resource.data;
+      let keys = [
+        "user_id", "rest_id", "assessment_date", "duration_minutes",
+        "rest_end_time", "createdAt"
+      ];
+      return d.keys().hasOnly(keys) &&
+        d.keys().size() == keys.size() &&
+        d.user_id == userId &&
+        d.rest_id is string &&
+        d.rest_id.size() > 8 &&
+        d.rest_id.size() <= 80 &&
+        d.assessment_date is string &&
+        d.assessment_date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+        dateNearCompletion(d.assessment_date, request.time) &&
+        d.duration_minutes is int &&
+        d.duration_minutes in [60, 120, 180, 240] &&
+        d.rest_end_time is timestamp &&
+        d.rest_end_time > request.time &&
+        d.rest_end_time >= request.time + duration.value(d.duration_minutes - 2, 'm') &&
+        d.rest_end_time <= request.time + duration.value(d.duration_minutes + 2, 'm') &&
+        validBlockedAssessment(userId, d.assessment_date) &&
+        d.createdAt == request.time;
+    }
+
+    function validRestCheckinContext(userId, restId) {
+      let restPath = /databases/$(database)/documents/users/$(userId)/rest_periods/current;
+      return exists(restPath) &&
+        get(restPath).data.rest_id == restId &&
+        get(restPath).data.rest_end_time <= request.time;
+    }
+
+    function validPushToken(userId) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(["token", "platform", "created_at", "updated_at"]) &&
+        d.token is string &&
+        d.token.size() > 8 &&
+        d.token.size() <= 512 &&
+        d.platform in ["ios", "android"] &&
+        d.created_at is timestamp &&
+        (!("updated_at" in d) || d.updated_at is timestamp);
+    }
+
+    function validPushSubscription(userId) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(["endpoint", "keys", "created_at", "updated_at"]) &&
+        d.endpoint is string &&
+        d.endpoint.size() > 20 &&
+        d.endpoint.size() <= 2048 &&
+        d.keys.p256dh is string &&
+        d.keys.p256dh.size() > 0 &&
+        d.keys.auth is string &&
+        d.keys.auth.size() > 0 &&
+        d.created_at is timestamp &&
+        (!("updated_at" in d) || d.updated_at is timestamp);
     }
 
     match /users/{userId} {
@@ -432,6 +526,39 @@ service cloud.firestore {
           validDassResult(userId, docId);
         allow update: if false;
         allow delete: if false;
+      }
+
+      // Current rest period: users/{uid}/rest_periods/current. A new rest may
+      // replace the document only after the previous rest_end_time has passed.
+      match /rest_periods/{restId} {
+        allow get, list: if isOwner(userId);
+        allow create: if restId == "current" && isOwner(userId) &&
+          !exists(/databases/$(database)/documents/users/$(userId)/rest_periods/current) &&
+          validRestPeriod(userId);
+        allow update: if restId == "current" && isOwner(userId) &&
+          resource.data.rest_end_time <= request.time &&
+          validRestPeriod(userId);
+        allow delete: if isOwner(userId);
+      }
+
+      // Post-rest DASS-21 follow-ups: one immutable check-in per rest period.
+      match /dass_checkins/{checkinId} {
+        allow get, list: if isOwner(userId);
+        allow create: if hasDassConsent(userId) && isOwner(userId) &&
+          !exists(/databases/$(database)/documents/users/$(userId)/dass_checkins/$(checkinId)) &&
+          validDassCheckin(userId, checkinId);
+        allow update: if false;
+        allow delete: if isOwner(userId);
+      }
+
+      match /push_tokens/{tokenId} {
+        allow get, list, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validPushToken(userId);
+      }
+
+      match /push_subscriptions/{subscriptionId} {
+        allow get, list, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validPushSubscription(userId);
       }
 
       match /activities/{activityId} {

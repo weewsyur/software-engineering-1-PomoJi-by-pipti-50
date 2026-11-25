@@ -77,17 +77,20 @@ interface Props {
   /** true when the result is stored on-device only, awaiting server sync */
   pendingSync?: boolean;
   onContinue: () => void;
+  onChooseRest?: () => void;
   onHome: () => void;
 }
 
-export default function DassResultView({ result, blocked, pendingSync, onContinue, onHome }: Props) {
+export default function DassResultView({ result, blocked, pendingSync, onContinue, onChooseRest, onHome }: Props) {
   const { isDarkMode } = useTheme();
   const colors = useColors(isDarkMode);
   const sev = storedSeverities(result);
   const showSupport = (Object.values(sev) as DassSeverity[]).some((s) =>
     isAtOrAbove(s, DASS_SUPPORT_LINE_MIN_SEVERITY),
   );
-  const depressionHigh = isAtOrAbove(sev.depression, 'severe');
+  const needsExtraSupport = (Object.values(sev) as DassSeverity[]).some((s) =>
+    isAtOrAbove(s, 'severe'),
+  );
 
   return (
     <View className="flex-1 px-6 py-3">
@@ -131,10 +134,10 @@ export default function DassResultView({ result, blocked, pendingSync, onContinu
           </View>
         </View>
 
-        {depressionHigh ? (
+        {needsExtraSupport ? (
           <View className="mt-3 rounded-xl bg-primaryMuted dark:bg-primaryMutedDark p-3">
             <Text className="font-sans text-base leading-6 text-primary dark:text-primaryLightDark">
-              Feeling this low can be heavy. Please consider talking to a guidance counselor or someone you trust. You don’t have to handle it alone.
+              These results suggest you may be going through a very difficult time. Please be gentle with yourself, consider reaching out to someone you trust, and use the support options below if you need them.
             </Text>
           </View>
         ) : null}
@@ -159,16 +162,24 @@ export default function DassResultView({ result, blocked, pendingSync, onContinu
         ) : null}
       </ScrollView>
 
-      <View className="mt-3 flex-row justify-end">
+      <View className="mt-3 flex-row justify-end gap-3">
         {blocked ? (
-          // No retake button by design.
-          <Pressable
-            onPress={onHome}
-            accessibilityRole="button"
-            className="min-h-[52px] min-w-[160px] items-center justify-center rounded-xl bg-primary px-5"
-          >
-            <Text className="text-base font-semibold text-white">Back to Home</Text>
-          </Pressable>
+          <>
+            <Pressable
+              onPress={onHome}
+              accessibilityRole="button"
+              className="min-h-[52px] min-w-[120px] items-center justify-center rounded-xl border border-line bg-card px-5 dark:border-lineDark dark:bg-cardDark"
+            >
+              <Text className="text-base font-semibold text-ink2 dark:text-ink2Dark">Back to Home</Text>
+            </Pressable>
+            <Pressable
+              onPress={onChooseRest ?? onHome}
+              accessibilityRole="button"
+              className="min-h-[52px] min-w-[160px] items-center justify-center rounded-xl bg-primary px-5"
+            >
+              <Text className="text-base font-semibold text-white">Choose a rest period</Text>
+            </Pressable>
+          </>
         ) : (
           <Pressable
             onPress={onContinue}

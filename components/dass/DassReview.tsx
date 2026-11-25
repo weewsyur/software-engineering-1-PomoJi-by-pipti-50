@@ -11,10 +11,11 @@ interface Props {
   onChange: (index: number, value: number) => void;
   onSubmit: () => void;
   onExit: () => void;
+  helperText?: string;
 }
 
 /** Review step: change any answer before submitting, so a misclick can't lock in today's result. */
-export default function DassReview({ answers, submitting, error, errorRetryable = false, onRetryError, onChange, onSubmit, onExit }: Props) {
+export default function DassReview({ answers, submitting, error, errorRetryable = false, onRetryError, onChange, onSubmit, onExit, helperText }: Props) {
   const complete = answers.every((a) => a !== null);
   return (
     <View className="flex-1 px-6 py-3">
@@ -25,7 +26,7 @@ export default function DassReview({ answers, submitting, error, errorRetryable 
         </Pressable>
       </View>
       <Text className="font-sans text-sm text-ink2 dark:text-ink2Dark">
-        Review each response below. You can change any answer before submitting. You can only submit once today.
+        {helperText ?? 'Review each response below. You can change any answer before submitting. You can only submit once today.'}
       </Text>
 
       <ScrollView className="mt-2 flex-1">

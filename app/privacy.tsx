@@ -27,6 +27,11 @@ import {
   hasLocalConsent,
   markLocalConsent,
 } from '@/services/dassOffline';
+import {
+  deleteAllDassCheckins,
+  deleteCurrentRestPeriod,
+  fetchAllDassCheckins,
+} from '@/services/restService';
 
 type ConfirmAction = 'withdraw' | 'delete' | null;
 
@@ -135,9 +140,10 @@ export default function PrivacyScreen() {
     retryAction.current = () => void exportAssessments();
     setNotice(null);
     try {
-      const [accountRecords, localRecords] = await Promise.all([
+      const [accountRecords, localRecords, checkins] = await Promise.all([
         fetchAllDass(user.uid),
         getLocalAssessments(user.uid),
+        fetchAllDassCheckins(user.uid),
       ]);
       const byDate = new Map(localRecords.map((record) => [record.date, record]));
       accountRecords.forEach((record) => byDate.set(record.date, record));
@@ -147,6 +153,7 @@ export default function PrivacyScreen() {
           format: 'pomoji-dass21-export-v1',
           exportedAt: new Date().toISOString(),
           assessments,
+          restCheckins: checkins,
         },
         null,
         2,
@@ -187,7 +194,11 @@ export default function PrivacyScreen() {
     retryAction.current = () => void deleteAssessments();
     setNotice(null);
     try {
-      await deleteAllDass(user.uid);
+      await Promise.all([
+        deleteAllDass(user.uid),
+        deleteAllDassCheckins(user.uid),
+        deleteCurrentRestPeriod(user.uid),
+      ]);
     } catch (deleteError) {
       console.error('[privacy] unable to delete cloud assessment records:', deleteError);
       dassError.setError(deleteError);

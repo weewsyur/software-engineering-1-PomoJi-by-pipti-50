@@ -1,4 +1,12 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "rest_periods",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "rest_end_time", "order": "ASCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }

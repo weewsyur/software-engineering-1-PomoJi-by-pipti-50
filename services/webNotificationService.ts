@@ -75,7 +75,8 @@ class WebNotificationService {
 
       // Handle click
       notification.onclick = () => {
-        window.focus();
+        const target = typeof options.data?.url === 'string' ? options.data.url : '/';
+        window.location.href = target;
         notification.close();
       };
     } catch (error) {

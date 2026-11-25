@@ -182,6 +182,26 @@ self.addEventListener('message', (event) => {
   }
 });
 
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { body: event.data ? event.data.text() : '' };
+  }
+  const title = payload.title || 'PomoJI';
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: payload.body || '',
+      icon: '/icon-192x192.png',
+      badge: '/icon-192x192.png',
+      tag: payload.tag || 'pomoji-push',
+      requireInteraction: payload.requireInteraction !== false,
+      data: payload.data || {},
+    })
+  );
+});
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const targetUrl = new URL(

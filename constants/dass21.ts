@@ -150,7 +150,7 @@ export const DASS_STATUS_COPY = {
   emptyCta: 'Take readiness check',
   blockedHeadline: 'A lighter day: rest first',
   passedHeadline: "You're ready to focus",
-  blockedNote: 'Your check suggests taking it easy today. Sessions are paused until tomorrow’s check.',
+  blockedNote: 'Your check suggests taking it easy. Choose a rest period, then check in again when it ends.',
   passedNote: 'Today’s check is complete. This is a screening tool, not a diagnosis.',
   pausePointLabel: 'pause point',
   /** {threshold} is replaced with the gate severity label, e.g. "Severe". */
