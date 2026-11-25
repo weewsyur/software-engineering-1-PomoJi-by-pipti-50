@@ -42,16 +42,12 @@ import {
   scheduleTimerNotifications,
 } from "@/services/notificationService";
 import { createSessionCompleteNotification } from "@/services/notificationPersistence";
-import { db } from "@/services/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { soundService } from "@/services/soundService";
 import { shadowStyle } from "@/utils/shadowStyle";
-import MoodCheckInModal from "@/components/MoodCheckInModal";
-import { useMoodCheckIn } from "@/hooks/useMoodCheckIn";
 import { useStartSessionFlow } from "@/hooks/useStartSessionFlow";
 import WarningModal from "@/components/WarningModal";
 import {
-  getBeforeSessionPayload,
   selectFocusPlayAction,
   useSessionFlowStore,
 } from "@/store/sessionFlowStore";
@@ -101,8 +97,6 @@ export default function TimerScreen() {
   const { isDarkMode } = useTheme();
   const colors = useColors(isDarkMode);
   const { user } = useAuth();
-  const mood = useMoodCheckIn({ firestore: db, userId: user?.uid });
-  const { requestMoodCheckIn, visible: moodVisible } = mood;
   const router = useRouter();
   const sessionFlow = useStartSessionFlow();
   const focusPlayAction = useSessionFlowStore(selectFocusPlayAction);
@@ -425,7 +419,6 @@ export default function TimerScreen() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showTasks, setShowTasks] = useState(false);
   const [postActivityVisible, setPostActivityVisible] = useState(false);
-  const pendingActivityAfterMoodRef = useRef(false);
   const [postActivityDraft, setPostActivityDraft] = useState({
     title: "Focus Session",
     sessions: 0,
@@ -436,7 +429,6 @@ export default function TimerScreen() {
   const pendingSessionRef = useRef<{
     mode: TimerMode;
     durationSeconds: number;
-    beforePayload: ReturnType<typeof getBeforeSessionPayload>;
   } | null>(null);
   const sessionRecordingRef = useRef(false);
   const { createActivity } = useActivities();
@@ -508,14 +500,12 @@ export default function TimerScreen() {
         date: getLocalISODateTime(),
         durationMinutes: Math.max(1, Math.round(durationSeconds / 60)),
         mode: completedMode,
-        ...(completedMode === "focus" ? getBeforeSessionPayload() : {}),
       })
         .then((savedSessionId) => {
           if (!savedSessionId) {
             throw new Error("Unable to save the session. Please try again.");
           }
           useSessionFlowStore.getState().resetBeforeCheck();
-          requestMoodCheckIn(savedSessionId, completedMode);
         })
         .catch((error: unknown) => {
           console.error("Failed to save completed timer session:", error);
@@ -526,7 +516,7 @@ export default function TimerScreen() {
           Alert.alert("Session not recorded", message);
         });
     },
-    [createSession, requestMoodCheckIn],
+    [createSession],
   );
 
   const handleRecordSession = useCallback(async () => {
@@ -542,7 +532,6 @@ export default function TimerScreen() {
         date: getLocalISODateTime(),
         durationMinutes: Math.max(1, Math.round(pendingSession.durationSeconds / 60)),
         mode: pendingSession.mode,
-        ...pendingSession.beforePayload,
       });
 
       if (!savedSessionId) {
@@ -552,12 +541,7 @@ export default function TimerScreen() {
       useSessionFlowStore.getState().resetBeforeCheck();
       pendingSessionRef.current = null;
       setCanRecordSession(false);
-      const promptOpened = requestMoodCheckIn(savedSessionId, pendingSession.mode);
-      if (!promptOpened) {
-        setPostActivityVisible(true);
-      } else {
-        pendingActivityAfterMoodRef.current = true;
-      }
+      setPostActivityVisible(true);
     } catch (error: unknown) {
       console.error("Failed to record timer session:", error);
       const message =
@@ -569,13 +553,7 @@ export default function TimerScreen() {
       sessionRecordingRef.current = false;
       setIsRecordingSession(false);
     }
-  }, [createSession, requestMoodCheckIn]);
-
-  useEffect(() => {
-    if (moodVisible || !pendingActivityAfterMoodRef.current) return;
-    pendingActivityAfterMoodRef.current = false;
-    setPostActivityVisible(true);
-  }, [moodVisible]);
+  }, [createSession]);
 
   // ── Countdown tick ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -623,16 +601,12 @@ export default function TimerScreen() {
                 addTimeToTask(activeTaskRef.current.id, durationSeconds);
               }
 
-              // Updaters can run twice in StrictMode: only snapshot the
-              // before-check payload + reset the flag on the first pass.
+              // Updaters can run twice in StrictMode: snapshot once.
               if (!pendingSessionRef.current) {
                 pendingSessionRef.current = {
                   mode: "focus",
                   durationSeconds,
-                  beforePayload: getBeforeSessionPayload(),
                 };
-                // Session ended: the next session start needs a fresh check.
-                // The payload above keeps the check data for "Record Session".
                 useSessionFlowStore.getState().resetBeforeCheck();
               }
               sessionRecordingRef.current = false;
@@ -745,10 +719,9 @@ export default function TimerScreen() {
     ],
   );
 
-  // Auto-start after the before-session check navigates back here. The check
-  // screen passes a fresh ?autostart=<nonce> param per submission; each nonce
-  // is consumed at most once so later session starts can auto-start again.
-  // Only runs when both checks passed (selectReadyToStart).
+  // Auto-start after the DASS-21/rest gate routes here with ?autostart=<nonce>.
+  // Each nonce is consumed at most once so later session starts can auto-start
+  // again. Only runs when today's DASS check passed (selectReadyToStart).
   const consumedAutostartRef = useRef<string | null>(null);
   useEffect(() => {
     if (!autostart || autostart === consumedAutostartRef.current) return;
@@ -814,10 +787,8 @@ export default function TimerScreen() {
       pendingSessionRef.current = {
         mode: "focus",
         durationSeconds: elapsedSeconds,
-        beforePayload: getBeforeSessionPayload(),
       };
       setCanRecordSession(true);
-      // Session cancelled/reset: the next session start needs a fresh check.
       useSessionFlowStore.getState().resetBeforeCheck();
     }
     setTimeLeft(currentDurationMinutes * 60);
@@ -1457,15 +1428,6 @@ export default function TimerScreen() {
             )}
           </View>
         )}
-
-        {/* Mood check-in modal */}
-        <MoodCheckInModal
-          visible={mood.visible}
-          saving={mood.saving}
-          errorMessage={mood.error}
-          onSelect={mood.submit}
-          onSkip={mood.skip}
-        />
 
         {/* Offline gate: can't verify today's readiness check */}
         <WarningModal

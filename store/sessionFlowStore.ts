@@ -66,7 +66,7 @@ export const selectDassPassedToday = (s: SessionFlowState) =>
   s.dassStatus === 'passed' && s.dassDate === getLocalDateString();
 
 export const selectReadyToStart = (s: SessionFlowState) =>
-  selectDassPassedToday(s) && s.beforeCheckDone && s.beforeMood !== null && s.causeCategory !== null;
+  selectDassPassedToday(s);
 
 export type FocusPlayAction = 'start' | 'checks';
 

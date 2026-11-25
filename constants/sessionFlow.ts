@@ -6,7 +6,6 @@ export const ROUTES = {
   FOCUS: '/(tabs)/timer',     // Timer tab is also the Focus screen (holds Start)
   DASS: '/dass',              // app/dass.tsx
   REST: '/rest',              // app/rest.tsx
-  BEFORE_SESSION: '/before-session', // app/before-session.tsx
   DASS_HISTORY: '/dass-history', // app/dass-history.tsx
   // NOTE: TIMER is the same screen as FOCUS. The checks are enforced at the
   // action level (Start button / auto-start param), not by a route guard,

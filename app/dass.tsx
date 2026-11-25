@@ -301,7 +301,12 @@ export default function DassScreen() {
           result={stored}
           blocked={isBlocked(storedSeverities(stored))}
           pendingSync={pendingSync}
-          onContinue={() => router.replace(ROUTES.BEFORE_SESSION)}
+          onContinue={() =>
+            router.replace({
+              pathname: ROUTES.TIMER,
+              params: { autostart: String(Date.now()) },
+            } as never)
+          }
           onChooseRest={() => router.replace(ROUTES.REST)}
           onHome={() => router.replace(ROUTES.HOME)}
         />

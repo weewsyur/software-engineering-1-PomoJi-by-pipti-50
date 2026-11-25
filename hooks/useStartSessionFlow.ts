@@ -15,7 +15,7 @@ import { fetchRestGate } from '@/services/restService';
  * Call `start()` from the Focus screen's "Start session" button.
  * Checks today's DASS-21 status, then routes:
  *   no result today  -> /dass (intro -> consent -> test -> review -> result)
- *   passed           -> /before-session
+ *   passed           -> /(tabs)/timer with autostart
  *   blocked          -> /rest (choose a rest period, then re-check)
  *   offline, no local result -> `offline` = true -> "connect to continue" modal
  *
@@ -28,6 +28,13 @@ export function useStartSessionFlow() {
   const [offline, setOffline] = useState(false);
   const [offlineError, setOfflineError] = useState<string | null>(null);
 
+  const openTimer = useCallback(() => {
+    router.push({
+      pathname: ROUTES.TIMER,
+      params: { autostart: String(Date.now()) },
+    } as never);
+  }, [router]);
+
   const start = useCallback(async () => {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
@@ -38,7 +45,7 @@ export function useStartSessionFlow() {
     const res = await fetchTodayDass(uid);
 
     const { setDass, resetBeforeCheck } = useSessionFlowStore.getState();
-    resetBeforeCheck(); // every session needs a fresh "before" check
+    resetBeforeCheck(); // clear any stale pre-session fields
 
     if (res.state === 'unavailable') {
       // Offline: a locally completed check for today still gates correctly.
@@ -48,7 +55,11 @@ export function useStartSessionFlow() {
         setDass(blocked ? 'blocked' : 'passed', local);
         setChecking(false);
         // A blocked result needs the backend rest period/check-in flow.
-        router.push(blocked ? ROUTES.REST : ROUTES.BEFORE_SESSION);
+        if (blocked) {
+          router.push(ROUTES.REST);
+        } else {
+          openTimer();
+        }
         return;
       }
       setChecking(false);
@@ -71,7 +82,7 @@ export function useStartSessionFlow() {
     if (restGate.state === 'passed') {
       setChecking(false);
       setDass('passed', restGate.checkin);
-      router.push(ROUTES.BEFORE_SESSION);
+      openTimer();
       return;
     }
     if (restGate.state !== 'none') {
@@ -89,8 +100,12 @@ export function useStartSessionFlow() {
     }
     const blocked = isBlocked(storedSeverities(res.result));
     setDass(blocked ? 'blocked' : 'passed', res.result);
-    router.push(blocked ? ROUTES.REST : ROUTES.BEFORE_SESSION);
-  }, [router]);
+    if (blocked) {
+      router.push(ROUTES.REST);
+    } else {
+      openTimer();
+    }
+  }, [openTimer, router]);
 
   return { start, checking, offline, offlineError, dismissOffline: () => setOffline(false) };
 }

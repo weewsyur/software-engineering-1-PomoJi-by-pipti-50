@@ -379,7 +379,12 @@ export default function RestScreen() {
           result={result}
           blocked={resultBlocked}
           pendingSync={false}
-          onContinue={() => router.replace(ROUTES.BEFORE_SESSION)}
+          onContinue={() =>
+            router.replace({
+              pathname: ROUTES.TIMER,
+              params: { autostart: String(Date.now()) },
+            } as never)
+          }
           onChooseRest={() => {
             setError(null);
             setNotice(null);
