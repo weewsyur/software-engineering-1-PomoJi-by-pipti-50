@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pomoji-v1';
+const CACHE_NAME = 'pomoji-v2';
 const OFFLINE_PAGE = '/offline.html';
 
 // Files to cache on install
@@ -9,6 +9,11 @@ const CACHE_URLS = [
   '/manifest.json',
   '/icon-192x192.png',
   '/icon-512x512.png',
+  // Bricolage Grotesque — precached so the installed PWA renders the correct
+  // font on first launch, including fully offline.
+  '/fonts/bricolage-grotesque-vietnamese.woff2',
+  '/fonts/bricolage-grotesque-latin-ext.woff2',
+  '/fonts/bricolage-grotesque-latin.woff2',
 ];
 
 // Install event - cache static assets

@@ -51,6 +51,20 @@ if (fs.existsSync(offlineSource)) {
   console.warn('⚠ offline.html not found in public/');
 }
 
+// Copy font assets to dist so @font-face /fonts/*.woff2 URLs resolve
+const fontsSource = path.join(publicPath, 'fonts');
+const fontsDest = path.join(distPath, 'fonts');
+
+if (fs.existsSync(fontsSource)) {
+  fs.mkdirSync(fontsDest, { recursive: true });
+  for (const file of fs.readdirSync(fontsSource)) {
+    fs.copyFileSync(path.join(fontsSource, file), path.join(fontsDest, file));
+    console.log(`✓ Copied fonts/${file} to dist/`);
+  }
+} else {
+  console.warn('⚠ fonts directory not found in public/');
+}
+
 // Copy robots.txt to dist
 const robotsSource = path.join(publicPath, 'robots.txt');
 const robotsDest = path.join(distPath, 'robots.txt');

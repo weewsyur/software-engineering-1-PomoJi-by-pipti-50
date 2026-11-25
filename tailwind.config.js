@@ -6,17 +6,18 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        // Body: Figtree. `medium`/`semibold`/`bold` intentionally share names
-        // with Tailwind's weight utilities so font-medium etc. resolve to the
+        // Bricolage Grotesque is the only font family in the app. The
+        // `medium`/`semibold`/`bold`/etc. keys intentionally share names with
+        // Tailwind's weight utilities so font-medium etc. resolve to the
         // correct per-weight family on native (fontWeight alone is ignored
         // there) while staying correct on web.
-        sans: ["Figtree_400Regular", "sans-serif"],
-        medium: ["Figtree_500Medium", "sans-serif"],
-        semibold: ["Figtree_600SemiBold", "sans-serif"],
-        bold: ["Figtree_600SemiBold", "sans-serif"],
-        extrabold: ["Figtree_600SemiBold", "sans-serif"],
-        black: ["Figtree_600SemiBold", "sans-serif"],
-        // Display: Bricolage Grotesque — headings, card headlines, big numbers.
+        sans: ["BricolageGrotesque_400Regular", "sans-serif"],
+        medium: ["BricolageGrotesque_500Medium", "sans-serif"],
+        semibold: ["BricolageGrotesque_600SemiBold", "sans-serif"],
+        bold: ["BricolageGrotesque_700Bold", "sans-serif"],
+        extrabold: ["BricolageGrotesque_800ExtraBold", "sans-serif"],
+        black: ["BricolageGrotesque_800ExtraBold", "sans-serif"],
+        // Display aliases — same family, kept for existing class names.
         display: ["BricolageGrotesque_700Bold", "sans-serif"],
         "display-semibold": ["BricolageGrotesque_600SemiBold", "sans-serif"],
       },
