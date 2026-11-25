@@ -601,7 +601,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontSize: 10,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
     color: C.primary,
     textTransform: "uppercase",
     letterSpacing: 1.2,
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   heroSub: {
-    fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     fontSize: 13,
     color: C.roseLight,
     marginTop: 2,
@@ -639,7 +639,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   cardSub: {
-    fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     fontSize: 12,
     color: C.roseLight,
     marginBottom: 24,
@@ -651,7 +651,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 10,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
     color: C.primary,
     textTransform: "uppercase",
     letterSpacing: 0.9,
@@ -674,7 +674,7 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
-    fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     fontSize: 14,
     color: C.textDark,
     paddingVertical: 0,
@@ -687,7 +687,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   fieldErrorText: {
-    fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     fontSize: 11,
     color: C.error,
     marginTop: 5,
@@ -695,7 +695,7 @@ const styles = StyleSheet.create({
 
   // Error
   errorText: {
-    fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     fontSize: 11,
     color: C.error,
     textAlign: "center",
@@ -712,7 +712,7 @@ const styles = StyleSheet.create({
   },
   passwordRequirementText: {
     marginLeft: 7,
-    fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     fontSize: 11,
     color: C.requirementMuted,
   },
@@ -727,7 +727,7 @@ const styles = StyleSheet.create({
   },
   passwordMatchText: {
     marginLeft: 7,
-    fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     fontSize: 11,
   },
   passwordMatchTextMet: {
@@ -749,7 +749,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: C.white,
     fontSize: 12,
-    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold",
     letterSpacing: 0.5,
   },
   primaryButtonDisabled: {
@@ -762,12 +762,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   switchText: {
-    fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     fontSize: 12,
     color: C.textMuted,
   },
   switchLink: {
     color: C.primary,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
   },
 });

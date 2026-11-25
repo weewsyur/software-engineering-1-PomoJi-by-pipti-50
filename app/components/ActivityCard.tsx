@@ -85,19 +85,19 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 14,
-    fontWeight: '700', fontFamily: "Figtree_600SemiBold",
+    fontWeight: '700', fontFamily: "BricolageGrotesque_700Bold",
     color: Colors.text,
     letterSpacing: 0.1,
   },
   timestamp: {
-    fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     fontSize: 11,
     color: Colors.textMuted,
     marginTop: 1,
   },
   title: {
     fontSize: 17,
-    fontWeight: '800', fontFamily: "Figtree_600SemiBold",
+    fontWeight: '800', fontFamily: "BricolageGrotesque_800ExtraBold",
     color: Colors.text,
     letterSpacing: 0.3,
     marginBottom: 12,
@@ -118,11 +118,11 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 11,
     color: Colors.textMuted,
-    fontWeight: '500', fontFamily: "Figtree_500Medium",
+    fontWeight: '500', fontFamily: "BricolageGrotesque_500Medium",
   },
   statValue: {
     fontSize: 20,
-    fontWeight: '800', fontFamily: "BricolageGrotesque_700Bold",
+    fontWeight: '800', fontFamily: "BricolageGrotesque_800ExtraBold",
     color: Colors.text,
     letterSpacing: -0.5,
   },

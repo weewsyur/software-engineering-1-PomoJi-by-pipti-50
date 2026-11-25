@@ -1605,12 +1605,12 @@ const styles = StyleSheet.create({
   quoteText: {
     fontSize: 22,
     lineHeight: 32,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
     textAlign: "center",
   },
   quoteHint: {
     marginTop: 18,
-    fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     fontSize: 13,
   },
   header: {
@@ -1629,25 +1629,25 @@ const styles = StyleSheet.create({
   settingsToggle: { padding: 4 },
   headerLabel: {
     fontSize: 10,
-    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold",
     letterSpacing: 2,
     color: Colors.textMuted,
     textTransform: "uppercase",
   },
   settingsCard: { marginHorizontal: 16, marginBottom: 16 },
-  settingsTitle: { fontSize: 14, fontWeight: "700", fontFamily: "Figtree_600SemiBold", marginBottom: 12 },
+  settingsTitle: { fontSize: 14, fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold", marginBottom: 12 },
   settingsFields: { flexDirection: "row", gap: 12 },
   settingsField: { flex: 1, gap: 6 },
-  settingsLabel: { fontSize: 11, fontWeight: "600", fontFamily: "Figtree_600SemiBold" },
+  settingsLabel: { fontSize: 11, fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold" },
   durationInput: {
     borderWidth: 1,
     borderRadius: 8,
     minHeight: 40,
     paddingHorizontal: 10,
     fontSize: 15,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
   },
-  durationError: { color: "#C94C3C", fontFamily: "Figtree_400Regular", fontSize: 12, marginTop: 8 },
+  durationError: { color: "#C94C3C", fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular", fontSize: 12, marginTop: 8 },
   saveDurationsButton: {
     alignSelf: "flex-end",
     borderRadius: 8,
@@ -1655,7 +1655,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     marginTop: 12,
   },
-  saveDurationsText: { fontSize: 12, fontWeight: "700", fontFamily: "Figtree_600SemiBold" },
+  saveDurationsText: { fontSize: 12, fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold" },
   tasksToggle: { position: "relative", padding: 4 },
   badge: {
     position: "absolute",
@@ -1669,7 +1669,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     zIndex: 1,
   },
-  badgeText: { fontSize: 9, fontWeight: "800", fontFamily: "Figtree_600SemiBold", color: "#fff" },
+  badgeText: { fontSize: 9, fontWeight: "800", fontFamily: "BricolageGrotesque_800ExtraBold", color: "#fff" },
   modeRow: {
     flexDirection: "row",
     marginHorizontal: 16,
@@ -1685,7 +1685,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
   },
   modeBtnActive: { backgroundColor: Colors.primary },
-  modeBtnText: { fontSize: 12, fontWeight: "600", fontFamily: "Figtree_600SemiBold", color: Colors.textMuted },
+  modeBtnText: { fontSize: 12, fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold", color: Colors.textMuted },
   modeBtnTextActive: { color: Colors.surface },
   timerContainer: { alignItems: "center", marginBottom: 36 },
   timerCircle: {
@@ -1698,7 +1698,7 @@ const styles = StyleSheet.create({
   },
   timeText: {
     fontSize: 52,
-    fontWeight: "800", fontFamily: "BricolageGrotesque_700Bold",
+    fontWeight: "800", fontFamily: "BricolageGrotesque_800ExtraBold",
     fontVariant: ["tabular-nums"],
     color: Colors.text,
     letterSpacing: -2,
@@ -1706,7 +1706,7 @@ const styles = StyleSheet.create({
   modeLabel: {
     fontSize: 13,
     color: Colors.textMuted,
-    fontWeight: "500", fontFamily: "Figtree_500Medium",
+    fontWeight: "500", fontFamily: "BricolageGrotesque_500Medium",
     marginTop: 4,
   },
   controls: {
@@ -1732,7 +1732,7 @@ const styles = StyleSheet.create({
   },
   recordSessionBtnText: {
     fontSize: 13,
-    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold",
     color: Colors.surface,
   },
   resetBtn: {
@@ -1764,16 +1764,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  sessionCount: { fontSize: 16, fontWeight: "800", fontFamily: "Figtree_600SemiBold", color: Colors.text },
-  sessionLabel: { fontSize: 9, color: Colors.textMuted, fontWeight: "500", fontFamily: "Figtree_500Medium" },
+  sessionCount: { fontSize: 16, fontWeight: "800", fontFamily: "BricolageGrotesque_800ExtraBold", color: Colors.text },
+  sessionLabel: { fontSize: 9, color: Colors.textMuted, fontWeight: "500", fontFamily: "BricolageGrotesque_500Medium" },
   infoCard: { marginHorizontal: 16 },
   infoRow: { flexDirection: "row", alignItems: "center" },
   infoBlock: { flex: 1, alignItems: "center", gap: 4 },
   infoDivider: { width: 1, height: 32, backgroundColor: Colors.border },
-  infoLabel: { fontSize: 11, color: Colors.textMuted, fontWeight: "500", fontFamily: "Figtree_500Medium" },
+  infoLabel: { fontSize: 11, color: Colors.textMuted, fontWeight: "500", fontFamily: "BricolageGrotesque_500Medium" },
   infoValue: {
     fontSize: 22,
-    fontWeight: "800", fontFamily: "BricolageGrotesque_700Bold",
+    fontWeight: "800", fontFamily: "BricolageGrotesque_800ExtraBold",
     fontVariant: ["tabular-nums"],
     color: Colors.text,
     letterSpacing: -0.5,
@@ -1783,7 +1783,7 @@ const styles = StyleSheet.create({
   activeTaskLabel: {
     fontSize: 10,
     color: Colors.textMuted,
-    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold",
     letterSpacing: 1,
     textTransform: "uppercase",
     marginBottom: 10,
@@ -1800,15 +1800,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   activeTaskTextWrap: { flex: 1, marginRight: 8 },
-  activeTaskTitle: { fontSize: 14, fontWeight: "700", fontFamily: "Figtree_600SemiBold", color: Colors.text },
-  activeTaskHint: { fontFamily: "Figtree_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  activeTaskTitle: { fontSize: 14, fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold", color: Colors.text },
+  activeTaskHint: { fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
   taskHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 8,
   },
-  taskTitle: { fontSize: 14, fontWeight: "800", fontFamily: "Figtree_600SemiBold", color: Colors.text },
+  taskTitle: { fontSize: 14, fontWeight: "800", fontFamily: "BricolageGrotesque_800ExtraBold", color: Colors.text },
   addBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -1818,7 +1818,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  addBtnText: { fontSize: 12, fontWeight: "700", fontFamily: "Figtree_600SemiBold", color: "#fff" },
+  addBtnText: { fontSize: 12, fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold", color: "#fff" },
   emptyState: { alignItems: "center", paddingVertical: 20, gap: 8 },
-  emptyText: { fontSize: 13, color: "#C4A8A8", fontWeight: "500", fontFamily: "Figtree_500Medium" },
+  emptyText: { fontSize: 13, color: "#C4A8A8", fontWeight: "500", fontFamily: "BricolageGrotesque_500Medium" },
 });

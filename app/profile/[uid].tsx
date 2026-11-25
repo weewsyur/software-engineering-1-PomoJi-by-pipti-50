@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   },
   headerLabel: {
     fontSize: 10,
-    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold",
     letterSpacing: 2,
     color: Colors.textMuted,
     textTransform: "uppercase",
@@ -217,13 +217,13 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 24,
-    fontWeight: "800", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "800", fontFamily: "BricolageGrotesque_800ExtraBold",
     color: Colors.avatarText,
   },
   name: {
     marginTop: 10,
     fontSize: 20,
-    fontWeight: "800", fontFamily: "BricolageGrotesque_700Bold",
+    fontWeight: "800", fontFamily: "BricolageGrotesque_800ExtraBold",
     color: Colors.text,
   },
   countsRow: {
@@ -242,12 +242,12 @@ const styles = StyleSheet.create({
   },
   countValue: {
     fontSize: 18,
-    fontWeight: "800", fontFamily: "BricolageGrotesque_700Bold",
+    fontWeight: "800", fontFamily: "BricolageGrotesque_800ExtraBold",
     color: Colors.text,
   },
   countLabel: {
     fontSize: 10,
-    fontWeight: "500", fontFamily: "Figtree_500Medium",
+    fontWeight: "500", fontFamily: "BricolageGrotesque_500Medium",
     color: Colors.textMuted,
   },
   countDivider: {
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   },
   followBtnText: {
     fontSize: 12,
-    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold",
     color: Colors.surface,
   },
 });

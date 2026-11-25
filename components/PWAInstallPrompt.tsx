@@ -119,14 +119,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
-    fontWeight: '600', fontFamily: "Figtree_600SemiBold",
+    fontWeight: '600', fontFamily: "BricolageGrotesque_600SemiBold",
     color: '#1f2937',
   },
   closeBtn: {
     padding: 4,
   },
   description: {
-    fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     fontSize: 14,
     color: '#6b7280',
     marginBottom: 16,
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   btnTextPrimary: {
     color: 'white',
     fontSize: 14,
-    fontWeight: '600', fontFamily: "Figtree_600SemiBold",
+    fontWeight: '600', fontFamily: "BricolageGrotesque_600SemiBold",
   },
   btnSecondary: {
     flex: 1,
@@ -158,6 +158,6 @@ const styles = StyleSheet.create({
   btnTextSecondary: {
     color: '#1f2937',
     fontSize: 14,
-    fontWeight: '600', fontFamily: "Figtree_600SemiBold",
+    fontWeight: '600', fontFamily: "BricolageGrotesque_600SemiBold",
   },
 });

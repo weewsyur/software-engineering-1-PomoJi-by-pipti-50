@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
   headerLabel: {
     fontSize: 10,
-    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold",
     letterSpacing: 2,
     color: Colors.textMuted,
     textTransform: "uppercase",
@@ -677,7 +677,7 @@ const styles = StyleSheet.create({
   },
   viewToggleText: {
     fontSize: 12,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
     color: Colors.textMuted,
   },
   viewToggleTextActive: {
@@ -691,14 +691,14 @@ const styles = StyleSheet.create({
   statDivider: { width: 1, height: 36, backgroundColor: Colors.border },
   statValue: {
     fontSize: 19,
-    fontWeight: "800", fontFamily: "BricolageGrotesque_700Bold",
+    fontWeight: "800", fontFamily: "BricolageGrotesque_800ExtraBold",
     color: Colors.text,
     letterSpacing: -0.4,
   },
   statLabel: {
     fontSize: 11,
     color: Colors.textMuted,
-    fontWeight: "500", fontFamily: "Figtree_500Medium",
+    fontWeight: "500", fontFamily: "BricolageGrotesque_500Medium",
     textAlign: "center",
   },
 
@@ -710,10 +710,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
-  cardTitle: { fontSize: 13, fontWeight: "700", fontFamily: "Figtree_600SemiBold", color: Colors.text },
+  cardTitle: { fontSize: 13, fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold", color: Colors.text },
   chartUnit: {
     fontSize: 11,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
     color: Colors.textMuted,
     textTransform: "uppercase",
   },
@@ -727,7 +727,7 @@ const styles = StyleSheet.create({
   xLabel: {
     fontSize: 10,
     color: Colors.textMuted,
-    fontWeight: "500", fontFamily: "Figtree_500Medium",
+    fontWeight: "500", fontFamily: "BricolageGrotesque_500Medium",
   },
 
   // History
@@ -742,12 +742,12 @@ const styles = StyleSheet.create({
   taskBarTitle: {
     flex: 1,
     fontSize: 13,
-    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold",
     color: Colors.text,
   },
-  taskBarMeta: { fontSize: 11, color: Colors.textMuted, fontWeight: "500", fontFamily: "Figtree_500Medium" },
-  historyTitle: { fontSize: 13, fontWeight: "700", fontFamily: "Figtree_600SemiBold", color: Colors.text },
-  historyDate: { fontFamily: "Figtree_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  taskBarMeta: { fontSize: 11, color: Colors.textMuted, fontWeight: "500", fontFamily: "BricolageGrotesque_500Medium" },
+  historyTitle: { fontSize: 13, fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold", color: Colors.text },
+  historyDate: { fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
   activityItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -760,9 +760,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.primary,
     marginTop: 6,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
   },
-  sessionMood: { fontSize: 13, fontWeight: "600", fontFamily: "Figtree_600SemiBold" },
+  sessionMood: { fontSize: 13, fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold" },
   activityImage: {
     width: 52,
     height: 52,
@@ -775,5 +775,5 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   emptyCard: { alignItems: "center", paddingVertical: 24 },
-  emptyText: { fontSize: 13, color: "#C4A8A8", fontWeight: "500", fontFamily: "Figtree_500Medium" },
+  emptyText: { fontSize: 13, color: "#C4A8A8", fontWeight: "500", fontFamily: "BricolageGrotesque_500Medium" },
 });

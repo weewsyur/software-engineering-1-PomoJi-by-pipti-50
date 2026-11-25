@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
   content: { flex: 1, padding: 20, justifyContent: "center", gap: 20 },
   title: { fontSize: 24, fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold" },
   card: { borderWidth: 1, borderRadius: 20, padding: 20, gap: 16 },
-  message: { fontFamily: "Figtree_400Regular", fontSize: 16, lineHeight: 24 },
+  message: { fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular", fontSize: 16, lineHeight: 24 },
   button: { borderRadius: 12, paddingVertical: 14, alignItems: "center" },
-  buttonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700", fontFamily: "Figtree_600SemiBold" },
+  buttonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold" },
 });

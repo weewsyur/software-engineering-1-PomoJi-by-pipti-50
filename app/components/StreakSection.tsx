@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   },
   monthLabel: {
     fontSize: 17,
-    fontWeight: "800", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "800", fontFamily: "BricolageGrotesque_800ExtraBold",
     color: Colors.text,
     letterSpacing: -0.3,
   },
@@ -194,13 +194,13 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   shareIcon: {
-    fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     fontSize: 12,
     color: Colors.textMuted,
   },
   shareText: {
     fontSize: 13,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
     color: Colors.text,
   },
   statsRow: {
@@ -214,18 +214,18 @@ const styles = StyleSheet.create({
   statCaption: {
     fontSize: 11,
     color: Colors.textMuted,
-    fontWeight: "500", fontFamily: "Figtree_500Medium",
+    fontWeight: "500", fontFamily: "BricolageGrotesque_500Medium",
   },
   statValue: {
     fontSize: 18,
-    fontWeight: "800", fontFamily: "BricolageGrotesque_700Bold",
+    fontWeight: "800", fontFamily: "BricolageGrotesque_800ExtraBold",
     color: Colors.text,
     letterSpacing: -0.3,
   },
   errorText: {
     fontSize: 12,
     color: Colors.primary,
-    fontWeight: "500", fontFamily: "Figtree_500Medium",
+    fontWeight: "500", fontFamily: "BricolageGrotesque_500Medium",
     marginVertical: 12,
   },
   calendarContainer: {
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   },
   dowLabel: {
     fontSize: 11,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
     color: Colors.textMuted,
     letterSpacing: 0.2,
   },
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   },
   dayNumber: {
     fontSize: 11,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
     color: Colors.text,
   },
   dayNumberFilled: {
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   },
   dayNumberToday: {
     color: Colors.text,
-    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold",
   },
   dayNumberFuture: {
     color: Colors.textMuted,
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   outOfMonthText: {
     fontSize: 11,
     color: Colors.textMuted,
-    fontWeight: "400", fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     lineHeight: CIRCLE_SIZE,
   },
 });

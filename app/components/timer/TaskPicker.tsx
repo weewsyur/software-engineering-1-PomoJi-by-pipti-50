@@ -108,7 +108,7 @@ const pickerStyles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 10,
   },
-  title: { fontSize: 16, fontWeight: "800", fontFamily: "Figtree_600SemiBold", color: Colors.text },
+  title: { fontSize: 16, fontWeight: "800", fontFamily: "BricolageGrotesque_800ExtraBold", color: Colors.text },
   list: { marginTop: 6, flex: 1 },
   item: {
     borderRadius: 12,
@@ -123,6 +123,6 @@ const pickerStyles = StyleSheet.create({
     borderColor: Colors.primary,
     backgroundColor: Colors.primary + "14",
   },
-  itemTitle: { fontSize: 14, fontWeight: "700", fontFamily: "Figtree_600SemiBold", color: Colors.text },
-  itemMeta: { fontFamily: "Figtree_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  itemTitle: { fontSize: 14, fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold", color: Colors.text },
+  itemMeta: { fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
 });

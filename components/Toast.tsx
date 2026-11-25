@@ -330,17 +330,17 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 14,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
     lineHeight: 19,
   },
   text: {
     fontSize: 14,
-    fontWeight: "500", fontFamily: "Figtree_500Medium",
+    fontWeight: "500", fontFamily: "BricolageGrotesque_500Medium",
     lineHeight: 20,
   },
   description: {
     fontSize: 13,
-    fontWeight: "400", fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     lineHeight: 18,
   },
   dismissButton: {

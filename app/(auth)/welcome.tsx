@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   welcomeSub: {
-    fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     fontSize: 14,
     color: COLORS.textLight,
     marginBottom: 48,
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     ...shadowStyle(COLORS.primary, 0, 6, 12, 0.35, 6),
   },
   pillButtonOutline: { backgroundColor: "transparent" },
-  pillButtonText: { fontSize: 14, fontWeight: "700", fontFamily: "Figtree_600SemiBold", letterSpacing: 0.5 },
+  pillButtonText: { fontSize: 14, fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold", letterSpacing: 0.5 },
   textPrimary: { color: COLORS.white },
   textOutline: { color: COLORS.primary },
 });

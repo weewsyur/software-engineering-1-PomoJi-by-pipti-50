@@ -6,14 +6,12 @@ import { useEffect, useState } from "react";
 import { Image, Platform, StyleSheet, Text, TextInput, View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import {
+  BricolageGrotesque_400Regular,
+  BricolageGrotesque_500Medium,
   BricolageGrotesque_600SemiBold,
   BricolageGrotesque_700Bold,
+  BricolageGrotesque_800ExtraBold,
 } from "@expo-google-fonts/bricolage-grotesque";
-import {
-  Figtree_400Regular,
-  Figtree_500Medium,
-  Figtree_600SemiBold,
-} from "@expo-google-fonts/figtree";
 import { useFonts } from "expo-font";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
@@ -116,11 +114,11 @@ const FONT_FALLBACK_MS = 3000;
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
+    BricolageGrotesque_400Regular,
+    BricolageGrotesque_500Medium,
     BricolageGrotesque_600SemiBold,
     BricolageGrotesque_700Bold,
-    Figtree_400Regular,
-    Figtree_500Medium,
-    Figtree_600SemiBold,
+    BricolageGrotesque_800ExtraBold,
   });
   // Never block the app forever: fall back to system fonts on error or timeout.
   const [fontTimedOut, setFontTimedOut] = useState(false);
@@ -136,7 +134,7 @@ export default function RootLayout() {
     return () => clearTimeout(timer);
   }, [fontsLoaded, fontError]);
 
-  // Apply a global default Text style to use Figtree when fonts are ready.
+  // Apply a global default Text style to use Bricolage Grotesque when fonts are ready.
   useEffect(() => {
     if (!fontsReady) return;
     try {
@@ -146,23 +144,23 @@ export default function RootLayout() {
       // Prefer the bundled font family names; harmless if fonts failed to load.
       textComponent.defaultProps.style = {
         ...(textComponent.defaultProps.style || {}),
-        fontFamily: "Figtree_400Regular",
+        fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
       };
       const inputComponent = TextInput as any;
       inputComponent.defaultProps = inputComponent.defaultProps || {};
       inputComponent.defaultProps.style = {
         ...(inputComponent.defaultProps.style || {}),
-        fontFamily: "Figtree_400Regular",
+        fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
       };
     } catch {
       // Silently fail if can't set Text defaults
     }
 
-    // Also set a web body font-family for web platform to use the Figtree face
+    // Also set a web body font-family for web platform to use the Bricolage face
     if (typeof document !== "undefined" && Platform.OS === "web") {
       try {
         document.body.style.fontFamily =
-          "'Figtree_400Regular', 'Figtree', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial";
+          "'BricolageGrotesque_400Regular', 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial";
       } catch {
         /* ignore */
       }

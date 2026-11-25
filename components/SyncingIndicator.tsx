@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   text: {
     color: 'white',
     fontSize: 14,
-    fontWeight: '500', fontFamily: "Figtree_500Medium",
+    fontWeight: '500', fontFamily: "BricolageGrotesque_500Medium",
     flex: 1,
   },
 });

@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   },
   deleteButtonText: {
     fontSize: 16,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
     color: "#C94C3C",
   },
   content: {
@@ -244,12 +244,12 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: "800", fontFamily: "BricolageGrotesque_700Bold",
+    fontWeight: "800", fontFamily: "BricolageGrotesque_800ExtraBold",
     color: Colors.text,
     marginBottom: 8,
   },
   date: {
-    fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     fontSize: 14,
     color: Colors.textMuted,
     marginBottom: 24,
@@ -273,11 +273,11 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 20,
-    fontWeight: "800", fontFamily: "BricolageGrotesque_700Bold",
+    fontWeight: "800", fontFamily: "BricolageGrotesque_800ExtraBold",
     color: Colors.text,
   },
   statLabel: {
-    fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     fontSize: 12,
     color: Colors.textMuted,
     marginTop: 4,
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: 13,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
     color: Colors.primary,
   },
   descriptionSection: {
@@ -300,12 +300,12 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 13,
-    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold",
     color: Colors.textMuted,
     marginBottom: 8,
   },
   description: {
-    fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     fontSize: 15,
     color: Colors.text,
     lineHeight: 22,
@@ -355,7 +355,7 @@ const deleteModalStyles = StyleSheet.create({
     padding: 4,
   },
   message: {
-    fontFamily: "Figtree_400Regular",
+    fontWeight: "400", fontFamily: "BricolageGrotesque_400Regular",
     fontSize: 14,
     color: "#1A0808",
     lineHeight: 20,
@@ -375,7 +375,7 @@ const deleteModalStyles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 14,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
     color: "#9A7070",
   },
   deleteButton: {
@@ -388,7 +388,7 @@ const deleteModalStyles = StyleSheet.create({
   },
   deleteButtonText: {
     fontSize: 14,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
     color: "#FFFFFF",
   },
 });

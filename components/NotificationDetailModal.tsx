@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: 14,
-    fontWeight: "500", fontFamily: "Figtree_500Medium",
+    fontWeight: "500", fontFamily: "BricolageGrotesque_500Medium",
     lineHeight: 20,
     marginBottom: 20,
   },
@@ -385,17 +385,17 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 12,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   detailValue: {
     fontSize: 14,
-    fontWeight: "600", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "600", fontFamily: "BricolageGrotesque_600SemiBold",
   },
   timestamp: {
     fontSize: 12,
-    fontWeight: "500", fontFamily: "Figtree_500Medium",
+    fontWeight: "500", fontFamily: "BricolageGrotesque_500Medium",
     textAlign: "center",
     marginTop: 12,
   },
@@ -407,6 +407,6 @@ const styles = StyleSheet.create({
   },
   actionBtnText: {
     fontSize: 14,
-    fontWeight: "700", fontFamily: "Figtree_600SemiBold",
+    fontWeight: "700", fontFamily: "BricolageGrotesque_700Bold",
   },
 });
